@@ -1,0 +1,33 @@
+#! /usr/bin/env python3
+
+import sys, os, re, configparser
+import subprocess, glob
+from metadataDict import sourceElements, pathElements, siteElements, code, codeVersion
+ 
+def loopOneDict(modelName, dictName):
+    for key in dictName:
+        print('For '+key+', options include :', dictName[key])
+        userDefined = input('Please type: ')
+        if userDefined in dictName[key]:
+            modelName += '%'+key+':'+userDefined
+        else:
+            sys.exit(userDefined+' is not in the list; please retry.')
+    return modelName
+
+def modelMetadataWriter():
+    modelName = ''
+    for dictName in [sourceElements, pathElements, siteElements, 
+                        code, codeVersion]:
+        modelName = loopOneDict(modelName, dictName) 
+        
+    print('Full model name is ', modelName)
+    print('Writing model name to file modelMetadata.txt')
+    with open('modelMetadata.txt','a') as f:
+        f.write(modelName+ '\n')
+    
+def _main_func(description):
+    modelMetadataWriter()
+
+if __name__ == "__main__":
+    _main_func(__doc__)
+
