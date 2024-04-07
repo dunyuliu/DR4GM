@@ -1,0 +1,44 @@
+#! /usr/bin/env python3
+"""
+# gmProcessor is part of EQdyna. 
+# It processes the raw GM data from EQdyna to GM metrics.
+"""
+import sys, os
+import numpy as np
+from gmFuncLib import parametersForGM, removeDuplicates, loadStLocForOneChunk, \
+    buildStLocIndex, getNearestStLocAndChunkId, extractVel, plotAndSaveTimeseries, \
+    velToAcc, calcGMMetricsFromAccForOneSt, getGMMetricsForOneSt, plotAndSaveGMMetricsContours, \
+    saveGMMetricsValues, getGMMetricsFor2DMap
+
+def gmProcessor():
+    
+    def Error_Message():
+        print( " ")
+        print( "Usage: gmProcessor region_cut[0/10600/0/27648]")  
+        
+    print('GM PROCESSOR - START ... ...')
+    n = len(sys.argv)
+    #if n!=2:
+    #    print('FILTER: Wrong # of input arguments; # should be 1 ... ...')
+    #    Error_Message()
+    if os.path.isfile('gmStLocIndex.txt')==False:
+        stLocIndex = buildStLocIndex(1000)
+    else:
+        stLocIndex = np.loadtxt('gmStLocIndex.txt')
+        
+    # test a single station
+    gmPar = parametersForGM()
+    stLoc = np.array([20e3, -20e3, 0])
+    gmPar.plotTimeseries=True
+    gm0 = getGMMetricsForOneSt(stLoc, stLocIndex, gmPar)
+    
+    gmPar = parametersForGM()
+    getGMMetricsFor2DMap([-40e3, 40e3], [-20e3, 20e3], 2e3, stLocIndex, gmPar)
+    print("GM PROCESSOR - END ... ...")
+
+def _main_func(description):
+    gmProcessor()
+
+if __name__ == "__main__":
+    _main_func(__doc__)
+
