@@ -13,10 +13,14 @@ class parametersForGM():
     numOfTimeStep = round(T/dt)
     g = 9.8
     gmMetricsKeys = ['PGA', 'PGV', 'PGD', 'CAV']
-    periods = np.array([0.100, 0.125, 0.25, 0.4, 0.5, 0.75, 1, 1.5, 2, 2.5, 5])
+    stInfoKeys = ['Rjb', 'x', 'y']
+    periods = np.array([0.100, 0.125, 0.25, 0.4, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5])
     periodsKeys = [f'T_{period:.3f}' for period in periods]
     totalGMMetricsKeys = gmMetricsKeys + periodsKeys
     plotTimeseries = False
+    faultType = 'strike'
+    faultXmin = -20e3
+    faultXmax = 20e3
     
 def removeDuplicates(stLocIndex):
     uniqueData, uniqueId = np.unique(stLocIndex[:,:3], 
@@ -153,16 +157,22 @@ def calcGMMetricsFromAccForOneSt(accx, accy, par):
     
 def plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par):
     for key in par.totalGMMetricsKeys:
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(16, 12))
+        fontsize = 16
         plt.contourf(xx, yy, gmMetricsValues[key], levels=20, cmap='viridis')
-        plt.colorbar(label=key)
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.title(f'{key}')
+        cb = plt.colorbar(label=key)
+        cb.ax.tick_params(labelsize=fontsize)
+        cb.ax.yaxis.offsetText.set_fontsize(fontsize)
+        cb.set_label(key, fontsize=fontsize)
+        plt.xlabel('X', fontsize=fontsize, fontweight='bold')
+        plt.ylabel('Y', fontsize=fontsize, fontweight='bold')
+        #plt.title(f'{key}', fontsize=16, fontweight='bold')
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
         plt.savefig(f'gmContour{key}.png')
 
-def saveGMMetricsValues(gmMetricsValues):
-    np.savez('gmMetricsValues.npz', **gmMetricsValues)
+def saveGMMetricsValues(gmMetricsValues, fileName):
+    np.savez(fileName, **gmMetricsValues)
 
 def getGMMetricsForOneSt(stLoc, stLocIndex, par):
     #stLoc = np.array([x,y,0])
@@ -201,7 +211,8 @@ def getGMMetricsFor2DMap(xRange, yRange, gridSize, stLocIndex, par):
     xx, yy = np.meshgrid(xArr, yArr)
 
     gmMetricsValues = {key: np.zeros_like(xx) for key in par.totalGMMetricsKeys} #np.zeros_like(xx)
-
+    gmStInfoValues = {key: np.zeros_like(xx) for key in par.stInfoKeys}
+    
     stTag = 0
     for i in range(nx):
         for j in range(ny):
@@ -214,11 +225,28 @@ def getGMMetricsFor2DMap(xRange, yRange, gridSize, stLocIndex, par):
             
             for key in par.totalGMMetricsKeys:
                 gmMetricsValues[key][j,i] = gmMetricsValuesForOneSt.get(key, 0.0)
-                
+            
+            Rjb = calcRjb(stLoc, par)
+            gmStInfoValues['Rjb'][j,i] = Rjb
+            gmStInfoValues['x'][j,i] = x
+            gmStInfoValues['y'][j,i] = y
+            
             stTag = stTag + 1
 
     plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par)
-    saveGMMetricsValues(gmMetricsValues)
-
+    saveGMMetricsValues(gmMetricsValues, 'gmMetricsValues.npz')
+    saveGMMetricsValues(gmMetricsValues, 'gmStInfoValues.npz')
+    
     print('Total time used is ', time.time()-startTime, ' for ', stTag, ' stations.')
+    
+def calcRjb(stLoc, par):
+    if par.faultType == 'strike':
+        if stLoc[0]<=par.faultXmin:
+            Rjb = ((stLoc[0]-par.faultXmin)**2 + stLoc[1]**2)**0.5
+        elif stLoc[0]>=par.faultXmax:
+            Rjb = ((stLoc[0]-par.faultXmax)**2 + stLoc[1]**2)**0.5
+        else:
+            Rjb = abs(stLoc[1])
+    
+    return Rjb 
 

@@ -19,13 +19,13 @@ def archiveGMData():
     #    print('FILTER: Wrong # of input arguments; # should be 1 ... ...')
     #    Error_Message()
     os.system('mkdir gmData')
-    for i in range(1000):
+    for i in range(10000):
         if os.path.isfile('gm'+str(i))==True:
             os.system('mv gm'+str(i)+' gmData')
         if os.path.isfile('surface_coor.txt'+str(i))==True:
             os.system('mv surface_coor.txt'+str(i)+' gmData')
     
-    os.system('cp -r gmProcessor gmFuncLib.py user_defined_params.py defaultParameters.py lib.py gmData')
+    os.system('cp -r user_defined_params.py defaultParameters.py lib.py gmData')
     print("ArchiveGMData - END ... ...")
 
 def _main_func(description):
