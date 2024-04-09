@@ -235,7 +235,7 @@ def getGMMetricsFor2DMap(xRange, yRange, gridSize, stLocIndex, par):
 
     plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par)
     saveGMMetricsValues(gmMetricsValues, 'gmMetricsValues.npz')
-    saveGMMetricsValues(gmMetricsValues, 'gmStInfoValues.npz')
+    saveGMMetricsValues(gmStInfoValues, 'gmStInfoValues.npz')
     
     print('Total time used is ', time.time()-startTime, ' for ', stTag, ' stations.')
     
