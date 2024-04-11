@@ -22,3 +22,9 @@ or
 ```
 gmProcessor x y # to obtain GM metrics for a single station.
 ```
+
+To compute the scaling of GM Metrics as a function of Rjb,
+```
+gmGetSimuAndGMPEScaling R0 R1 RBinSize # in meters
+```
+gmGetSimuAndGMPEScaling will read in gmMetricsValues.npz and gmStInfoValues.npz produced by gmProcessor. 
