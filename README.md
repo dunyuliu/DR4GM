@@ -10,10 +10,21 @@ Available datasets can be downloaded through the following links <br/>
 Leveraging on gmpe-smtk, dr4gm provides utilities to process raw simulated ground motion data for various GM metrics <br/>
 such as PGV, PGA, RSA(T), CAV, etc.
 
+### Installation
 dr4gm is available through docker 
 ```
 docker pull dunyuliu/dr4gm
 ```
+
+Or on Ubuntu,
+```
+git clone https://github.com/dunyuliu/dr4gm.git
+cd dr4gm
+bash setupDr4gm.ubuntu.sh
+source addCurrentPath.sh # to add necessary paths temporarily.
+```
+
+### How to use
 After a dataset is downloaded and unzipped, users need to nagivate to the path for datasets, and run
 ```
 gmProcessor xMin xMax yMin yMax gridSize # to obtain 2-D maps of GM metrics given the ranges and resolution.
