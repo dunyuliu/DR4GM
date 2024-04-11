@@ -19,7 +19,7 @@ def errorMessage():
 
 def gmProcessor(): 
     args = sys.argv
-    if len(args) !=6 or len(args) !=3:
+    if len(args) !=6 and len(args) !=3:
         errorMessage()
     
     print('GM PROCESSOR - START ... ...')
