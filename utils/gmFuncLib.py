@@ -15,12 +15,13 @@ class parametersForGM():
     gmMetricsKeys = ['PGA', 'PGV', 'PGD', 'CAV']
     stInfoKeys = ['Rjb', 'x', 'y']
     periods = np.array([0.100, 0.125, 0.25, 0.4, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5])
-    periodsKeys = [f'T_{period:.3f}' for period in periods]
+    periodsKeys = [f'RSA_T_{period:.3f}' for period in periods]
     totalGMMetricsKeys = gmMetricsKeys + periodsKeys
     plotTimeseries = False
     faultType = 'strike'
     faultXmin = -20e3
     faultXmax = 20e3
+    cmap = 'inferno'
     
 def removeDuplicates(stLocIndex):
     uniqueData, uniqueId = np.unique(stLocIndex[:,:3], 
@@ -157,19 +158,30 @@ def calcGMMetricsFromAccForOneSt(accx, accy, par):
     
 def plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par):
     for key in par.totalGMMetricsKeys:
-        plt.figure(figsize=(16, 12))
-        fontsize = 16
-        plt.contourf(xx, yy, gmMetricsValues[key], levels=20, cmap='viridis')
-        cb = plt.colorbar(label=key)
+        if 'RSA' in key or 'PGA' in key:
+            unit = 'm/s/s'
+        elif 'PGV' in key or 'CAV' in key:
+            unit = 'm/s'
+        elif 'PGD' in key:
+            unit = 'm'
+        else:
+            unit = ''
+        print(unit)
+        plt.figure(figsize=(8, 8))
+        ax = plt.gca()
+        fontsize = 12
+        plt.contourf(xx/1e3, yy/1e3, gmMetricsValues[key], levels=20, cmap=par.cmap)
+        cb = plt.colorbar(label=str(unit), orientation='horizontal')
         cb.ax.tick_params(labelsize=fontsize)
         cb.ax.yaxis.offsetText.set_fontsize(fontsize)
-        cb.set_label(key, fontsize=fontsize)
-        plt.xlabel('X', fontsize=fontsize, fontweight='bold')
-        plt.ylabel('Y', fontsize=fontsize, fontweight='bold')
-        #plt.title(f'{key}', fontsize=16, fontweight='bold')
+        ax.set_title(key, fontsize=fontsize, fontweight='bold')
+        ax.set_xlabel('Along Strike (km)', fontsize=fontsize, fontweight='bold')
+        ax.set_ylabel('Fault Normal (km)', fontsize=fontsize, fontweight='bold')
+        ax.set_aspect('equal')
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
         plt.savefig(f'gmContour{key}.png')
+
 
 def saveGMMetricsValues(gmMetricsValues, fileName):
     np.savez(fileName, **gmMetricsValues)
@@ -179,7 +191,7 @@ def getGMMetricsForOneSt(stLoc, stLocIndex, par):
     gmMetricsValues = {key: np.float64(0.0) for key in par.totalGMMetricsKeys} 
     
     stInfo = getNearestStLocAndChunkId(stLoc, stLocIndex)
-    print('Input stLoc', stLoc, 'returned stInfo', stInfo)
+    #print('Input stLoc', stLoc, 'returned stInfo', stInfo)
     velAlongStrike, velFaultNormal = extractVel(stInfo)
     accAlongStrike, accFaultNormal = velToAcc(velAlongStrike, velFaultNormal, par)
     
@@ -217,7 +229,7 @@ def getGMMetricsFor2DMap(xRange, yRange, gridSize, stLocIndex, par):
     for i in range(nx):
         for j in range(ny):
             if stTag % 100 == 0:
-                print(stTag)
+                print(str(stTag)+' stations are processed ...')
             x = xx[j,i]
             y = yy[j,i]
             stLoc = np.array([x,y,0])
