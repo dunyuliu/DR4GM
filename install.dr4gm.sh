@@ -9,7 +9,7 @@ chmod -R 755 utils
 bash installDepreciatedGMPE-SMTK.sh
 
 cd gmpe-smtk/smtk
-sed -i '' 's/cumtrapz/cumulative_trapazoid/g' *.py
+sed -i '' 's/cumtrapz/cumulative_trapezoid/g' *.py
 cd ../..
 
 # Set up the environment variables
