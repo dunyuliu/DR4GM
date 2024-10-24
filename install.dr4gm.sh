@@ -8,6 +8,10 @@ pip3 install numpy scipy
 chmod -R 755 utils
 bash installDepreciatedGMPE-SMTK.sh
 
+cd gmpe-smtk/smtk
+sed -i '' 's/cumtrapz/cumulative_trapazoid/g' *.py
+cd ../..
+
 # Set up the environment variables
 # Add paths to the environment variables
 DR4GM=$(pwd)
