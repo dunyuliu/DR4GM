@@ -1,0 +1,48 @@
+#! /usr/bin/env python3
+"""
+# genMaps is part of dr4gm. 
+# It generates GM maps from raw GM data from EQdyna, and XX, and XX.
+"""
+import sys, argparse
+from genMapFuncLib import *
+
+def errorMessage():
+    print(' Usage of genMaps:')
+    print(' To generate surface ground particle velocity maps, please type')
+    print('     genMaps gm eqdyna dt')
+    print(' To generate source slip-rate maps, please type')
+    print('     genMaps src seisol dt')
+    print(' ')
+
+def genMaps(mapType, software, timeInSec, gmComp='srike', cmap='viridis', dim=2): 
+    print('MAP GENERATOR - START ... ...')
+    print(' ')
+    print(f'Map Type: {mapType}, Software: {software}, Time in Seconds: {timeInSec}')
+    print(' ')
+    
+    if software == "eqdyna":
+        app = genMapsForEQDYNA(mapType=mapType, timeInSec=timeInSec, gmComp='strike', cmap=cmap, dim=dim)
+        app.genMap()
+        app.plotMap()
+    elif software == "seisol":
+        genMapsForSEISOL(mapType, timeInSec, cmap=cmap, dim=dim)
+    else:
+        print('Software not recognized.')
+    
+    print(' ')
+    print("MAP PROCESSOR - END ... ...")
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('mapType', type=str, help='Type of map to generate (e.g., gm or src)', default='gm', nargs='?')
+    parser.add_argument('software', type=str, help='Software used (e.g., eqdyna or seisol)', default='eqdyna', nargs='?')
+    parser.add_argument('--t', type=float, help='Time in seconds', default=3.0, nargs='?')
+    parser.add_argument('--gmComp', type=str, help='GM component (e.g., strike, norm, vert)', default='s')
+    parser.add_argument('--cmap', type=str, help='Optional colormap for the map (e.g., viridis, plasma, inferno)', default='viridis')
+    parser.add_argument('--dim', type=int, help='Dimensions of maps (e.g., 2 or 3)', default=2)
+    args = parser.parse_args()
+    genMaps(args.mapType, args.software, args.t, gmComp=args.gmComp, cmap=args.cmap, dim=args.dim)
+
+if __name__ == "__main__":
+    main()
+
