@@ -1,0 +1,326 @@
+#! /usr/bin/env python3
+import tkinter as tk
+from tkinter import ttk
+import subprocess
+import os, signal, sys, math
+import numpy as np
+from scipy.special import gamma
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg as FigureCanvas
+from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+from PIL import Image, ImageTk
+import pickle 
+
+matplotlib.use('TkAgg')
+
+class MyWindow(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("dr4gm v0.0.1")
+        self.geometry("1000x800")
+        nGridX = 20
+        nGridY = 15
+        pixalAlongX = 1000/nGridX
+        pixalAlongY = 800/nGridY 
+        style = ttk.Style()
+        print(style.theme_names())
+        style.theme_use('clam')
+        pixalMargin = 5
+        stickyOption = "nesw"
+
+        for i in range(nGridX):
+            self.grid_columnconfigure(i, minsize=pixalAlongX, weight=1)
+        for i in range(nGridY):
+            self.grid_rowconfigure(i, minsize=pixalAlongY, weight=1)
+        buttonWidth = 5 # characters
+
+        self.rsa_index = 0
+        self.snapshot_index = 0
+        self.plotting_method = 'png'
+
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        dr4gmPathLabel = ttk.Label(self, text="dr4gm bin")
+        dr4gmPathLabel.grid(row=0, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.dr4gmPathChooser = ttk.Entry(self)
+        self.dr4gmPathChooser.grid(row=0, column=2, rowspan=1, columnspan=4, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.dr4gmPath = 'bin'
+        try:
+            exePaths = os.environ.get('PATH', '').split(os.pathsep)
+            for path in exePaths:
+                grinvFullPath = os.path.join(path, 'gmProcessor')
+                if os.path.isfile(grinvFullPath):
+                    self.dr4gmPath = path
+        except Exception as e:
+            self.dr4gmPath = 'No dr4gm exes are found in $PATH; please exit and assign.'
+        self.dr4gmPathChooser.insert(0, self.dr4gmPath)
+
+        self.modelName = 'crestline3'
+        self.dataRootPath = tk.StringVar()
+        self.dataRootPath.set(os.getcwd())
+        
+        self.currentPath = tk.StringVar()
+        self.currentPath.set(os.getcwd())
+        
+        setDataPathLabel = ttk.Label(self, text="Data path")
+        setDataPathLabel.grid(row=1, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+
+        self.navigateButton = tk.Menubutton(self, textvariable=self.dataRootPath, relief=tk.RAISED, width=buttonWidth, anchor="e")
+        self.navigateButton.grid(row=1, column=2, rowspan=1, columnspan=4, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+
+        self.navigateButton.menu = tk.Menu(self.navigateButton, tearoff=0)
+        self.navigateButton["menu"] = self.navigateButton.menu
+        self.updateDropdownMenu()
+
+        self.xmin = ttk.Entry(self)
+        xminLabel = ttk.Label(self, text="xmin (km)")
+        xminLabel.grid(row=2, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.xmin.grid(row=2, column=2, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.xmin.insert(0, '-10')
+
+        self.xmax = ttk.Entry(self)
+        xmaxLabel = ttk.Label(self, text="xmax (km)")
+        xmaxLabel.grid(row=2, column=3, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.xmax.grid(row=2, column=5, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.xmax.insert(0, '10')
+
+        self.ymin = ttk.Entry(self)
+        yminLabel = ttk.Label(self, text="ymin (km)")
+        yminLabel.grid(row=3, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.ymin.grid(row=3, column=2, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.ymin.insert(0, '-5')
+
+        self.ymax = ttk.Entry(self)
+        ymaxLabel = ttk.Label(self, text="ymax (km)")
+        ymaxLabel.grid(row=3, column=3, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.ymax.grid(row=3, column=5, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.ymax.insert(0, '5')
+
+        self.cellSize = ttk.Entry(self)
+        cellSizeLabel = ttk.Label(self, text="Cell size(m)")
+        cellSizeLabel.grid(row=4, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.cellSize.grid(row=4, column=2, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.cellSize.insert(0, '500')
+
+        runGmProcessorButton = ttk.Button(self, text="Get GM Map", command=lambda:self.runCommand('gmProcessor'))
+        runGmProcessorButton.grid(row=4, column=3, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+
+        runGenMapButton = ttk.Button(self, text="Get ST GM", command=lambda:self.runCommand('gmProcessorSingleSt'))
+        runGenMapButton.grid(row=5, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        gmProcessorSingleStArgsLabel = ttk.Label(self, text="x, y (km)")
+        gmProcessorSingleStArgsLabel.grid(row=5, column=2, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        self.gmProcessorSingleStX = ttk.Entry(self)
+        self.gmProcessorSingleStX.grid(row=5, column=4, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.gmProcessorSingleStX.insert(0, 10)
+        
+        self.gmProcessorSingleStY = ttk.Entry(self)
+        self.gmProcessorSingleStY.grid(row=5, column=5, rowspan=1, columnspan=1, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.gmProcessorSingleStY.insert(0, 10)
+                                       
+        plotPGDButton = ttk.Button(self, text="Plot PGD", command=self.load_pgd)
+        plotPGDButton.grid(row=6, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        plotPGVButton = ttk.Button(self, text="Plot PGV", command=self.load_pgv)
+        plotPGVButton.grid(row=6, column=2, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        plotPGAButton = ttk.Button(self, text="Plot PGA", command=self.load_pga)
+        plotPGAButton.grid(row=6, column=4, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        plotRSAButton = ttk.Button(self, text="Plot RSA", command=self.load_rsa)
+        plotRSAButton.grid(row=7, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        plotCAVButton = ttk.Button(self, text="Plot CAV", command=self.load_cav)
+        plotCAVButton.grid(row=7, column=2, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        cleanButton = ttk.Button(self, text="Clean", command=self.clean)
+        cleanButton.grid(row=14, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        self.argsForGenMapsLabel = ttk.Entry(self, text="genMaps args")
+        self.argsForGenMapsLabel.grid(row=8, column=0, rowspan=1, columnspan=6, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.argsForGenMapsLabel.insert(0, '-map=gm+src -code=eqdyna -t=3 -cmap=inferno -dim=3')
+        
+        runGenMapButton = ttk.Button(self, text="Gen snapshot", command=lambda:self.runCommand('genMaps'))
+        runGenMapButton.grid(row=9, column=0, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+                
+        self.figureCanvas = tk.Frame(self)
+        self.figureCanvas.grid(row=0, column=6, rowspan=nGridY, columnspan=13, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.figureCanvas.grid_propagate(False)
+
+        # Insert an empty figure
+        fig = plt.figure()
+        canvas = FigureCanvas(fig, master=self.figureCanvas)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+    
+        self.grid_columnconfigure(1, weight=1)
+
+    def getDirectoryContents(self, path):
+        try:
+            contents = os.listdir(path)
+            contents.insert(0, '..')
+            return contents
+        except FileNotFoundError:
+            return []
+
+    def updateDataPath(self):
+        self.dataRootPath.set(self.currentPath.get())
+    
+    def updateDropdownMenu(self):
+        self.navigateButton.menu.delete(0,'end')
+        currentDir = self.currentPath.get()
+        for item in self.getDirectoryContents(currentDir):
+            self.navigateButton.menu.add_command(
+                label=item,
+                command = lambda item=item:self.changeDirectory(item)
+            )
+
+    def changeDirectory(self, item):
+        if item == "..":
+            new_path = os.path.dirname(self.currentPath.get())
+        else:
+            new_path = os.path.join(self.currentPath.get(), item)
+
+        if os.path.isdir(new_path):
+            os.chdir(new_path)
+            print('Navigating to ',os.getcwd())
+            os.system('rm covplot.dat aParameters.txt')
+            self.currentPath.set(new_path)
+            self.dataRootPath.set(new_path)
+            self.updateDropdownMenu()
+            if item != "..":
+                self.dataRootPath.set(new_path)
+                
+    def on_closing(self):
+        self.quit()
+        self.destroy()
+        sys.exit()
+    
+    def runCommand(self, cmdType):
+        if cmdType=='gmProcessor':
+            xmin = float(self.xmin.get())*1e3
+            xmax = float(self.xmax.get())*1e3
+            ymin = float(self.ymin.get())*1e3
+            ymax = float(self.ymax.get())*1e3
+            cellSize = float(self.cellSize.get())
+
+            cmd = self.dr4gmPath + "/gmProcessor "+str(xmin)+' '+str(xmax)+' '+str(ymin)+' '+str(ymax)+' '+str(cellSize)
+            subprocess.run(cmd, shell=True)
+        elif cmdType=='gmProcessorSingleSt':
+            x = float(self.gmProcessorSingleStX.get())*1e3
+            y = float(self.gmProcessorSingleStY.get())*1e3
+
+            cmd = self.dr4gmPath + "/gmProcessor "+str(x)+' '+str(y)
+            subprocess.run(cmd, shell=True)
+
+        elif cmdType=='genMaps':
+            cmd = self.dr4gmPath + "/genMaps " + self.argsForGenMapsLabel.get()      
+            print('Running command: ', cmd)
+            subprocess.run(cmd, shell=True)
+            self.load_snapshot()
+
+    def display_image(self, image_path):
+
+        if self.plotting_method == 'png':
+            img = Image.open(image_path)
+            fig, ax = plt.subplots(dpi=600)
+            ax.imshow(img)
+            ax.axis('off')
+            # Add the new plot to the figureCanvas
+            canvas = FigureCanvas(fig, master=self.figureCanvas)
+            canvas.draw()   
+            # Use grid instead of pack to make it responsive
+            canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+            
+            # Ensure that the canvas expands to fill available space
+            self.figureCanvas.grid_rowconfigure(0, weight=1)
+            self.figureCanvas.grid_columnconfigure(0, weight=1)
+            
+            # Make sure the widget also expands within its parent
+            self.grid_rowconfigure(self.figureCanvas.grid_info()["row"], weight=1)
+            self.grid_columnconfigure(self.figureCanvas.grid_info()["column"], weight=1)
+
+        else:
+            for widget in self.figureCanvas.winfo_children():
+                widget.destroy()  
+
+            fig = pickle.load(open(image_path, 'rb'))
+
+            def resize_figure(event=None):
+                # Get the canvas size after window is rendered
+                canvas_width = self.figureCanvas.winfo_width()
+                canvas_height = self.figureCanvas.winfo_height()
+
+                # Resize the figure to match the canvas size
+                fig.set_size_inches(canvas_width / fig.dpi, canvas_height / fig.dpi)
+                fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
+                
+                # Redraw the canvas
+                canvas.draw()
+
+            canvas = FigureCanvas(fig, master=self.figureCanvas)
+            canvas.draw()
+            canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+            self.figureCanvas.grid_rowconfigure(0, weight=1)
+            self.figureCanvas.grid_columnconfigure(0, weight=1)
+            
+            self.figureCanvas.bind("<Configure>", resize_figure)
+            self.figureCanvas.grid_propagate(False)
+            self.figureCanvas.update()
+
+    def load_pgd(self):
+        self.display_image('gmContourPGD.'+self.plotting_method)
+
+    def load_pgv(self):
+        self.display_image('gmContourPGV.'+self.plotting_method)
+    
+    def load_pga(self):
+        self.display_image('gmContourPGA.'+self.plotting_method)
+
+    def load_cav(self):
+        self.display_image('gmContourCAV.'+self.plotting_method)
+
+    def load_rsa(self):
+        figure_files = [f for f in os.listdir() if f.endswith('.'+self.plotting_method) and 'RSA_T' in f]
+        self.total_rsa_files = len(figure_files)
+
+        id = self.update_rsa_id()
+        if figure_files:
+            self.display_image(figure_files[id])
+
+    def load_snapshot(self):
+        figure_files = [f for f in os.listdir() if f.endswith('.'+self.plotting_method) and 'gMap' in f]
+        latest_file = max(figure_files, key=os.path.getmtime)
+        self.display_image(latest_file)
+
+    def update_rsa_id(self):
+        self.rsa_index += 1
+        if self.rsa_index >= self.total_rsa_files:
+            self.rsa_index = 0
+        return self.rsa_index
+    
+    def update_snapshot_id(self):
+        self.snapshot_index += 1
+        if self.snapshot_index >= self.total_snapshot_files:
+            self.snapshot_index = 0
+        return self.snapshot_index
+    
+    def clean(self):
+        os.system('rm gmContour*')
+        print('Cleaned up the directory')
+
+def signal_handler(sig, frame):
+    print('Exiting. You pressed Ctrl+C!')
+    sys.exit(0)
+    
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        app = MyWindow()
+        app.mainloop()
+    except KeyboardInterrupt:
+        print("Application closed by user")
+        sys.exit(0)

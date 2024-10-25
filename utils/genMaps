@@ -34,14 +34,14 @@ def genMaps(mapType, software, timeInSec, gmComp='srike', cmap='viridis', dim=2)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mapType', type=str, help='Type of map to generate (e.g., gm or src)', default='gm', nargs='?')
-    parser.add_argument('software', type=str, help='Software used (e.g., eqdyna or seisol)', default='eqdyna', nargs='?')
-    parser.add_argument('--t', type=float, help='Time in seconds', default=3.0, nargs='?')
-    parser.add_argument('--gmComp', type=str, help='GM component (e.g., strike, norm, vert)', default='s')
-    parser.add_argument('--cmap', type=str, help='Optional colormap for the map (e.g., viridis, plasma, inferno)', default='viridis')
-    parser.add_argument('--dim', type=int, help='Dimensions of maps (e.g., 2 or 3)', default=2)
+    parser.add_argument('-map', type=str, help='Type of map to generate (e.g., gm or src)', default='gm', nargs='?')
+    parser.add_argument('-code', type=str, help='Software used (e.g., eqdyna or seisol)', default='eqdyna', nargs='?')
+    parser.add_argument('-t', type=float, help='Time in seconds', default=3.0, nargs='?')
+    parser.add_argument('-gmComp', type=str, help='GM component (e.g., strike, norm, vert)', default='s')
+    parser.add_argument('-cmap', type=str, help='Optional colormap for the map (e.g., viridis, plasma, inferno)', default='viridis')
+    parser.add_argument('-dim', type=int, help='Dimensions of maps (e.g., 2 or 3)', default=2)
     args = parser.parse_args()
-    genMaps(args.mapType, args.software, args.t, gmComp=args.gmComp, cmap=args.cmap, dim=args.dim)
+    genMaps(args.map, args.code, args.t, gmComp=args.gmComp, cmap=args.cmap, dim=args.dim)
 
 if __name__ == "__main__":
     main()

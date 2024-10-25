@@ -5,6 +5,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from user_defined_params import par
 import matplotlib.pyplot as plt
+import pickle 
 
 class parametersForGM():
     gmSamplingRate = 10
@@ -166,8 +167,8 @@ def plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par):
             unit = 'm'
         else:
             unit = ''
-        print(unit)
-        plt.figure(figsize=(8, 8))
+
+        fig = plt.figure()
         ax = plt.gca()
         fontsize = 12
         plt.contourf(xx/1e3, yy/1e3, gmMetricsValues[key], levels=20, cmap=par.cmap)
@@ -180,8 +181,10 @@ def plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par):
         ax.set_aspect('equal')
         plt.xticks(fontsize=fontsize)
         plt.yticks(fontsize=fontsize)
-        plt.savefig(f'gmContour{key}.png')
+        plt.savefig(f'gmContour{key}.png', dpi=300)
 
+        with open(f'gmContour{key}.pickle', 'wb') as f:
+            pickle.dump(fig, f)
 
 def saveGMMetricsValues(gmMetricsValues, fileName):
     np.savez(fileName, **gmMetricsValues)

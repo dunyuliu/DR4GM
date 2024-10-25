@@ -123,7 +123,8 @@ class genMapsForEQDYNA:
             ax.set_ylabel('Fault-normal (km)', fontsize=12, fontweight='bold')
             ax.axis('equal')
             ax.set_title(self.titlePrefix+' t='+str(self.timeInSec)+' s', fontsize=12, fontweight='bold')
-            plt.show()
+            #plt.show()
+            plt.savefig(f'gMap'+self.titlePrefix+'-t='+str(self.timeInSec)+'-s.png', dpi=300)
 
         elif self.dim == 3:
             ax = self.fig.add_subplot(111, projection='3d')
@@ -138,7 +139,9 @@ class genMapsForEQDYNA:
 
             ax.axis('equal')
             ax.view_init(elev=-15, azim=-150)
-            plt.show()
+            #plt.show()
+            plt.savefig(f'gMap'+self.titlePrefix+'-t='+str(self.timeInSec)+'-s.png', dpi=300)
+
         
 
 

@@ -52,7 +52,8 @@ def gmProcessor():
         stLoc = np.array([x, y, 0])
         gmPar.plotTimeseries = True
         gm0 = getGMMetricsForOneSt(stLoc, stLocIndex, gmPar)
-        print(gm0)
+        for key, value in gm0.items():
+            print(key, value)
         print(' ')
 
     print("GM PROCESSOR - END ... ...")
