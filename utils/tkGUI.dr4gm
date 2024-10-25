@@ -37,6 +37,8 @@ class MyWindow(tk.Tk):
 
         self.rsa_index = 0
         self.snapshot_index = 0
+        self.scaling_fig_index = 0
+
         self.plotting_method = 'png'
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -134,17 +136,23 @@ class MyWindow(tk.Tk):
         
         plotCAVButton = ttk.Button(self, text="Plot CAV", command=self.load_cav)
         plotCAVButton.grid(row=7, column=2, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+
+        runScalingButton = ttk.Button(self, text="Scaling", command=lambda:self.runCommand('scaling'))
+        runScalingButton.grid(row=8, column=0, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
         
-        cleanButton = ttk.Button(self, text="Clean", command=self.clean)
-        cleanButton.grid(row=14, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        plotScalingButton = ttk.Button(self, text="Plot Scaling", command=self.load_scaling)
+        plotScalingButton.grid(row=8, column=3, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
         
         self.argsForGenMapsLabel = ttk.Entry(self, text="genMaps args")
-        self.argsForGenMapsLabel.grid(row=8, column=0, rowspan=1, columnspan=6, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        self.argsForGenMapsLabel.grid(row=9, column=0, rowspan=1, columnspan=6, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
         self.argsForGenMapsLabel.insert(0, '-map=gm+src -code=eqdyna -t=3 -cmap=inferno -dim=3')
         
         runGenMapButton = ttk.Button(self, text="Gen snapshot", command=lambda:self.runCommand('genMaps'))
-        runGenMapButton.grid(row=9, column=0, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
-                
+        runGenMapButton.grid(row=10, column=0, rowspan=1, columnspan=3, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+        
+        cleanButton = ttk.Button(self, text="Clean", command=self.clean)
+        cleanButton.grid(row=14, column=0, rowspan=1, columnspan=2, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
+                        
         self.figureCanvas = tk.Frame(self)
         self.figureCanvas.grid(row=0, column=6, rowspan=nGridY, columnspan=13, padx=pixalMargin, pady=pixalMargin, sticky=stickyOption)
         self.figureCanvas.grid_propagate(False)
@@ -214,7 +222,9 @@ class MyWindow(tk.Tk):
 
             cmd = self.dr4gmPath + "/gmProcessor "+str(x)+' '+str(y)
             subprocess.run(cmd, shell=True)
-
+        elif cmdType=='scaling':
+            cmd = self.dr4gmPath + "/gmGetSimuAndGMPESCaling 0 20e3 1e3"
+            subprocess.run(cmd, shell=True)
         elif cmdType=='genMaps':
             cmd = self.dr4gmPath + "/genMaps " + self.argsForGenMapsLabel.get()      
             print('Running command: ', cmd)
@@ -284,10 +294,18 @@ class MyWindow(tk.Tk):
         self.display_image('gmContourCAV.'+self.plotting_method)
 
     def load_rsa(self):
-        figure_files = [f for f in os.listdir() if f.endswith('.'+self.plotting_method) and 'RSA_T' in f]
+        figure_files = [f for f in os.listdir() if f.endswith('.'+self.plotting_method) and 'ContourRSA_T' in f]
         self.total_rsa_files = len(figure_files)
 
         id = self.update_rsa_id()
+        if figure_files:
+            self.display_image(figure_files[id])
+
+    def load_scaling(self):
+        figure_files = [f for f in os.listdir() if f.endswith('.'+self.plotting_method) and 'gmRSA_T' in f]
+        self.total_rsa_scaling_files = len(figure_files)
+
+        id = self.update_rsa_scaling_id()
         if figure_files:
             self.display_image(figure_files[id])
 
@@ -302,6 +320,12 @@ class MyWindow(tk.Tk):
             self.rsa_index = 0
         return self.rsa_index
     
+    def update_rsa_scaling_id(self):
+        self.scaling_fig_index += 1
+        if self.scaling_fig_index >= self.total_rsa_scaling_files:
+            self.scaling_fig_index = 0
+        return self.scaling_fig_index
+      
     def update_snapshot_id(self):
         self.snapshot_index += 1
         if self.snapshot_index >= self.total_snapshot_files:
