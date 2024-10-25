@@ -160,11 +160,11 @@ def calcGMMetricsFromAccForOneSt(accx, accy, par):
 def plotAndSaveGMMetricsContours(xx, yy, gmMetricsValues, par):
     for key in par.totalGMMetricsKeys:
         if 'RSA' in key or 'PGA' in key:
-            unit = 'm/s/s'
+            unit = 'cm/s/s'
         elif 'PGV' in key or 'CAV' in key:
-            unit = 'm/s'
+            unit = 'cm/s'
         elif 'PGD' in key:
-            unit = 'm'
+            unit = 'cm'
         else:
             unit = ''
 

@@ -18,11 +18,11 @@ class MyWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("dr4gm v0.0.1")
-        self.geometry("1000x800")
+        self.geometry("800x600")
         nGridX = 20
         nGridY = 15
-        pixalAlongX = 1000/nGridX
-        pixalAlongY = 800/nGridY 
+        pixalAlongX = 800/nGridX
+        pixalAlongY = 600/nGridY 
         style = ttk.Style()
         print(style.theme_names())
         style.theme_use('clam')
