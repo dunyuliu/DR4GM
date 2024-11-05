@@ -17,7 +17,7 @@ matplotlib.use('TkAgg')
 class MyWindow(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("dr4gm v0.0.1")
+        self.title("DR4GM v0.0.1")
         self.geometry("1000x600")
         nGridX = 25
         nGridY = 15
@@ -56,7 +56,7 @@ class MyWindow(tk.Tk):
         self.frame1.grid(row=0, column=0, rowspan=2, columnspan=8, sticky=stickyOption, padx=pixelMargin, pady=pixelMargin)
         self.reconfigureFrameWeight(self.frame1)
         
-        dr4gmPathLabel = ttk.Label(self.frame1, text="dr4gm bin")
+        dr4gmPathLabel = ttk.Label(self.frame1, text="DR4GM bin")
         dr4gmPathLabel.grid(row=0, column=0, rowspan=1, columnspan=2, padx=pixelMargin, pady=pixelMargin, sticky=stickyOption)
         self.dr4gmPathChooser = ttk.Entry(self.frame1)
         self.dr4gmPathChooser.grid(row=0, column=2, rowspan=1, columnspan=6, padx=pixelMargin, pady=pixelMargin, sticky=stickyOption)
@@ -68,7 +68,7 @@ class MyWindow(tk.Tk):
                 if os.path.isfile(grinvFullPath):
                     self.dr4gmPath = path
         except Exception as e:
-            self.dr4gmPath = 'No dr4gm exes are found in $PATH; please exit and assign.'
+            self.dr4gmPath = 'No DR4GM exes are found in $PATH; please exit and assign.'
         self.dr4gmPathChooser.insert(0, self.dr4gmPath)
 
         self.dataRootPath = tk.StringVar()
