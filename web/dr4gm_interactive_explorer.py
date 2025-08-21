@@ -402,6 +402,21 @@ def main():
         colorscales = ['Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
+        # Initialize selected station
+        if 'selected_station_idx' not in st.session_state:
+            st.session_state.selected_station_idx = 0
+            
+        # Station selection slider at top
+        max_stations = len(data.get('station_ids', []))
+        station_idx = st.slider(
+            "🎯 Select Station to View Details",
+            0, max_stations - 1, 
+            value=st.session_state.selected_station_idx,
+            help="Select a station to view detailed metrics and update map highlight",
+            key="station_selector"
+        )
+        st.session_state.selected_station_idx = station_idx
+        
         # Main content - make map bigger
         col1, col2 = st.columns([3, 1])
         
@@ -412,34 +427,14 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with click events
-                event = st.plotly_chart(
+                # Display map
+                st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map",
-                    on_select="rerun"
+                    key="main_map"
                 )
-                
-                # Initialize selected station
-                if 'selected_station_idx' not in st.session_state:
-                    st.session_state.selected_station_idx = 0
-                
-                # Station selection slider 
-                max_stations = len(data.get('station_ids', []))
-                station_idx = st.slider(
-                    "Select Station",
-                    0, max_stations - 1, 
-                    value=st.session_state.selected_station_idx,
-                    help="Select a station to view detailed metrics",
-                    key="station_selector"
-                )
-                
-                # Update session state
-                st.session_state.selected_station_idx = station_idx
-            
             else:
                 st.warning("No data to display on map")
-                station_idx = 0
         
         with col2:
             st.subheader("📊 Station Details")
@@ -493,8 +488,13 @@ def main():
                 st.metric("Available Metrics", len(available_metrics))
             
             # File info
-            st.text(f"Data file: {os.path.basename(selected_file)}")
-            st.text(f"File size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
+            if selected_file.startswith('http'):
+                st.text(f"Data source: {selected_file.split('/')[-1] if '/' in selected_file else 'Cloud hosted'}")
+                st.text(f"Source: Google Drive")
+            else:
+                st.text(f"Data file: {os.path.basename(selected_file)}")
+                if os.path.exists(selected_file):
+                    st.text(f"File size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
 
 if __name__ == "__main__":
     main()
