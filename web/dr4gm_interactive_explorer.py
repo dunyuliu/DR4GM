@@ -276,26 +276,30 @@ class GroundMotionExplorer:
         return gm_data
     
     @st.cache_data(ttl=300)  # Cache for 5 minutes
-    def discover_drive_files(_self, folder_id: str) -> Dict[str, str]:
-        """Discover NPZ files in Google Drive folder"""
-        # For now, use the known working files until we implement proper API access
-        # Google Drive HTML scraping is unreliable due to dynamic content
+    def discover_github_files(_self) -> Dict[str, str]:
+        """Get NPZ files from DR4GM Data Archive on GitHub"""
         
-        st.sidebar.info("Using curated dataset list")
+        st.sidebar.info("Loading from DR4GM Data Archive")
         
-        # Return your known working files with alternative download URLs
+        # GitHub repository direct file URLs
+        github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
+        
+        # Your 4 datasets from the repository
         files = {
-            "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-            "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2", 
-            "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
+            "EQDyna A Simulation": f"{github_base}/eqdyna.0001.A.npz",
+            "EQDyna B Simulation": f"{github_base}/eqdyna.0001.B.npz",
+            "FD3D A Simulation": f"{github_base}/fd3d.0001.A.npz",
+            "Waveqlab3D A Coarse": f"{github_base}/waveqlab3d.0001.A.coarse.npz"
         }
         
-        # Add instruction for manual verification
-        with st.sidebar.expander("🔧 File Access Help"):
-            st.write("If downloads fail:")
-            st.write("1. Check file permissions in Google Drive")
-            st.write("2. Ensure files are set to 'Anyone with the link'")
-            st.write("3. Try the 'Clear Download Cache' button")
+        # Add GitHub repository info
+        with st.sidebar.expander("📂 Data Repository"):
+            st.write("**DR4GM Data Archive:**")
+            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
+            st.write("• Professional data hosting")
+            st.write("• No download restrictions") 
+            st.write("• Fast global CDN")
+            st.write("• Version controlled")
         
         st.sidebar.success(f"Available: {len(files)} datasets")
         return files
@@ -492,17 +496,11 @@ def main():
         npz_files = explorer.find_npz_files(data_dir)
         
     elif data_source == "DR4GM Data Archive":
-        # Google Drive folder with NPZ files
-        drive_folder_id = "1YbcMYiAx2A_Dib21FR6HeuJ3KOGtwlo_"  # Your shared folder ID
-        
-        # Discover NPZ files in the folder
-        discovered_files = explorer.discover_drive_files(drive_folder_id)
+        # GitHub repository with NPZ files
+        discovered_files = explorer.discover_github_files()
         
         if discovered_files:
-            sample_datasets = {
-                name: f"https://drive.google.com/uc?export=download&id={file_id}"
-                for name, file_id in discovered_files.items()
-            }
+            sample_datasets = discovered_files  # GitHub URLs are ready to use
             
             selected_sample = st.sidebar.selectbox("Select Dataset", list(sample_datasets.keys()))
             if selected_sample:
