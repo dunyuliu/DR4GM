@@ -183,56 +183,20 @@ class GroundMotionExplorer:
     @st.cache_data(ttl=300)  # Cache for 5 minutes
     def discover_drive_files(_self, folder_id: str) -> Dict[str, str]:
         """Discover NPZ files in Google Drive folder"""
-        import requests
-        import re
+        # For now, use the known working files until we implement proper API access
+        # Google Drive HTML scraping is unreliable due to dynamic content
         
-        try:
-            # Use Google Drive's web interface to get file list
-            folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
-            
-            with st.spinner("Discovering files in Google Drive folder..."):
-                response = requests.get(folder_url)
-                response.raise_for_status()
-                
-                # Extract file information from the HTML
-                # Look for patterns like: ["file_name.npz","file_id",...]
-                content = response.text
-                
-                # Find NPZ files and their IDs
-                files = {}
-                
-                # Pattern to match Google Drive file entries
-                # This is a simplified approach - may need adjustment
-                file_pattern = r'"([^"]*\.npz)","([^"]+)"'
-                matches = re.findall(file_pattern, content)
-                
-                for filename, file_id in matches:
-                    if filename.endswith('.npz'):
-                        # Clean up filename for display
-                        display_name = filename.replace('.npz', '').replace('_', ' ')
-                        files[display_name] = file_id
-                
-                if not files:
-                    # Fallback: use known files if auto-discovery fails
-                    st.sidebar.warning("Auto-discovery failed, using known files")
-                    files = {
-                        "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-                        "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
-                        "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
-                    }
-                else:
-                    st.sidebar.success(f"Discovered {len(files)} NPZ files")
-                
-                return files
-                
-        except Exception as e:
-            st.sidebar.error(f"Failed to discover files: {e}")
-            # Fallback to known files
-            return {
-                "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-                "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
-                "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
-            }
+        st.sidebar.info("Using curated dataset list")
+        
+        # Return your known working files
+        files = {
+            "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
+            "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2", 
+            "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
+        }
+        
+        st.sidebar.success(f"Available: {len(files)} datasets")
+        return files
     
     def find_npz_files(self, directory: str) -> List[str]:
         """Find all NPZ files in directory"""
