@@ -307,7 +307,8 @@ def main():
     # Data source selection
     data_source = st.sidebar.radio(
         "Data Source",
-        ["Local Files", "DR4GM Sample Data", "Upload File"]
+        ["DR4GM Data Archive", "Local Files", "Upload File"],
+        index=0  # Default to DR4GM Data Archive
     )
     
     npz_files = []
@@ -321,7 +322,7 @@ def main():
         )
         npz_files = explorer.find_npz_files(data_dir)
         
-    elif data_source == "DR4GM Sample Data":
+    elif data_source == "DR4GM Data Archive":
         # Google Drive hosted datasets - add more as needed
         sample_datasets = {
             "fd3d.0001.A": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p"
@@ -402,6 +403,28 @@ def main():
         colorscales = ['Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
+        # Station location finder
+        st.sidebar.header("🎯 Find Station by Location")
+        
+        col_x, col_y = st.sidebar.columns(2)
+        with col_x:
+            target_x = st.number_input("X (km)", value=0.0, step=0.1, format="%.1f")
+        with col_y:
+            target_y = st.number_input("Y (km)", value=0.0, step=0.1, format="%.1f")
+            
+        if st.sidebar.button("🔍 Find Closest Station"):
+            if 'locations' in data:
+                # Calculate distances to all stations
+                locations = data['locations']
+                distances = np.sqrt((locations[:, 0] - target_x)**2 + (locations[:, 1] - target_y)**2)
+                closest_idx = np.argmin(distances)
+                closest_distance = distances[closest_idx]
+                
+                # Update selected station
+                st.session_state.selected_station_idx = closest_idx
+                st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {closest_distance:.2f} km")
+                st.rerun()
+        
         # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
             st.session_state.selected_station_idx = 0
@@ -427,12 +450,20 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map
-                st.plotly_chart(
+                # Display map with click detection
+                clicked = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map"
+                    key="main_map",
+                    on_select="rerun"
                 )
+                
+                # Handle map clicks
+                if clicked and hasattr(clicked, 'selection') and clicked.selection:
+                    if clicked.selection.point_indices:
+                        clicked_station_idx = clicked.selection.point_indices[0]
+                        st.session_state.selected_station_idx = clicked_station_idx
+                        st.rerun()
             else:
                 st.warning("No data to display on map")
         
@@ -443,15 +474,17 @@ def main():
                 station_id = data['station_ids'][station_idx]
                 location = data['locations'][station_idx]
                 
-                st.metric("Station ID", f"{station_id}")
-                st.metric("X Coordinate", f"{location[0]:.2f} km")
-                st.metric("Y Coordinate", f"{location[1]:.2f} km")
+                # Compact station info
+                st.write(f"**Station ID:** {station_id}")
+                st.write(f"**X:** {location[0]:.2f} km")
+                st.write(f"**Y:** {location[1]:.2f} km")
                 
-                # Metrics table
-                st.subheader("Ground Motion Metrics")
+                # Metrics table - more compact
+                st.write("**Ground Motion Metrics**")
                 metrics_df = explorer.create_metrics_table(data, station_idx)
                 if not metrics_df.empty:
-                    st.table(metrics_df)  # Use st.table instead of st.dataframe to avoid PyArrow
+                    # Display as compact table
+                    st.dataframe(metrics_df, use_container_width=True, hide_index=True, height=200)
                 
                 # Download button for station data
                 if not metrics_df.empty:
