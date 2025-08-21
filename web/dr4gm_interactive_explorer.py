@@ -172,11 +172,8 @@ class GroundMotionExplorer:
                 size=4,
                 color=valid_values,
                 colorscale=colorscale,
-                colorbar=dict(
-                    title=f"{metric}",
-                    titleside="right"
-                ),
-                showscale=True
+                showscale=True,
+                colorbar=dict(title=metric)
             ),
             text=[f"Station {sid}<br>{metric}: {val:.2e}" 
                   for sid, val in zip(valid_station_ids, valid_values)],
@@ -326,11 +323,12 @@ def main():
         npz_files = explorer.find_npz_files(data_dir)
         
     elif data_source == "DR4GM Sample Data":
-        # OneDrive hosted datasets - use ground_motion_metrics.npz files
+        # Google Drive hosted datasets - add more as needed
         sample_datasets = {
-            "EQDyna Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N",
-            "Waveqlab3D Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N", 
-            "FD3D Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N"
+            "fd3d.0001.A": "https://drive.google.com/file/d/1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p/view?usp=drive_link"
+            # Add more datasets here as you upload them:
+            # "EQDyna A": "https://drive.google.com/uc?export=download&id=EQDYNA_FILE_ID",
+            # "Waveqlab3D A": "https://drive.google.com/uc?export=download&id=WAVEQLAB3D_FILE_ID"
         }
         
         selected_sample = st.sidebar.selectbox("Select Sample Dataset", list(sample_datasets.keys()))
