@@ -223,8 +223,8 @@ class GroundMotionExplorer:
                 if not npz_file:
                     return {}
             
-            # Store filename for unit detection
-            _self._current_filename = os.path.basename(npz_file)
+            # Store filename for unit detection in session state
+            st.session_state.current_filename = os.path.basename(npz_file)
             
             # Try different loading methods
             try:
@@ -295,9 +295,9 @@ class GroundMotionExplorer:
             else:  # Small values suggest kilometers
                 gm_data['coordinate_unit'] = 'km'
                 
-            # Override based on known dataset patterns
-            if hasattr(_self, '_current_filename'):
-                filename = _self._current_filename.lower()
+            # Override based on known dataset patterns from filename stored in session
+            if 'current_filename' in st.session_state:
+                filename = st.session_state.current_filename.lower()
                 if 'eqdyna' in filename:
                     gm_data['coordinate_unit'] = 'm'  # EQDyna uses meters
                 elif 'fd3d' in filename or 'waveqlab3d' in filename:
