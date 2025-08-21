@@ -87,6 +87,14 @@ class GroundMotionExplorer:
         
         try:
             with st.spinner(f"Downloading {filename}..."):
+                # Check if it's a GitHub raw URL - these can be slow for large files
+                if 'github.com' in url and '/raw/' in url:
+                    st.sidebar.warning("Large file download from GitHub may take time...")
+                    # Use a longer timeout for GitHub downloads
+                    timeout = 600  # 10 minutes
+                else:
+                    timeout = 120  # 2 minutes default
+                
                 # Try multiple download methods for Google Drive
                 file_id = url.split('id=')[1].split('&')[0] if 'id=' in url else None
                 
@@ -284,13 +292,29 @@ class GroundMotionExplorer:
         # GitHub repository direct file URLs
         github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
         
-        # Your 4 datasets from the repository
-        files = {
-            "EQDyna A Simulation": f"{github_base}/eqdyna.0001.A.npz",
-            "EQDyna B Simulation": f"{github_base}/eqdyna.0001.B.npz",
-            "FD3D A Simulation": f"{github_base}/fd3d.0001.A.npz",
-            "Waveqlab3D A Coarse": f"{github_base}/waveqlab3d.0001.A.coarse.npz"
-        }
+        # Choose hosting method
+        hosting_method = st.sidebar.radio(
+            "Download Method",
+            ["Google Drive (Faster)", "GitHub (Reliable)"],
+            help="Google Drive is faster but may have virus scan warnings for large files"
+        )
+        
+        if hosting_method == "Google Drive (Faster)":
+            # Faster Google Drive URLs (with virus scan for large files)
+            files = {
+                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=18ZK0D77SbmtRMk0SAq60EkFujRfbh3Ld",
+                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=17B2Onz387j6QyJYPGwDy2-IKeIyafhUp",
+                "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1iw9Pa8c2jSBhAv7JatZ40Xuv0B-Rf_z1",
+                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p"
+            }
+        else:
+            # Reliable GitHub URLs (slower but no restrictions)
+            files = {
+                "EQDyna A Coarse Simulation": f"{github_base}/eqdyna.0001.A.coarse.npz",
+                "EQDyna B Coarse Simulation": f"{github_base}/eqdyna.0001.B.coarse.npz",
+                "EQDyna C Coarse Simulation": f"{github_base}/eqdyna.0001.C.coarse.npz",
+                "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz"
+            }
         
         # Add GitHub repository info
         with st.sidebar.expander("📂 Data Repository"):
@@ -298,8 +322,16 @@ class GroundMotionExplorer:
             st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
             st.write("• Professional data hosting")
             st.write("• No download restrictions") 
-            st.write("• Fast global CDN")
             st.write("• Version controlled")
+            st.warning("⚠️ GitHub raw files can be slow for large datasets")
+            
+        # Performance note
+        with st.sidebar.expander("⚡ Performance Tips"):
+            st.write("**For faster access:**")
+            st.write("1. **First load is slow** - files are cached after")
+            st.write("2. **Smaller datasets load faster** - try FD3D first")
+            st.write("3. **Alternative**: Download manually + upload")
+            st.write("4. **Best**: Use local files when possible")
         
         st.sidebar.success(f"Available: {len(files)} datasets")
         return files
