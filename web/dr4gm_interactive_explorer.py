@@ -315,12 +315,12 @@ class GroundMotionExplorer:
         github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
         
         if hosting_method == "Google Drive (Faster)":
-            # All files now work reliably at ~8MB each
+            # All files now work reliably at ~8MB each - updated file IDs
             files = {
                 "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=18ZK0D77SbmtRMk0SAq60EkFujRfbh3Ld",
-                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=17B2Onz387j6QyJYPGwDy2-IKeIyafhUp",
-                "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1iw9Pa8c2jSBhAv7JatZ40Xuv0B-Rf_z1",
+                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1RT4TFtSvnz6v68kx2Ga14E7iqGFF-_J7",
+                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1zBheHWZHTj0QmRL7iFYtTYyFFq4_RTbH",
+                "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1s6H0F4O_IEbCnvKmZXpjZbcFBZhjM9YO",
                 "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=15rFvRpbKcGjNA_vJTZKrw3y22kxiSFyK"
             }
         else:
