@@ -70,14 +70,20 @@ class GroundMotionExplorer:
         # Check if cached file exists and is valid
         if cache_path.exists():
             try:
-                # Quick validation - try to load as NPZ
-                with np.load(cache_path):
+                # Quick validation - try to load as NPZ with pickle support
+                with np.load(cache_path, allow_pickle=True):
                     st.sidebar.success(f"Using cached file: {filename}")
                     return str(cache_path)
             except:
-                # Cache is corrupted, delete it
-                cache_path.unlink()
-                st.sidebar.warning(f"Cleared corrupted cache for {filename}")
+                try:
+                    # Try without pickle
+                    with np.load(cache_path, allow_pickle=False):
+                        st.sidebar.success(f"Using cached file: {filename}")
+                        return str(cache_path)
+                except:
+                    # Cache is corrupted, delete it
+                    cache_path.unlink()
+                    st.sidebar.warning(f"Cleared corrupted cache for {filename}")
         
         try:
             with st.spinner(f"Downloading {filename}..."):
@@ -98,13 +104,19 @@ class GroundMotionExplorer:
                 
                 # Validate downloaded file
                 try:
-                    with np.load(cache_path):
+                    with np.load(cache_path, allow_pickle=True):
                         pass  # Just check if it's a valid NPZ
                     return str(cache_path)
                 except Exception as e:
-                    st.error(f"Downloaded file is not a valid NPZ: {e}")
-                    cache_path.unlink()  # Delete invalid file
-                    return ""
+                    # Try without pickle first, then with pickle
+                    try:
+                        with np.load(cache_path, allow_pickle=False):
+                            pass
+                        return str(cache_path)
+                    except:
+                        st.error(f"Downloaded file is not a valid NPZ: {e}")
+                        cache_path.unlink()  # Delete invalid file
+                        return ""
             
         except Exception as e:
             st.error(f"Failed to download {url}: {e}")
