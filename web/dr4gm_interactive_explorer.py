@@ -325,7 +325,9 @@ def main():
     elif data_source == "DR4GM Data Archive":
         # Google Drive hosted datasets - add more as needed
         sample_datasets = {
-            "fd3d.0001.A": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p"
+            "fd3d.0001.A": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
+            "eqdyna.0001.A": "https://drive.google.com/uc?export=download&id=1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
+            "waveqlab3d.0001.A.coarse": "https://drive.google.com/uc?export=download&id=1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
             # Add more datasets here as you upload them:
             # "EQDyna A": "https://drive.google.com/uc?export=download&id=EQDYNA_FILE_ID",
             # "Waveqlab3D A": "https://drive.google.com/uc?export=download&id=WAVEQLAB3D_FILE_ID"
