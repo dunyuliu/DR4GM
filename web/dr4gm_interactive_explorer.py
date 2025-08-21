@@ -182,13 +182,12 @@ class GroundMotionExplorer:
             customdata=valid_station_ids  # Store station IDs for click events
         ))
         
-        # Update layout
+        # Update layout - make map bigger
         fig.update_layout(
             title=f"{metric} Distribution",
             xaxis_title="X Coordinate (km)",
             yaxis_title="Y Coordinate (km)",
-            width=800,
-            height=600,
+            height=700,  # Increased height
             showlegend=False
         )
         
@@ -403,8 +402,8 @@ def main():
         colorscales = ['Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
-        # Main content
-        col1, col2 = st.columns([2, 1])
+        # Main content - make map bigger
+        col1, col2 = st.columns([3, 1])
         
         with col1:
             st.subheader(f"📍 {selected_metric} Map")
@@ -414,28 +413,29 @@ def main():
             
             if fig_map.data:
                 # Display map with click events
-                clicked_point = st.plotly_chart(
+                event = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map"
+                    key="main_map",
+                    on_select="rerun"
                 )
                 
-                # Handle click events (this is a simplified approach)
-                if st.session_state.get('clicked_station'):
-                    station_idx = st.session_state.clicked_station
-                else:
-                    station_idx = 0  # Default to first station
+                # Initialize selected station
+                if 'selected_station_idx' not in st.session_state:
+                    st.session_state.selected_station_idx = 0
                 
-                # Station selection slider as backup
+                # Station selection slider 
                 max_stations = len(data.get('station_ids', []))
                 station_idx = st.slider(
-                    "Select Station (or click on map)",
-                    0, max_stations - 1, station_idx,
-                    help="Use this slider or click on the map to select a station"
+                    "Select Station",
+                    0, max_stations - 1, 
+                    value=st.session_state.selected_station_idx,
+                    help="Select a station to view detailed metrics",
+                    key="station_selector"
                 )
                 
-                # Store selected station
-                st.session_state.clicked_station = station_idx
+                # Update session state
+                st.session_state.selected_station_idx = station_idx
             
             else:
                 st.warning("No data to display on map")
