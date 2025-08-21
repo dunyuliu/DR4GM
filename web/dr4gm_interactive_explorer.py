@@ -284,20 +284,11 @@ class GroundMotionExplorer:
         return gm_data
     
     @st.cache_data(ttl=300)  # Cache for 5 minutes
-    def discover_github_files(_self) -> Dict[str, str]:
-        """Get NPZ files from DR4GM Data Archive on GitHub"""
-        
-        st.sidebar.info("Loading from DR4GM Data Archive")
+    def get_dataset_files(_self, hosting_method: str) -> Dict[str, str]:
+        """Get NPZ files from DR4GM Data Archive based on hosting method"""
         
         # GitHub repository direct file URLs
         github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
-        
-        # Choose hosting method
-        hosting_method = st.sidebar.radio(
-            "Download Method",
-            ["Google Drive (Faster)", "GitHub (Reliable)"],
-            help="Google Drive is faster but may have virus scan warnings for large files"
-        )
         
         if hosting_method == "Google Drive (Faster)":
             # Faster Google Drive URLs (with virus scan for large files)
@@ -316,24 +307,6 @@ class GroundMotionExplorer:
                 "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz"
             }
         
-        # Add GitHub repository info
-        with st.sidebar.expander("📂 Data Repository"):
-            st.write("**DR4GM Data Archive:**")
-            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
-            st.write("• Professional data hosting")
-            st.write("• No download restrictions") 
-            st.write("• Version controlled")
-            st.warning("⚠️ GitHub raw files can be slow for large datasets")
-            
-        # Performance note
-        with st.sidebar.expander("⚡ Performance Tips"):
-            st.write("**For faster access:**")
-            st.write("1. **First load is slow** - files are cached after")
-            st.write("2. **Smaller datasets load faster** - try FD3D first")
-            st.write("3. **Alternative**: Download manually + upload")
-            st.write("4. **Best**: Use local files when possible")
-        
-        st.sidebar.success(f"Available: {len(files)} datasets")
         return files
     
     def find_npz_files(self, directory: str) -> List[str]:
@@ -456,48 +429,61 @@ class GroundMotionExplorer:
         
         return fig
     
-    def create_metrics_table(self, data: Dict, station_idx: int) -> pd.DataFrame:
-        """Create table of ground motion metrics for selected station"""
-        if station_idx >= len(data.get('station_ids', [])):
-            return pd.DataFrame()
+    @st.cache_data
+    def create_all_metrics_tables(_self, data: Dict) -> Dict[int, pd.DataFrame]:
+        """Pre-compute metrics tables for all stations"""
+        if 'station_ids' not in data:
+            return {}
+            
+        all_tables = {}
+        num_stations = len(data['station_ids'])
         
-        metrics_data = []
-        
-        # Basic metrics
+        # Get all available metrics
         basic_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
-        for metric in basic_metrics:
-            if metric in data and station_idx < len(data[metric]):
-                value = data[metric][station_idx]
-                if metric == 'PGA':
-                    unit = 'm/s²'
-                elif metric == 'PGV':
-                    unit = 'm/s'
-                elif metric == 'PGD':
-                    unit = 'm'
-                elif metric == 'CAV':
-                    unit = 'm/s'
-                else:
-                    unit = ''
-                
-                metrics_data.append({
-                    'Metric': metric,
-                    'Value': f"{value:.3e}",
-                    'Unit': unit
-                })
-        
-        # Spectral acceleration
         sa_keys = sorted([key for key in data.keys() if key.startswith('RSA_T_')])
-        for sa_key in sa_keys:
-            if station_idx < len(data[sa_key]):
-                period = sa_key.replace('RSA_T_', '').replace('_', '.')
-                value = data[sa_key][station_idx]
-                metrics_data.append({
-                    'Metric': f'SA(T={period}s)',
-                    'Value': f"{value:.3e}",
-                    'Unit': 'm/s²'
-                })
         
-        return pd.DataFrame(metrics_data)
+        for station_idx in range(num_stations):
+            metrics_data = []
+            
+            # Basic metrics
+            for metric in basic_metrics:
+                if metric in data and station_idx < len(data[metric]):
+                    value = data[metric][station_idx]
+                    if metric == 'PGA':
+                        unit = 'm/s²'
+                    elif metric == 'PGV':
+                        unit = 'm/s'
+                    elif metric == 'PGD':
+                        unit = 'm'
+                    elif metric == 'CAV':
+                        unit = 'm/s'
+                    else:
+                        unit = ''
+                    
+                    metrics_data.append({
+                        'Metric': metric,
+                        'Value': f"{value:.3e}",
+                        'Unit': unit
+                    })
+            
+            # Spectral acceleration
+            for sa_key in sa_keys:
+                if station_idx < len(data[sa_key]):
+                    period = sa_key.replace('RSA_T_', '').replace('_', '.')
+                    value = data[sa_key][station_idx]
+                    metrics_data.append({
+                        'Metric': f'SA(T={period}s)',
+                        'Value': f"{value:.3e}",
+                        'Unit': 'm/s²'
+                    })
+            
+            all_tables[station_idx] = pd.DataFrame(metrics_data)
+        
+        return all_tables
+    
+    def get_station_metrics(self, all_tables: Dict[int, pd.DataFrame], station_idx: int) -> pd.DataFrame:
+        """Get pre-computed metrics table for station"""
+        return all_tables.get(station_idx, pd.DataFrame())
 
 def main():
     """Main Streamlit app"""
@@ -528,11 +514,39 @@ def main():
         npz_files = explorer.find_npz_files(data_dir)
         
     elif data_source == "DR4GM Data Archive":
-        # GitHub repository with NPZ files
-        discovered_files = explorer.discover_github_files()
+        st.sidebar.info("Loading from DR4GM Data Archive")
+        
+        # Choose hosting method (outside cached function)
+        hosting_method = st.sidebar.radio(
+            "Download Method",
+            ["Google Drive (Faster)", "GitHub (Reliable)"],
+            help="Google Drive is faster but may have virus scan warnings for large files"
+        )
+        
+        # Get files based on hosting method
+        discovered_files = explorer.get_dataset_files(hosting_method)
+        
+        # Add GitHub repository info
+        with st.sidebar.expander("📂 Data Repository"):
+            st.write("**DR4GM Data Archive:**")
+            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
+            st.write("• Professional data hosting")
+            st.write("• No download restrictions") 
+            st.write("• Version controlled")
+            if hosting_method == "GitHub (Reliable)":
+                st.warning("⚠️ GitHub raw files can be slow for large datasets")
+            
+        # Performance note
+        with st.sidebar.expander("⚡ Performance Tips"):
+            st.write("**For faster access:**")
+            st.write("1. **First load is slow** - files are cached after")
+            st.write("2. **Smaller datasets load faster** - try FD3D first")
+            st.write("3. **Alternative**: Download manually + upload")
+            st.write("4. **Best**: Use local files when possible")
         
         if discovered_files:
-            sample_datasets = discovered_files  # GitHub URLs are ready to use
+            sample_datasets = discovered_files  # URLs are ready to use
+            st.sidebar.success(f"Available: {len(sample_datasets)} datasets")
             
             selected_sample = st.sidebar.selectbox("Select Dataset", list(sample_datasets.keys()))
             if selected_sample:
@@ -585,6 +599,9 @@ def main():
             return
         
         st.sidebar.success(f"Loaded {len(data.get('station_ids', []))} stations")
+        
+        # Pre-compute all metrics tables for fast station switching
+        all_metrics_tables = explorer.create_all_metrics_tables(data)
         
         # Metric selection
         available_metrics = []
@@ -695,12 +712,12 @@ def main():
                 st.write(f"**X:** {location[0]:.2f} km")
                 st.write(f"**Y:** {location[1]:.2f} km")
                 
-                # Metrics table - more compact
+                # Metrics table - more compact and fast
                 st.write("**Ground Motion Metrics**")
-                metrics_df = explorer.create_metrics_table(data, station_idx)
+                metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
                 if not metrics_df.empty:
-                    # Display as compact table
-                    st.dataframe(metrics_df, use_container_width=True, hide_index=True, height=200)
+                    # Display as compact table - faster than st.dataframe
+                    st.table(metrics_df.to_dict('records'))
                 
                 # Download button for station data
                 if not metrics_df.empty:
@@ -712,12 +729,17 @@ def main():
                         mime="text/csv"
                     )
         
-        # Time series plot (full width)
+        # Time series plot (full width) - make it optional for speed
         if 'vel_strike' in data:
-            st.subheader("📈 Velocity Time Series")
-            fig_ts = explorer.create_time_series_plot(data, station_idx)
-            if fig_ts.data:
-                st.plotly_chart(fig_ts, use_container_width=True)
+            with st.expander("📈 Velocity Time Series", expanded=False):
+                if st.button("📊 Generate Time Series Plot", key="generate_ts"):
+                    fig_ts = explorer.create_time_series_plot(data, station_idx)
+                    if fig_ts.data:
+                        st.plotly_chart(fig_ts, use_container_width=True)
+                    else:
+                        st.info("No time series data available for this station")
+                else:
+                    st.info("Click above to generate time series plot for selected station")
         
         # Data summary
         with st.expander("📋 Data Summary"):
