@@ -56,25 +56,56 @@ class GroundMotionExplorer:
         import tempfile
         import requests
         
-        # Create cache filename from URL
-        filename = url.split('/')[-1]
+        # Create cache filename from URL - use file ID for better naming
+        if 'id=' in url:
+            file_id = url.split('id=')[1].split('&')[0]
+            filename = f"{file_id}.npz"
+        else:
+            filename = url.split('/')[-1]
+            
         cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
         cache_dir.mkdir(exist_ok=True)
         cache_path = cache_dir / filename
         
+        # Check if cached file exists and is valid
         if cache_path.exists():
-            return str(cache_path)
+            try:
+                # Quick validation - try to load as NPZ
+                with np.load(cache_path):
+                    st.sidebar.success(f"Using cached file: {filename}")
+                    return str(cache_path)
+            except:
+                # Cache is corrupted, delete it
+                cache_path.unlink()
+                st.sidebar.warning(f"Cleared corrupted cache for {filename}")
         
         try:
             with st.spinner(f"Downloading {filename}..."):
                 response = requests.get(url, stream=True)
                 response.raise_for_status()
                 
+                # Check content type
+                content_type = response.headers.get('content-type', '')
+                st.sidebar.info(f"Download content-type: {content_type}")
+                
                 with open(cache_path, 'wb') as f:
+                    total_size = 0
                     for chunk in response.iter_content(chunk_size=8192):
                         f.write(chunk)
+                        total_size += len(chunk)
+                
+                st.sidebar.success(f"Downloaded {total_size / 1024 / 1024:.1f} MB")
+                
+                # Validate downloaded file
+                try:
+                    with np.load(cache_path):
+                        pass  # Just check if it's a valid NPZ
+                    return str(cache_path)
+                except Exception as e:
+                    st.error(f"Downloaded file is not a valid NPZ: {e}")
+                    cache_path.unlink()  # Delete invalid file
+                    return ""
             
-            return str(cache_path)
         except Exception as e:
             st.error(f"Failed to download {url}: {e}")
             return ""
@@ -89,47 +120,119 @@ class GroundMotionExplorer:
                 if not npz_file:
                     return {}
             
-            with np.load(npz_file, allow_pickle=True) as data:
-                # Load ground motion metrics
-                gm_data = {}
-                
-                # Basic info
-                if 'station_ids' in data:
-                    gm_data['station_ids'] = data['station_ids']
-                if 'locations' in data:
-                    gm_data['locations'] = data['locations']
-                
-                # Ground motion metrics
-                gm_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
-                for metric in gm_metrics:
-                    if metric in data:
-                        gm_data[metric] = data[metric]
-                
-                # Spectral acceleration periods
-                sa_keys = [key for key in data.keys() if key.startswith('RSA_T_')]
-                for sa_key in sa_keys:
-                    gm_data[sa_key] = data[sa_key]
-                
-                # Velocity time series if available
-                if 'vel_strike' in data and 'vel_normal' in data:
-                    gm_data['vel_strike'] = data['vel_strike']
-                    gm_data['vel_normal'] = data['vel_normal']
-                    if 'vel_vertical' in data:
-                        gm_data['vel_vertical'] = data['vel_vertical']
-                
-                # Time step info
-                if 'dt_values' in data:
-                    gm_data['dt'] = float(data['dt_values'][0])
-                elif 'dt' in data:
-                    gm_data['dt'] = float(data['dt'])
-                else:
-                    gm_data['dt'] = 0.01  # Default
-                
-                return gm_data
+            # Try different loading methods
+            try:
+                with np.load(npz_file, allow_pickle=True) as data:
+                    return _self._extract_data_from_npz(data)
+            except Exception as e1:
+                st.warning(f"Failed with allow_pickle=True: {str(e1)}")
+                try:
+                    with np.load(npz_file, allow_pickle=False) as data:
+                        return _self._extract_data_from_npz(data)
+                except Exception as e2:
+                    st.error(f"Failed to load NPZ file: {str(e2)}")
+                    return {}
                 
         except Exception as e:
             st.error(f"Error loading {npz_file}: {e}")
             return {}
+    
+    def _extract_data_from_npz(self, data) -> Dict:
+        """Extract ground motion data from NPZ file"""
+        # Load ground motion metrics
+        gm_data = {}
+        
+        # Debug: show what keys are available
+        available_keys = list(data.keys())
+        st.sidebar.info(f"Available data keys: {available_keys}")
+        
+        # Basic info
+        if 'station_ids' in data:
+            gm_data['station_ids'] = data['station_ids']
+        if 'locations' in data:
+            gm_data['locations'] = data['locations']
+        
+        # Ground motion metrics
+        gm_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
+        for metric in gm_metrics:
+            if metric in data:
+                gm_data[metric] = data[metric]
+        
+        # Spectral acceleration periods
+        sa_keys = [key for key in data.keys() if key.startswith('RSA_T_')]
+        for sa_key in sa_keys:
+            gm_data[sa_key] = data[sa_key]
+        
+        # Velocity time series if available
+        if 'vel_strike' in data and 'vel_normal' in data:
+            gm_data['vel_strike'] = data['vel_strike']
+            gm_data['vel_normal'] = data['vel_normal']
+            if 'vel_vertical' in data:
+                gm_data['vel_vertical'] = data['vel_vertical']
+        
+        # Time step info
+        if 'dt_values' in data:
+            gm_data['dt'] = float(data['dt_values'][0])
+        elif 'dt' in data:
+            gm_data['dt'] = float(data['dt'])
+        else:
+            gm_data['dt'] = 0.01  # Default
+        
+        return gm_data
+    
+    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    def discover_drive_files(_self, folder_id: str) -> Dict[str, str]:
+        """Discover NPZ files in Google Drive folder"""
+        import requests
+        import re
+        
+        try:
+            # Use Google Drive's web interface to get file list
+            folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
+            
+            with st.spinner("Discovering files in Google Drive folder..."):
+                response = requests.get(folder_url)
+                response.raise_for_status()
+                
+                # Extract file information from the HTML
+                # Look for patterns like: ["file_name.npz","file_id",...]
+                content = response.text
+                
+                # Find NPZ files and their IDs
+                files = {}
+                
+                # Pattern to match Google Drive file entries
+                # This is a simplified approach - may need adjustment
+                file_pattern = r'"([^"]*\.npz)","([^"]+)"'
+                matches = re.findall(file_pattern, content)
+                
+                for filename, file_id in matches:
+                    if filename.endswith('.npz'):
+                        # Clean up filename for display
+                        display_name = filename.replace('.npz', '').replace('_', ' ')
+                        files[display_name] = file_id
+                
+                if not files:
+                    # Fallback: use known files if auto-discovery fails
+                    st.sidebar.warning("Auto-discovery failed, using known files")
+                    files = {
+                        "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
+                        "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
+                        "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
+                    }
+                else:
+                    st.sidebar.success(f"Discovered {len(files)} NPZ files")
+                
+                return files
+                
+        except Exception as e:
+            st.sidebar.error(f"Failed to discover files: {e}")
+            # Fallback to known files
+            return {
+                "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
+                "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
+                "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
+            }
     
     def find_npz_files(self, directory: str) -> List[str]:
         """Find all NPZ files in directory"""
@@ -323,19 +426,34 @@ def main():
         npz_files = explorer.find_npz_files(data_dir)
         
     elif data_source == "DR4GM Data Archive":
-        # Google Drive hosted datasets - add more as needed
-        sample_datasets = {
-            "fd3d.0001.A": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-            "eqdyna.0001.A": "https://drive.google.com/uc?export=download&id=1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2",
-            "waveqlab3d.0001.A.coarse": "https://drive.google.com/uc?export=download&id=1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
-            # Add more datasets here as you upload them:
-            # "EQDyna A": "https://drive.google.com/uc?export=download&id=EQDYNA_FILE_ID",
-            # "Waveqlab3D A": "https://drive.google.com/uc?export=download&id=WAVEQLAB3D_FILE_ID"
-        }
+        # Google Drive folder with NPZ files
+        drive_folder_id = "1YbcMYiAx2A_Dib21FR6HeuJ3KOGtwlo_"  # Your shared folder ID
         
-        selected_sample = st.sidebar.selectbox("Select Sample Dataset", list(sample_datasets.keys()))
-        if selected_sample:
-            npz_files = [sample_datasets[selected_sample]]
+        # Discover NPZ files in the folder
+        discovered_files = explorer.discover_drive_files(drive_folder_id)
+        
+        if discovered_files:
+            sample_datasets = {
+                name: f"https://drive.google.com/uc?export=download&id={file_id}"
+                for name, file_id in discovered_files.items()
+            }
+            
+            selected_sample = st.sidebar.selectbox("Select Dataset", list(sample_datasets.keys()))
+            if selected_sample:
+                npz_files = [sample_datasets[selected_sample]]
+        else:
+            st.sidebar.error("Could not discover files in Google Drive folder")
+            npz_files = []
+            
+        # Cache management
+        if st.sidebar.button("🗑️ Clear Download Cache"):
+            import tempfile
+            import shutil
+            cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir)
+                st.sidebar.success("Cache cleared! Please reload the dataset.")
+                st.rerun()
             
     elif data_source == "Upload File":
         uploaded_file = st.sidebar.file_uploader(
