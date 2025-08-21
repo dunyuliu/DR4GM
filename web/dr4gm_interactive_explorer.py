@@ -89,7 +89,7 @@ class GroundMotionExplorer:
                 if not npz_file:
                     return {}
             
-            with np.load(npz_file) as data:
+            with np.load(npz_file, allow_pickle=True) as data:
                 # Load ground motion metrics
                 gm_data = {}
                 
@@ -325,7 +325,7 @@ def main():
     elif data_source == "DR4GM Sample Data":
         # Google Drive hosted datasets - add more as needed
         sample_datasets = {
-            "fd3d.0001.A": "https://drive.google.com/file/d/1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p/view?usp=drive_link"
+            "fd3d.0001.A": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p"
             # Add more datasets here as you upload them:
             # "EQDyna A": "https://drive.google.com/uc?export=download&id=EQDYNA_FILE_ID",
             # "Waveqlab3D A": "https://drive.google.com/uc?export=download&id=WAVEQLAB3D_FILE_ID"
