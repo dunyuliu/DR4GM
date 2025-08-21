@@ -315,12 +315,13 @@ class GroundMotionExplorer:
         github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
         
         if hosting_method == "Google Drive (Faster)":
-            # Faster Google Drive URLs (with virus scan for large files)
+            # All files now work reliably at ~8MB each
             files = {
+                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
                 "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=18ZK0D77SbmtRMk0SAq60EkFujRfbh3Ld",
                 "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=17B2Onz387j6QyJYPGwDy2-IKeIyafhUp",
                 "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1iw9Pa8c2jSBhAv7JatZ40Xuv0B-Rf_z1",
-                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p"
+                "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=15rFvRpbKcGjNA_vJTZKrw3y22kxiSFyK"
             }
         else:
             # Reliable GitHub URLs (slower but no restrictions)
@@ -328,7 +329,8 @@ class GroundMotionExplorer:
                 "EQDyna A Coarse Simulation": f"{github_base}/eqdyna.0001.A.coarse.npz",
                 "EQDyna B Coarse Simulation": f"{github_base}/eqdyna.0001.B.coarse.npz",
                 "EQDyna C Coarse Simulation": f"{github_base}/eqdyna.0001.C.coarse.npz",
-                "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz"
+                "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz",
+                "Waveqlab3D A Coarse Simulation": f"{github_base}/waveqlab3d.0001.A.coarse.npz"
             }
         
         return files
@@ -578,9 +580,25 @@ def main():
         with st.sidebar.expander("⚡ Performance Tips"):
             st.write("**For faster access:**")
             st.write("1. **First load is slow** - files are cached after")
-            st.write("2. **Smaller datasets load faster** - try FD3D first")
-            st.write("3. **Alternative**: Download manually + upload")
-            st.write("4. **Best**: Use local files when possible")
+            st.write("2. **FD3D works reliably** - try it first")
+            st.write("3. **EQDyna files are large** - may trigger virus scan")
+            st.write("4. **Alternative**: Download manually + upload")
+            st.write("5. **Best**: Use local files when possible")
+            
+        # Dataset status info
+        with st.sidebar.expander("📊 Dataset Status"):
+            if hosting_method == "Google Drive (Faster)":
+                st.write("**Google Drive - All datasets available:**")
+                st.write("✅ FD3D A Coarse (~8 MB)")
+                st.write("✅ EQDyna A, B, C Coarse (~8 MB each)")
+                st.write("✅ Waveqlab3D A Coarse (~8 MB)")
+                st.write("🚀 Fast downloads, no restrictions")
+            else:
+                st.write("**GitHub - All datasets available:**")
+                st.write("✅ EQDyna A, B, C Coarse")
+                st.write("✅ FD3D A Coarse")
+                st.write("✅ Waveqlab3D A Coarse")
+                st.write("⏳ Downloads may be slower but reliable")
         
         if discovered_files:
             sample_datasets = discovered_files  # URLs are ready to use
