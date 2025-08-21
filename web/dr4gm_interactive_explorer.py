@@ -87,12 +87,95 @@ class GroundMotionExplorer:
         
         try:
             with st.spinner(f"Downloading {filename}..."):
-                response = requests.get(url, stream=True)
-                response.raise_for_status()
+                # Try multiple download methods for Google Drive
+                file_id = url.split('id=')[1].split('&')[0] if 'id=' in url else None
                 
-                # Check content type
-                content_type = response.headers.get('content-type', '')
-                st.sidebar.info(f"Download content-type: {content_type}")
+                if file_id:
+                    # Method 1: Direct download
+                    urls_to_try = [
+                        f"https://drive.google.com/uc?export=download&id={file_id}",
+                        f"https://drive.google.com/uc?id={file_id}&export=download",
+                        f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
+                    ]
+                else:
+                    urls_to_try = [url]
+                
+                session = requests.Session()
+                success = False
+                
+                for attempt_url in urls_to_try:
+                    try:
+                        st.sidebar.info(f"Trying download method...")
+                        response = session.get(attempt_url, stream=True, allow_redirects=True)
+                        
+                        # Check content type
+                        content_type = response.headers.get('content-type', '')
+                        
+                        # If we get HTML, try to extract the real download link
+                        if 'text/html' in content_type:
+                            content = response.text
+                            
+                            # Check for virus scan warning
+                            if "can't scan this file for viruses" in content or "Download anyway" in content:
+                                st.sidebar.info("Handling Google Drive virus scan warning...")
+                                # Look for the download anyway link
+                                import re
+                                patterns = [
+                                    r'href="(/uc\?[^"]*&amp;confirm=t[^"]*)"',
+                                    r'action="([^"]*)".*?Download anyway',
+                                    r'href="([^"]*confirm=t[^"]*)"'
+                                ]
+                                
+                                for pattern in patterns:
+                                    match = re.search(pattern, content)
+                                    if match:
+                                        download_url = match.group(1)
+                                        if download_url.startswith('/'):
+                                            download_url = f"https://drive.google.com{download_url}"
+                                        download_url = download_url.replace('&amp;', '&')
+                                        
+                                        st.sidebar.info("Using 'Download anyway' link...")
+                                        response = session.get(download_url, stream=True)
+                                        content_type = response.headers.get('content-type', '')
+                                        break
+                            else:
+                                # Look for other download patterns
+                                import re
+                                patterns = [
+                                    r'"downloadUrl":"([^"]*)"',
+                                    r'href="(/uc\?[^"]*export=download[^"]*)"',
+                                    r'action="([^"]*)"[^>]*>.*?download'
+                                ]
+                                
+                                for pattern in patterns:
+                                    match = re.search(pattern, content)
+                                    if match:
+                                        download_url = match.group(1)
+                                        if download_url.startswith('/'):
+                                            download_url = f"https://drive.google.com{download_url}"
+                                        download_url = download_url.replace('\\u003d', '=').replace('\\u0026', '&')
+                                        
+                                        st.sidebar.info("Found embedded download link...")
+                                        response = session.get(download_url, stream=True)
+                                        content_type = response.headers.get('content-type', '')
+                                        break
+                        
+                        st.sidebar.info(f"Content-type: {content_type}")
+                        
+                        # Check if we got a binary file
+                        if 'text/html' not in content_type or 'application' in content_type:
+                            success = True
+                            break
+                            
+                    except Exception as e:
+                        st.sidebar.warning(f"Method failed: {str(e)[:50]}")
+                        continue
+                
+                if not success:
+                    st.error("All download methods failed. File may be too large or have restricted access.")
+                    return ""
+                
+                response.raise_for_status()
                 
                 with open(cache_path, 'wb') as f:
                     total_size = 0
@@ -200,12 +283,19 @@ class GroundMotionExplorer:
         
         st.sidebar.info("Using curated dataset list")
         
-        # Return your known working files
+        # Return your known working files with alternative download URLs
         files = {
             "fd3d.0001.A": "1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
             "eqdyna.0001.A": "1QzNBhCgPnT3L9EkbtHVpKXpt7k5j1xm2", 
             "waveqlab3d.0001.A.coarse": "1XCvceOyw3arFZLd-DnOS5unpTtHHBx2k"
         }
+        
+        # Add instruction for manual verification
+        with st.sidebar.expander("🔧 File Access Help"):
+            st.write("If downloads fail:")
+            st.write("1. Check file permissions in Google Drive")
+            st.write("2. Ensure files are set to 'Anyone with the link'")
+            st.write("3. Try the 'Clear Download Cache' button")
         
         st.sidebar.success(f"Available: {len(files)} datasets")
         return files
