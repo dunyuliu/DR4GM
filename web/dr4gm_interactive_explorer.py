@@ -656,7 +656,6 @@ def main():
                 # Update selected station
                 st.session_state.selected_station_idx = closest_idx
                 st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {closest_distance:.2f} km")
-                st.rerun()
         
         # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
@@ -691,12 +690,11 @@ def main():
                     on_select="rerun"
                 )
                 
-                # Handle map clicks
+                # Handle map clicks - remove rerun to prevent loops
                 if clicked and hasattr(clicked, 'selection') and clicked.selection:
                     if clicked.selection.point_indices:
                         clicked_station_idx = clicked.selection.point_indices[0]
                         st.session_state.selected_station_idx = clicked_station_idx
-                        st.rerun()
             else:
                 st.warning("No data to display on map")
         
@@ -732,14 +730,17 @@ def main():
         # Time series plot (full width) - make it optional for speed
         if 'vel_strike' in data:
             with st.expander("📈 Velocity Time Series", expanded=False):
-                if st.button("📊 Generate Time Series Plot", key="generate_ts"):
+                # Use checkbox instead of button to avoid rerun loops
+                show_timeseries = st.checkbox("📊 Show Time Series Plot", key=f"show_ts_{station_idx}")
+                
+                if show_timeseries:
                     fig_ts = explorer.create_time_series_plot(data, station_idx)
                     if fig_ts.data:
                         st.plotly_chart(fig_ts, use_container_width=True)
                     else:
                         st.info("No time series data available for this station")
                 else:
-                    st.info("Click above to generate time series plot for selected station")
+                    st.info("Check above to show time series plot for selected station")
         
         # Data summary
         with st.expander("📋 Data Summary"):
