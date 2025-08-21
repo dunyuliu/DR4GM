@@ -328,9 +328,9 @@ def main():
     elif data_source == "DR4GM Sample Data":
         # OneDrive hosted datasets - use ground_motion_metrics.npz files
         sample_datasets = {
-            "EQDyna Ground Motion": "YOUR_ONEDRIVE_SHARE_LINK_EQDYNA",
-            "Waveqlab3D Ground Motion": "YOUR_ONEDRIVE_SHARE_LINK_WAVEQLAB3D", 
-            "FD3D Ground Motion": "YOUR_ONEDRIVE_SHARE_LINK_FD3D"
+            "EQDyna Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N",
+            "Waveqlab3D Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N", 
+            "FD3D Ground Motion": "https://utexas-my.sharepoint.com/:f:/g/personal/dl27583_eid_utexas_edu/EsD9-gN5uR5Op2etGQCL1pIBc0LknEbKeog0BL4Eq8cumQ?e=ufJ08N"
         }
         
         selected_sample = st.sidebar.selectbox("Select Sample Dataset", list(sample_datasets.keys()))
