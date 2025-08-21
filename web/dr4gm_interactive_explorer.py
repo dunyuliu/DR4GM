@@ -223,6 +223,9 @@ class GroundMotionExplorer:
                 if not npz_file:
                     return {}
             
+            # Store filename for unit detection
+            _self._current_filename = os.path.basename(npz_file)
+            
             # Try different loading methods
             try:
                 with np.load(npz_file, allow_pickle=True) as data:
@@ -280,6 +283,27 @@ class GroundMotionExplorer:
             gm_data['dt'] = float(data['dt'])
         else:
             gm_data['dt'] = 0.01  # Default
+        
+        # Detect coordinate units based on data range and source
+        if 'locations' in gm_data:
+            locations = gm_data['locations']
+            max_coord = np.max(np.abs(locations[:, :2]))  # Check X,Y coordinates
+            
+            # Auto-detect units based on coordinate range and filename patterns
+            if max_coord > 1000:  # Large values suggest meters
+                gm_data['coordinate_unit'] = 'm'
+            else:  # Small values suggest kilometers
+                gm_data['coordinate_unit'] = 'km'
+                
+            # Override based on known dataset patterns
+            if hasattr(_self, '_current_filename'):
+                filename = _self._current_filename.lower()
+                if 'eqdyna' in filename:
+                    gm_data['coordinate_unit'] = 'm'  # EQDyna uses meters
+                elif 'fd3d' in filename or 'waveqlab3d' in filename:
+                    gm_data['coordinate_unit'] = 'km'  # Others use kilometers
+        else:
+            gm_data['coordinate_unit'] = 'km'  # Default
         
         return gm_data
     
@@ -359,6 +383,20 @@ class GroundMotionExplorer:
             name=metric,
             customdata=valid_station_ids  # Store station IDs for click events
         ))
+        
+        # Convert coordinates to km for display
+        coord_unit = data.get('coordinate_unit', 'km')
+        if coord_unit == 'm':
+            # Convert locations from meters to km for display
+            display_locations = valid_locations / 1000.0
+            display_unit = 'km'
+        else:
+            display_locations = valid_locations
+            display_unit = 'km'
+        
+        # Update scatter plot with converted coordinates
+        fig.data[0].x = display_locations[:, 0]
+        fig.data[0].y = display_locations[:, 1]
         
         # Update layout - make map bigger
         fig.update_layout(
@@ -598,7 +636,12 @@ def main():
             st.error("Failed to load data from selected file")
             return
         
+        coord_unit = data.get('coordinate_unit', 'km')
         st.sidebar.success(f"Loaded {len(data.get('station_ids', []))} stations")
+        if coord_unit == 'm':
+            st.sidebar.info("📏 Coordinates: converted from meters to km for display")
+        else:
+            st.sidebar.info("📏 Coordinates: displayed in km")
         
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
@@ -647,15 +690,31 @@ def main():
             
         if st.sidebar.button("🔍 Find Closest Station"):
             if 'locations' in data:
+                # Convert input coordinates to match data units if needed
+                coord_unit = data.get('coordinate_unit', 'km')
+                if coord_unit == 'm':
+                    # Convert km input to meters for calculation
+                    search_x = target_x * 1000.0
+                    search_y = target_y * 1000.0
+                else:
+                    search_x = target_x
+                    search_y = target_y
+                
                 # Calculate distances to all stations
                 locations = data['locations']
-                distances = np.sqrt((locations[:, 0] - target_x)**2 + (locations[:, 1] - target_y)**2)
+                distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
                 closest_idx = np.argmin(distances)
                 closest_distance = distances[closest_idx]
                 
+                # Convert distance to km for display
+                if coord_unit == 'm':
+                    display_distance = closest_distance / 1000.0
+                else:
+                    display_distance = closest_distance
+                
                 # Update selected station
                 st.session_state.selected_station_idx = closest_idx
-                st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {closest_distance:.2f} km")
+                st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {display_distance:.2f} km")
         
         # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
@@ -705,10 +764,19 @@ def main():
                 station_id = data['station_ids'][station_idx]
                 location = data['locations'][station_idx]
                 
-                # Compact station info
+                # Convert coordinates to km for display
+                coord_unit = data.get('coordinate_unit', 'km')
+                if coord_unit == 'm':
+                    display_x = location[0] / 1000.0
+                    display_y = location[1] / 1000.0
+                else:
+                    display_x = location[0]
+                    display_y = location[1]
+                
+                # Compact station info in km
                 st.write(f"**Station ID:** {station_id}")
-                st.write(f"**X:** {location[0]:.2f} km")
-                st.write(f"**Y:** {location[1]:.2f} km")
+                st.write(f"**X:** {display_x:.2f} km")
+                st.write(f"**Y:** {display_y:.2f} km")
                 
                 # Metrics table - more compact and fast
                 st.write("**Ground Motion Metrics**")
