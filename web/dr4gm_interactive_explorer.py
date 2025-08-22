@@ -413,33 +413,36 @@ class GroundMotionExplorer:
         # Create stunning contour plot
         fig = go.Figure()
         
-        # Add smooth contour filled plot
-        fig.add_trace(go.Contour(
-            x=xi,
-            y=yi,
-            z=Zi,
-            colorscale=colorscale,
-            showscale=True,
-            contours=dict(
-                coloring='fill',
-                showlines=True,
-                start=valid_values.min(),
-                end=valid_values.max(),
-                size=(valid_values.max() - valid_values.min()) / 20
-            ),
-            colorbar=dict(
-                title=dict(
-                    text=self._get_metric_unit(metric),
-                    font=dict(size=16, family="Arial, sans-serif")
+        # Add smooth contour filled plot with robust error handling
+        try:
+            fig.add_trace(go.Contour(
+                x=xi,
+                y=yi,
+                z=Zi,
+                colorscale=colorscale,
+                showscale=True,
+                contours=dict(
+                    coloring='fill',
+                    showlines=True,
+                    start=valid_values.min(),
+                    end=valid_values.max(),
+                    size=(valid_values.max() - valid_values.min()) / 20
                 ),
-                titleside="right",
-                thickness=20,
-                len=0.8,
-                x=1.02,
-                tickfont=dict(size=14, family="Arial, sans-serif")
-            ),
-            hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
-        ))
+                colorbar=dict(
+                    title=self._get_metric_unit(metric)
+                ),
+                hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
+            ))
+        except Exception as e:
+            # Fallback to basic contour if advanced colorbar fails
+            fig.add_trace(go.Contour(
+                x=xi,
+                y=yi,
+                z=Zi,
+                colorscale=colorscale,
+                showscale=True,
+                hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
+            ))
         
         # Add station points for interaction
         fig.add_trace(go.Scatter(
