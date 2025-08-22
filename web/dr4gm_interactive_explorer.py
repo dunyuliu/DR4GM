@@ -415,6 +415,7 @@ class GroundMotionExplorer:
         
         # Add smooth contour filled plot with robust error handling
         try:
+            # Try most basic contour first
             fig.add_trace(go.Contour(
                 x=xi,
                 y=yi,
@@ -423,26 +424,13 @@ class GroundMotionExplorer:
                 showscale=True,
                 contours=dict(
                     coloring='fill',
-                    showlines=True,
-                    start=valid_values.min(),
-                    end=valid_values.max(),
-                    size=(valid_values.max() - valid_values.min()) / 20
-                ),
-                colorbar=dict(
-                    title=self._get_metric_unit(metric)
+                    showlines=True
                 ),
                 hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
             ))
         except Exception as e:
-            # Fallback to basic contour if advanced colorbar fails
-            fig.add_trace(go.Contour(
-                x=xi,
-                y=yi,
-                z=Zi,
-                colorscale=colorscale,
-                showscale=True,
-                hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
-            ))
+            # If that fails, fallback to scatter plot
+            return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
         
         # Add station points for interaction
         fig.add_trace(go.Scatter(
@@ -506,6 +494,12 @@ class GroundMotionExplorer:
             paper_bgcolor='white',
             margin=dict(l=60, r=100, t=80, b=60)
         )
+        
+        # Try to update colorbar title via layout if possible
+        try:
+            fig.update_coloraxes(colorbar_title_text=self._get_metric_unit(metric))
+        except:
+            pass  # Use default colorbar if custom styling fails
         
         # Add statistics annotation (like the PGD map)
         stats_text = (f"Min: {valid_values.min():.2e}<br>"
