@@ -1,33 +1,30 @@
 #!/usr/bin/env python3
 
 """
-DR4GM Interactive Explorer - Dynamic Rupture for Ground Motion Applications
+DR4GM Interactive Explorer
 
-Interactive web application for exploring earthquake ground motion simulations.
-Part of the DR4GM toolkit for dynamic rupture modeling and ground motion analysis.
-
-Click on maps to see detailed ground motion metrics at specific locations.
+Interactive web application for exploring high-resolution physics-based earthquake scenarios.
+Features beautiful contour maps with hover tooltips and click-to-select station data.
 
 Usage:
     streamlit run dr4gm_interactive_explorer.py
 
 Features:
-- Load multiple dynamic rupture simulation results (NPZ format)
-- Interactive maps with clickable station locations
-- Real-time ground motion metric display (PGA, PGV, spectral acceleration)
-- Station-specific velocity time series visualization
+- Beautiful contour maps with interpolated ground motion fields
+- Hover tooltips showing real-time interpolated values
+- Click-to-select nearest station for detailed metrics
 - Support for EQDyna, Waveqlab3D, and FD3D simulation outputs
+- Compact metrics tables with proper units (cm-based)
 """
 
 import streamlit as st
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 import logging
 
 # Configure page
@@ -627,6 +624,99 @@ class GroundMotionExplorer:
     def get_station_metrics(self, all_tables: Dict[int, pd.DataFrame], station_idx: int) -> pd.DataFrame:
         """Get pre-computed metrics table for station"""
         return all_tables.get(station_idx, pd.DataFrame())
+    
+    def compute_custom_station_metrics(self, data: Dict, custom_locations: np.ndarray) -> Dict:
+        """Compute ground motion metrics at custom station locations using interpolation"""
+        try:
+            from scipy.interpolate import griddata
+        except ImportError:
+            return None
+        
+        # Get data locations and convert custom locations to data coordinates
+        locations = data['locations']
+        coord_unit = data.get('coordinate_unit', 'km')
+        
+        # Convert custom locations (in km) to data coordinates
+        if coord_unit == 'm':
+            # Data is in meters, convert custom locations from km to meters
+            search_locations = custom_locations * 1000.0
+        else:
+            # Data is in km, use as is
+            search_locations = custom_locations.copy()
+        
+        # Initialize results dictionary
+        results = {
+            'locations': custom_locations,  # Keep in km for output
+            'station_ids': np.arange(len(custom_locations)),  # Generate sequential IDs
+            'coordinate_unit': 'km'  # Output is always in km
+        }
+        
+        # Interpolate basic metrics
+        basic_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
+        for metric in basic_metrics:
+            if metric in data:
+                values = data[metric]
+                valid_mask = (values > 0) & (~np.isnan(values)) & (~np.isinf(values))
+                
+                if np.any(valid_mask):
+                    valid_locations = locations[valid_mask]
+                    valid_values = values[valid_mask]
+                    
+                    # Interpolate at all custom locations
+                    interpolated = []
+                    for loc in search_locations:
+                        interp_value = griddata(
+                            (valid_locations[:, 0], valid_locations[:, 1]),
+                            valid_values,
+                            loc.reshape(1, -1),
+                            method='linear'
+                        )[0]
+                        
+                        # Fill NaN with nearest neighbor
+                        if np.isnan(interp_value):
+                            interp_value = griddata(
+                                (valid_locations[:, 0], valid_locations[:, 1]),
+                                valid_values,
+                                loc.reshape(1, -1),
+                                method='nearest'
+                            )[0]
+                        
+                        interpolated.append(interp_value if not np.isnan(interp_value) else 0.0)
+                    
+                    results[metric] = np.array(interpolated)
+        
+        # Interpolate spectral acceleration
+        sa_keys = sorted([key for key in data.keys() if key.startswith('RSA_T_')])
+        for sa_key in sa_keys:
+            values = data[sa_key]
+            valid_mask = (values > 0) & (~np.isnan(values)) & (~np.isinf(values))
+            
+            if np.any(valid_mask):
+                valid_locations = locations[valid_mask]
+                valid_values = values[valid_mask]
+                
+                interpolated = []
+                for loc in search_locations:
+                    interp_value = griddata(
+                        (valid_locations[:, 0], valid_locations[:, 1]),
+                        valid_values,
+                        loc.reshape(1, -1),
+                        method='linear'
+                    )[0]
+                    
+                    if np.isnan(interp_value):
+                        interp_value = griddata(
+                            (valid_locations[:, 0], valid_locations[:, 1]),
+                            valid_values,
+                            loc.reshape(1, -1),
+                            method='nearest'
+                        )[0]
+                    
+                    interpolated.append(interp_value if not np.isnan(interp_value) else 0.0)
+                
+                results[sa_key] = np.array(interpolated)
+        
+        return results
 
 def main():
     """Main Streamlit app"""
@@ -635,77 +725,62 @@ def main():
     
     explorer = GroundMotionExplorer()
     
-    # Sidebar for file selection
+    # 1. Data Selection
     st.sidebar.header("📁 Data Selection")
-    
-    # Data source selection
     data_source = st.sidebar.radio(
         "Data Source",
         ["DR4GM Data Archive", "Local Files", "Upload File"],
-        index=0  # Default to DR4GM Data Archive
+        index=0
     )
     
+    # 2. Select Dataset
+    st.sidebar.header("📊 Select Dataset")
     npz_files = []
     
-    if data_source == "Local Files":
-        # Directory input
-        data_dir = st.sidebar.text_input(
-            "Data Directory", 
-            value="./",
-            help="Directory containing NPZ ground motion files"
-        )
-        npz_files = explorer.find_npz_files(data_dir)
-        
-    elif data_source == "DR4GM Data Archive":
-        st.sidebar.info("Loading from DR4GM Data Archive")
-        
-        # Choose hosting method (outside cached function)
-        hosting_method = st.sidebar.radio(
-            "Download Method",
+    if data_source == "DR4GM Data Archive":
+        # Download Method subsection
+        st.sidebar.subheader("💾 Download Method")
+        download_method = st.sidebar.radio(
+            "Choose Download Source",
             ["Google Drive (Faster)", "GitHub (Reliable)"],
-            help="Google Drive is faster but may have virus scan warnings for large files"
+            index=0,
+            help="Google Drive is faster but may require virus scan confirmation for large files"
         )
         
-        # Get files based on hosting method
-        discovered_files = explorer.get_dataset_files(hosting_method)
-        
-        # Store files for later selection
+        # Select NPZ File subsection
+        st.sidebar.subheader("📄 Select NPZ File")
+        discovered_files = explorer.get_dataset_files(download_method)
         
         if discovered_files:
-            sample_datasets = discovered_files  # URLs are ready to use
-            st.sidebar.success(f"Available: {len(sample_datasets)} datasets")
-            
-            selected_sample = st.sidebar.selectbox("Select Dataset", list(sample_datasets.keys()))
+            selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
             if selected_sample:
-                npz_files = [sample_datasets[selected_sample]]
+                npz_files = [discovered_files[selected_sample]]
+                st.sidebar.success(f"✅ Dataset ready: {selected_sample}")
         else:
-            st.sidebar.error("Could not discover files in Google Drive folder")
-            npz_files = []
+            st.sidebar.error("Could not discover files in archive")
+            
+    elif data_source == "Local Files":
+        data_dir = st.sidebar.text_input("Data Directory", value="./")
+        npz_files = explorer.find_npz_files(data_dir)
+        if npz_files:
+            selected_file = st.sidebar.selectbox("Select NPZ File", npz_files, 
+                                               format_func=lambda x: os.path.basename(x))
+            npz_files = [selected_file] if selected_file else []
             
     elif data_source == "Upload File":
-        uploaded_file = st.sidebar.file_uploader(
-            "Upload NPZ File",
-            type=['npz'],
-            help="Upload your own ground motion NPZ file"
-        )
+        uploaded_file = st.sidebar.file_uploader("Upload NPZ File", type=['npz'])
         if uploaded_file:
-            # Save uploaded file temporarily
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix='.npz') as tmp_file:
                 tmp_file.write(uploaded_file.read())
                 npz_files = [tmp_file.name]
     
     if not npz_files:
-        st.sidebar.warning("No ground motion NPZ files found in directory")
-        st.warning("No data files found. Please check the data directory path.")
+        st.sidebar.warning("No dataset selected")
+        st.warning("Please select a dataset to continue.")
         return
     
-    # File selection
-    selected_file = st.sidebar.selectbox(
-        "Select NPZ File",
-        npz_files,
-        format_func=lambda x: os.path.basename(x)
-    )
+    selected_file = npz_files[0]  # Use the first (and typically only) file
     
     # Load data
     if selected_file:
@@ -725,7 +800,7 @@ def main():
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
         
-        # Variable selection - moved up as requested
+        # 3. Analysis Settings
         st.sidebar.header("📊 Analysis Settings")
         
         # Metric selection
@@ -776,44 +851,96 @@ def main():
         colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
-        # Station location finder - moved up as requested
-        st.sidebar.header("🎯 Find Station by Location")
+        # Station location finder
+        with st.sidebar.expander("🎯 Find Station by Location"):
+            col_x, col_y = st.columns(2)
+            with col_x:
+                target_x = st.number_input("X (km)", value=0.0, step=0.1, format="%.1f", key="find_x")
+            with col_y:
+                target_y = st.number_input("Y (km)", value=0.0, step=0.1, format="%.1f", key="find_y")
+                
+            if st.button("🔍 Find Closest Station"):
+                if 'locations' in data:
+                    coord_unit = data.get('coordinate_unit', 'km')
+                    search_x = target_x * 1000.0 if coord_unit == 'm' else target_x
+                    search_y = target_y * 1000.0 if coord_unit == 'm' else target_y
+                    
+                    locations = data['locations']
+                    distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
+                    closest_idx = np.argmin(distances)
+                    closest_distance = distances[closest_idx]
+                    
+                    display_distance = closest_distance / 1000.0 if coord_unit == 'm' else closest_distance
+                    st.session_state.selected_station_idx = closest_idx
+                    st.success(f"Found station {data['station_ids'][closest_idx]} at distance {display_distance:.2f} km")
         
-        col_x, col_y = st.sidebar.columns(2)
-        with col_x:
-            target_x = st.number_input("X (km)", value=0.0, step=0.1, format="%.1f")
-        with col_y:
-            target_y = st.number_input("Y (km)", value=0.0, step=0.1, format="%.1f")
+        # Custom station locations upload
+        with st.sidebar.expander("📍 Custom Station Analysis"):
+            st.write("Upload custom station locations (x, y in km)")
+            uploaded_stations = st.file_uploader(
+                "Upload CSV/TXT file",
+                type=['csv', 'txt'],
+                help="Format: each row contains x, y coordinates in km"
+            )
             
-        if st.sidebar.button("🔍 Find Closest Station"):
-            if 'locations' in data:
-                # Convert input coordinates to match data units if needed
-                coord_unit = data.get('coordinate_unit', 'km')
-                if coord_unit == 'm':
-                    # Convert km input to meters for calculation
-                    search_x = target_x * 1000.0
-                    search_y = target_y * 1000.0
-                else:
-                    search_x = target_x
-                    search_y = target_y
-                
-                # Calculate distances to all stations
-                locations = data['locations']
-                distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
-                closest_idx = np.argmin(distances)
-                closest_distance = distances[closest_idx]
-                
-                # Convert distance to km for display
-                if coord_unit == 'm':
-                    display_distance = closest_distance / 1000.0
-                else:
-                    display_distance = closest_distance
-                
-                # Update selected station
-                st.session_state.selected_station_idx = closest_idx
-                st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {display_distance:.2f} km")
+            if uploaded_stations is not None:
+                try:
+                    # Read the uploaded file
+                    import io
+                    content = uploaded_stations.read().decode('utf-8')
+                    lines = content.strip().split('\n')
+                    
+                    # Parse coordinates
+                    custom_locations = []
+                    for i, line in enumerate(lines):
+                        if line.strip():  # Skip empty lines
+                            try:
+                                coords = [float(x.strip()) for x in line.split(',')]
+                                if len(coords) >= 2:
+                                    custom_locations.append([coords[0], coords[1]])
+                                else:
+                                    st.error(f"Line {i+1}: Need at least 2 coordinates")
+                            except ValueError:
+                                st.error(f"Line {i+1}: Invalid number format")
+                    
+                    if custom_locations:
+                        custom_locations = np.array(custom_locations)
+                        st.success(f"✅ Loaded {len(custom_locations)} custom stations")
+                        
+                        # Compute interpolated metrics for custom locations
+                        if st.button("🧮 Compute GM Metrics"):
+                            with st.spinner("Computing ground motion metrics..."):
+                                custom_metrics = explorer.compute_custom_station_metrics(data, custom_locations)
+                                
+                                if custom_metrics:
+                                    # Create download data
+                                    st.session_state.custom_metrics_data = custom_metrics
+                                    st.success("✅ Metrics computed! Download button available below.")
+                                else:
+                                    st.error("Failed to compute metrics")
+                        
+                        # Download button (only show if data exists)
+                        if hasattr(st.session_state, 'custom_metrics_data'):
+                            # Create NPZ file in memory
+                            import io
+                            import zipfile
+                            
+                            buffer = io.BytesIO()
+                            np.savez(buffer, **st.session_state.custom_metrics_data)
+                            buffer.seek(0)
+                            
+                            st.download_button(
+                                label="📥 Download Custom Metrics (NPZ)",
+                                data=buffer.getvalue(),
+                                file_name="custom_station_metrics.npz",
+                                mime="application/zip"
+                            )
+                    
+                except Exception as e:
+                    st.error(f"Error reading file: {e}")
+                    st.info("Expected format: x,y coordinates in km, one pair per line")
         
-        # Move explanatory content to bottom
+        # 4. Data Repository Performance Tips
         with st.sidebar.expander("📂 Data Repository"):
             st.write("**DR4GM Data Archive:**")
             st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
@@ -822,12 +949,13 @@ def main():
             st.write("• Version controlled")
             
         with st.sidebar.expander("⚡ Performance Tips"):
-            st.write("**For faster access:**")
-            st.write("1. **First load is slow** - files are cached after")
-            st.write("2. **FD3D works reliably** - try it first")
-            st.write("3. **EQDyna files are large** - may trigger virus scan")
-            st.write("4. **Alternative**: Download manually + upload")
-            st.write("5. **Best**: Use local files when possible")
+            st.write("**Updated Performance Notes:**")
+            st.write("1. **Small datasets** - All files now < 1MB each")
+            st.write("2. **Fast downloads** - Quick loading from any source")
+            st.write("3. **First load caches** - Subsequent loads instant")
+            st.write("4. **Google Drive** - Fastest option, no restrictions")
+            st.write("5. **GitHub** - Always reliable backup option")
+            st.write("6. **Local files** - Best for repeated analysis")
         
         # Cache management
         if st.sidebar.button("🗑️ Clear Download Cache"):
@@ -839,18 +967,16 @@ def main():
                 st.sidebar.success("Cache cleared! Please reload the dataset.")
                 st.rerun()
         
-        # Initialize selected station - pick a random one to avoid showing all white dots
+        # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
-            import random
             num_stations = len(data.get('station_ids', []))
             if num_stations > 0:
-                st.session_state.selected_station_idx = random.randint(0, num_stations - 1)
+                # Pick a station near the center for better initial display
+                st.session_state.selected_station_idx = min(num_stations // 2, num_stations - 1)
             else:
                 st.session_state.selected_station_idx = 0
-            
-        # Use session state for selected station (controlled by map clicks)
         
-        # Main content - better proportions
+        # Main content layout
         col1, col2 = st.columns([2.5, 1])
         
         with col1:
@@ -859,7 +985,7 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with click-based interaction (since hover events aren't captured by Streamlit)
+                # Display map with click-based interaction
                 click_data = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
@@ -867,34 +993,28 @@ def main():
                     on_select="rerun"
                 )
                 
-                # Handle click events to find nearest station
-                if click_data and hasattr(click_data, 'selection') and click_data.selection:
-                    if hasattr(click_data.selection, 'points') and click_data.selection.points:
-                        click_point = click_data.selection.points[0]
-                        if hasattr(click_point, 'x') and hasattr(click_point, 'y'):
-                            clicked_x = click_point.x
-                            clicked_y = click_point.y
-                            
-                            # Convert click coordinates to data coordinates
-                            coord_unit = data.get('coordinate_unit', 'km')
-                            if coord_unit == 'm':
-                                search_x = clicked_x * 1000.0
-                                search_y = clicked_y * 1000.0
-                            else:
-                                search_x = clicked_x
-                                search_y = clicked_y
-                            
-                            # Find nearest station
-                            locations = data['locations']
-                            distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
-                            nearest_idx = np.argmin(distances)
-                            
-                            # Update session state
-                            if nearest_idx != st.session_state.selected_station_idx:
-                                st.session_state.selected_station_idx = nearest_idx
+                # Handle clicks to select nearest station
+                if (click_data and hasattr(click_data, 'selection') and click_data.selection and
+                    hasattr(click_data.selection, 'points') and click_data.selection.points):
+                    
+                    click_point = click_data.selection.points[0]
+                    if hasattr(click_point, 'x') and hasattr(click_point, 'y'):
+                        clicked_x, clicked_y = click_point.x, click_point.y
+                        
+                        # Convert to data coordinates
+                        coord_unit = data.get('coordinate_unit', 'km')
+                        search_x = clicked_x * 1000.0 if coord_unit == 'm' else clicked_x
+                        search_y = clicked_y * 1000.0 if coord_unit == 'm' else clicked_y
+                        
+                        # Find nearest station
+                        locations = data['locations']
+                        distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
+                        nearest_idx = np.argmin(distances)
+                        
+                        if nearest_idx != st.session_state.selected_station_idx:
+                            st.session_state.selected_station_idx = nearest_idx
                 
-                # Simple instruction for users
-                st.caption("💡 Hover to see values in tooltip, click anywhere to see full metrics for nearest station")
+                st.caption("💡 Hover for interpolated values, click to select nearest station")
             else:
                 st.warning("No data to display on map")
         
