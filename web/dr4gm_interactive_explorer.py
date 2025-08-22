@@ -410,67 +410,68 @@ class GroundMotionExplorer:
             # Fallback to simple scatter plot if interpolation fails
             return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
         
-        # Create stunning contour plot
+        # Create reliable visualization - try contour first, fall back to scatter
         fig = go.Figure()
+        contour_success = False
         
-        # Add smooth contour filled plot with robust error handling
+        # Try simple contour without any colorbar complications
         try:
-            # Try most basic contour first - no colorbar to avoid errors
             fig.add_trace(go.Contour(
                 x=xi,
                 y=yi,
                 z=Zi,
                 colorscale=colorscale,
-                showscale=False,  # Disable colorbar to avoid configuration errors
-                contours=dict(
-                    coloring='fill',
-                    showlines=True
-                ),
+                showscale=False,  # No colorbar at all
+                contours_coloring='fill',
+                line_width=0,
                 hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
             ))
-        except Exception as e:
-            # If that fails, fallback to scatter plot
-            return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
+            contour_success = True
+        except:
+            # If contour fails completely, use scatter plot
+            pass
         
-        # Add invisible scatter trace for colorbar
+        # Add colored scatter points (bulletproof approach)
         try:
+            # Try with colorbar first
             fig.add_trace(go.Scatter(
-                x=[x_coords.min()],  # Single invisible point
-                y=[y_coords.min()],
+                x=x_coords,
+                y=y_coords,
                 mode='markers',
                 marker=dict(
-                    size=0.1,
-                    color=[valid_values.min()],
+                    size=8 if not contour_success else 4,
+                    color=valid_values,
                     colorscale=colorscale,
                     showscale=True,
-                    cmin=valid_values.min(),
-                    cmax=valid_values.max(),
-                    colorbar=dict(title=self._get_metric_unit(metric))
+                    opacity=0.8 if not contour_success else 0.6,
+                    line=dict(width=1, color='white')
                 ),
-                showlegend=False,
-                hoverinfo='skip'
+                text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                      for sid, val in zip(valid_station_ids, valid_values)],
+                hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                name="Stations",
+                customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
+                showlegend=False
             ))
         except:
-            pass  # If colorbar still fails, continue without it
-        
-        # Add station points for interaction
-        fig.add_trace(go.Scatter(
-            x=x_coords,
-            y=y_coords,
-            mode='markers',
-            marker=dict(
-                size=3,
-                color='white',
-                opacity=0.7,
-                line=dict(width=0.5, color='black')
-            ),
-            text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                  for sid, val in zip(valid_station_ids, valid_values)],
-            hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-            name="Stations",
-            customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
-            showlegend=False
-        ))
+            # Ultimate fallback - no colorbar, simple scatter
+            fig.add_trace(go.Scatter(
+                x=x_coords,
+                y=y_coords,
+                mode='markers',
+                marker=dict(
+                    size=6,
+                    color='red',
+                    opacity=0.7,
+                    line=dict(width=1, color='white')
+                ),
+                text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                      for sid, val in zip(valid_station_ids, valid_values)],
+                hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                name="Stations",
+                customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
+                showlegend=False
+            ))
         
         # Get metric properties for title
         metric_props = self._get_metric_display_name(metric)
