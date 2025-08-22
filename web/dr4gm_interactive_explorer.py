@@ -243,8 +243,9 @@ class GroundMotionExplorer:
         # Load ground motion metrics
         gm_data = {}
         
-        # Debug: show what keys are available (only in expander context)
+        # Debug: store available keys for display in expander
         available_keys = list(data.keys())
+        st.session_state.available_keys = available_keys
         
         # Basic info
         if 'station_ids' in data:
@@ -763,9 +764,22 @@ def main():
                     if npz_files[0].startswith('http'):
                         st.info("📎 File size: ~1MB (optimized)")
                     
-                    # Show available data keys if data is loaded
-                    if hasattr(st.session_state, 'current_filename'):
+                    # Show data loading status if data is loaded
+                    if hasattr(st.session_state, 'data_loaded') and st.session_state.data_loaded:
+                        st.success(f"📊 Loaded {st.session_state.station_count} stations")
+                        
+                        coord_unit = getattr(st.session_state, 'coordinate_info', 'km')
+                        if coord_unit == 'm':
+                            st.info("📏 Coordinates: converted from meters to km for display")
+                        else:
+                            st.info("📏 Coordinates: displayed in km")
+                        
                         st.info("🗺️ Ready for analysis")
+                        
+                        # Show available data keys in debug mode
+                        if st.checkbox("Show debug info", key="debug_dataset"):
+                            available_keys = getattr(st.session_state, 'available_keys', [])
+                            st.text(f"Available data keys: {available_keys}")
         else:
             st.sidebar.error("Could not discover files in archive")
             
@@ -783,6 +797,15 @@ def main():
                     st.success(f"✅ File selected: {os.path.basename(selected_file)}")
                     if os.path.exists(selected_file):
                         st.info(f"📁 Size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
+                    
+                    # Show data loading status if data is loaded
+                    if hasattr(st.session_state, 'data_loaded') and st.session_state.data_loaded:
+                        st.success(f"📊 Loaded {st.session_state.station_count} stations")
+                        coord_unit = getattr(st.session_state, 'coordinate_info', 'km')
+                        if coord_unit == 'm':
+                            st.info("📏 Coordinates: converted from meters to km for display")
+                        else:
+                            st.info("📏 Coordinates: displayed in km")
             
     elif data_source == "Upload File":
         uploaded_file = st.sidebar.file_uploader("Choose Dataset", type=['npz'])
@@ -796,6 +819,15 @@ def main():
             with st.sidebar.expander("📄 Dataset Details"):
                 st.success(f"✅ File uploaded: {uploaded_file.name}")
                 st.info(f"📁 Size: {len(uploaded_file.getvalue()) / 1024 / 1024:.1f} MB")
+                
+                # Show data loading status if data is loaded
+                if hasattr(st.session_state, 'data_loaded') and st.session_state.data_loaded:
+                    st.success(f"📊 Loaded {st.session_state.station_count} stations")
+                    coord_unit = getattr(st.session_state, 'coordinate_info', 'km')
+                    if coord_unit == 'm':
+                        st.info("📏 Coordinates: converted from meters to km for display")
+                    else:
+                        st.info("📏 Coordinates: displayed in km")
     
     if not npz_files:
         st.sidebar.warning("⚠️ No dataset selected")
@@ -813,11 +845,11 @@ def main():
             return
         
         coord_unit = data.get('coordinate_unit', 'km')
-        st.sidebar.success(f"Loaded {len(data.get('station_ids', []))} stations")
-        if coord_unit == 'm':
-            st.sidebar.info("📏 Coordinates: converted from meters to km for display")
-        else:
-            st.sidebar.info("📏 Coordinates: displayed in km")
+        
+        # Store data info for display in Dataset Details expander
+        st.session_state.data_loaded = True
+        st.session_state.station_count = len(data.get('station_ids', []))
+        st.session_state.coordinate_info = coord_unit
         
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
