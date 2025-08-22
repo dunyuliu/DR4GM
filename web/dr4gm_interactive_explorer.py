@@ -471,7 +471,7 @@ class GroundMotionExplorer:
                             size=4,
                             color='white',
                             opacity=0.3,
-                            line=dict(width=1, color='black', width=0.5)
+                            line=dict(width=0.5, color='black')
                         ),
                         text=[f"Station {sid}" for sid in hover_ids],
                         hovertemplate="<b>Station %{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<br>" + f"{metric}: %{{customdata:.2e}}<extra></extra>",
