@@ -859,90 +859,79 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with click interaction
-                clicked_data = st.plotly_chart(
+                # Display map with hover-based station selection
+                hover_data = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
                     key="main_map",
                     on_select="rerun"
                 )
                 
-                # Handle clicks on the contour map - simplified approach
-                if clicked_data and hasattr(clicked_data, 'selection') and clicked_data.selection:
-                    # Simple click anywhere to select random station for now
-                    import random
-                    num_stations = len(data.get('station_ids', []))
-                    if num_stations > 0:
-                        new_idx = random.randint(0, num_stations - 1)
-                        if new_idx != st.session_state.selected_station_idx:
-                            st.session_state.selected_station_idx = new_idx
-                            st.rerun()
+                # Handle hover events to capture real-time data
+                if hover_data and hasattr(hover_data, 'selection') and hover_data.selection:
+                    if hasattr(hover_data.selection, 'points') and hover_data.selection.points:
+                        hover_point = hover_data.selection.points[0]
+                        if hasattr(hover_point, 'x') and hasattr(hover_point, 'y') and hasattr(hover_point, 'z'):
+                            # Store the exact hover data
+                            st.session_state.hover_x = hover_point.x
+                            st.session_state.hover_y = hover_point.y 
+                            st.session_state.hover_value = hover_point.z
+                            st.session_state.hover_metric = metric_key
                 
                 # Simple instruction for users
-                st.caption("💡 Hover for interpolated values, click to select nearest station")
+                st.caption("💡 Hover anywhere on the map to update station details")
             else:
                 st.warning("No data to display on map")
         
         with col2:
             # Compact header with small font
-            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Selected Station</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Hover Data</h4>", unsafe_allow_html=True)
             
-            # Show selected station data
-            station_idx = st.session_state.selected_station_idx
-            if 'station_ids' in data and station_idx < len(data['station_ids']):
-                station_id = data['station_ids'][station_idx]
-                location = data['locations'][station_idx]
-                
-                # Convert coordinates to km for display
-                coord_unit = data.get('coordinate_unit', 'km')
-                if coord_unit == 'm':
-                    display_x = location[0] / 1000.0
-                    display_y = location[1] / 1000.0
-                else:
-                    display_x = location[0]
-                    display_y = location[1]
-                
-                # Instruction and selected station info
+            # Show live hover data
+            if hasattr(st.session_state, 'hover_x') and st.session_state.hover_x is not None:
+                # Display hover coordinates and value
                 st.markdown(f"""
-                <div style='font-size: 11px; color: #666; margin-bottom: 8px;'>
-                    Click anywhere on the map to select the nearest station
-                </div>
                 <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
-                    <strong>Station ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
-                    <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
-                    <strong>Y:</strong> {display_y:.2f} km
+                    <strong>X:</strong> {st.session_state.hover_x:.2f} km &nbsp;&nbsp;&nbsp; 
+                    <strong>Y:</strong> {st.session_state.hover_y:.2f} km
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Compact metrics header
-                st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Ground Motion Metrics</div>", unsafe_allow_html=True)
-                metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
+                # Show the current metric value
+                st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Interpolated Value</div>", unsafe_allow_html=True)
                 
-                # Debug info
-                st.write(f"Station idx: {station_idx}, Metrics df shape: {metrics_df.shape if not metrics_df.empty else 'empty'}")
-                st.write(f"Available data keys: {list(data.keys())[:10]}...")  # Show first 10 keys
+                # Get unit for current metric
+                if st.session_state.hover_metric == 'PGA':
+                    unit = 'cm/s²'
+                elif st.session_state.hover_metric == 'PGV':
+                    unit = 'cm/s'
+                elif st.session_state.hover_metric == 'PGD':
+                    unit = 'cm'
+                elif st.session_state.hover_metric == 'CAV':
+                    unit = 'cm/s'
+                elif st.session_state.hover_metric.startswith('RSA_T_'):
+                    unit = 'cm/s²'
+                else:
+                    unit = ''
                 
-                if not metrics_df.empty:
-                    # Use HTML table with small fonts for maximum compactness
-                    html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
-                    html_table += "<table style='width: 100%; border-collapse: collapse;'>"
-                    html_table += "<tr style='background-color: #f0f0f0;'><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Metric</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: right;'>Value</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Unit</th></tr>"
-                    
-                    for _, row in metrics_df.iterrows():
-                        html_table += f"<tr><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Metric']}</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{row['Value']}</td><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Unit']}</td></tr>"
-                    
-                    html_table += "</table></div>"
-                    st.markdown(html_table, unsafe_allow_html=True)
+                # Display as simple table
+                html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
+                html_table += "<table style='width: 100%; border-collapse: collapse;'>"
+                html_table += "<tr style='background-color: #f0f0f0;'><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Metric</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: right;'>Value</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Unit</th></tr>"
                 
-                # Download button for station data
-                if not metrics_df.empty:
-                    csv = metrics_df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Station Data",
-                        data=csv,
-                        file_name=f"station_{station_id}_metrics.csv",
-                        mime="text/csv"
-                    )
+                # Convert metric key to display name
+                if st.session_state.hover_metric.startswith('RSA_T_'):
+                    period = st.session_state.hover_metric.replace('RSA_T_', '').replace('_', '.')
+                    display_metric = f"SA(T={period}s)"
+                else:
+                    display_metric = st.session_state.hover_metric
+                
+                html_table += f"<tr><td style='padding: 2px 4px; border: 1px solid #ddd;'>{display_metric}</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{st.session_state.hover_value:.3e}</td><td style='padding: 2px 4px; border: 1px solid #ddd;'>{unit}</td></tr>"
+                html_table += "</table></div>"
+                st.markdown(html_table, unsafe_allow_html=True)
+                
+            else:
+                st.info("Hover over the map to see interpolated values here")
         
         # Time series plot (full width) - make it optional for speed
         if 'vel_strike' in data:
