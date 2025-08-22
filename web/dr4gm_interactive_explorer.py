@@ -345,7 +345,7 @@ class GroundMotionExplorer:
         return sorted(npz_files)
     
     def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Plasma') -> go.Figure:
-        """Create interactive station map with ground motion data"""
+        """Create interactive station map with ground motion data using contours"""
         if 'locations' not in data or metric not in data:
             return go.Figure()
         
@@ -363,47 +363,162 @@ class GroundMotionExplorer:
         valid_values = values[valid_mask]
         valid_station_ids = station_ids[valid_mask]
         
-        # Create scatter plot
-        fig = go.Figure()
-        
-        # Add stations as scatter points
-        fig.add_trace(go.Scatter(
-            x=valid_locations[:, 0],
-            y=valid_locations[:, 1],
-            mode='markers',
-            marker=dict(
-                size=4,
-                color=valid_values,
-                colorscale=colorscale,
-                showscale=True,
-                colorbar=dict(title=metric)
-            ),
-            text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                  for sid, val in zip(valid_station_ids, valid_values)],
-            hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-            name=metric,
-            customdata=valid_station_ids  # Store station IDs for click events
-        ))
-        
         # Convert coordinates to km for display
         coord_unit = data.get('coordinate_unit', 'km')
         if coord_unit == 'm':
-            # Convert locations from meters to km for display
             display_locations = valid_locations / 1000.0
             display_unit = 'km'
         else:
             display_locations = valid_locations
             display_unit = 'km'
         
-        # Update scatter plot with converted coordinates
-        fig.data[0].x = display_locations[:, 0]
-        fig.data[0].y = display_locations[:, 1]
+        fig = go.Figure()
+        
+        # Create interpolated contour plot if we have enough points
+        if len(valid_values) >= 10:
+            try:
+                # Import scipy for interpolation
+                try:
+                    from scipy.interpolate import griddata
+                except ImportError:
+                    st.warning("scipy not available - using scatter plot instead of contours")
+                    # Fall back to scatter plot
+                    fig.add_trace(go.Scatter(
+                        x=display_locations[:, 0],
+                        y=display_locations[:, 1],
+                        mode='markers',
+                        marker=dict(
+                            size=6,
+                            color=valid_values,
+                            colorscale=colorscale,
+                            showscale=True,
+                            colorbar=dict(title=metric)
+                        ),
+                        text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                              for sid, val in zip(valid_station_ids, valid_values)],
+                        hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                        name=metric,
+                        customdata=valid_station_ids
+                    ))
+                else:
+                    # Create interpolation grid
+                    x_min, x_max = display_locations[:, 0].min(), display_locations[:, 0].max()
+                    y_min, y_max = display_locations[:, 1].min(), display_locations[:, 1].max()
+                    
+                    # Expand range slightly
+                    x_range = x_max - x_min
+                    y_range = y_max - y_min
+                    x_min -= 0.1 * x_range
+                    x_max += 0.1 * x_range
+                    y_min -= 0.1 * y_range
+                    y_max += 0.1 * y_range
+                    
+                    # Create grid - use reasonable resolution
+                    grid_size = 50
+                    xi = np.linspace(x_min, x_max, grid_size)
+                    yi = np.linspace(y_min, y_max, grid_size)
+                    xi_grid, yi_grid = np.meshgrid(xi, yi)
+                    
+                    # Interpolate values
+                    zi = griddata(
+                        (display_locations[:, 0], display_locations[:, 1]), 
+                        valid_values,
+                        (xi_grid, yi_grid), 
+                        method='linear'
+                    )
+                    
+                    # Fill NaN with nearest neighbor
+                    nan_mask = np.isnan(zi)
+                    if np.any(nan_mask):
+                        zi_nearest = griddata(
+                            (display_locations[:, 0], display_locations[:, 1]), 
+                            valid_values,
+                            (xi_grid, yi_grid), 
+                            method='nearest'
+                        )
+                        zi[nan_mask] = zi_nearest[nan_mask]
+                    
+                    # Add contour plot
+                    fig.add_trace(go.Contour(
+                        x=xi,
+                        y=yi,
+                        z=zi,
+                        colorscale=colorscale,
+                        showscale=True,
+                        colorbar=dict(title=metric),
+                        contours=dict(
+                            start=np.percentile(valid_values, 5),
+                            end=np.percentile(valid_values, 95),
+                            size=(np.percentile(valid_values, 95) - np.percentile(valid_values, 5)) / 15
+                        ),
+                        line=dict(width=0),  # Remove contour lines for smooth appearance
+                        name=metric
+                    ))
+                    
+                    # Add scatter points for station locations (smaller, semi-transparent)
+                    fig.add_trace(go.Scatter(
+                        x=display_locations[:, 0],
+                        y=display_locations[:, 1],
+                        mode='markers',
+                        marker=dict(
+                            size=3,
+                            color='white',
+                            opacity=0.8,
+                            line=dict(width=1, color='black')
+                        ),
+                        text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                              for sid, val in zip(valid_station_ids, valid_values)],
+                        hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                        name="Stations",
+                        customdata=valid_station_ids,
+                        showlegend=False
+                    ))
+                    
+            except Exception as e:
+                st.warning(f"Contour interpolation failed: {str(e)} - using scatter plot")
+                # Fall back to scatter plot
+                fig.add_trace(go.Scatter(
+                    x=display_locations[:, 0],
+                    y=display_locations[:, 1],
+                    mode='markers',
+                    marker=dict(
+                        size=6,
+                        color=valid_values,
+                        colorscale=colorscale,
+                        showscale=True,
+                        colorbar=dict(title=metric)
+                    ),
+                    text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                          for sid, val in zip(valid_station_ids, valid_values)],
+                    hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                    name=metric,
+                    customdata=valid_station_ids
+                ))
+        else:
+            # Too few points for interpolation - use scatter plot
+            fig.add_trace(go.Scatter(
+                x=display_locations[:, 0],
+                y=display_locations[:, 1],
+                mode='markers',
+                marker=dict(
+                    size=8,
+                    color=valid_values,
+                    colorscale=colorscale,
+                    showscale=True,
+                    colorbar=dict(title=metric)
+                ),
+                text=[f"Station {sid}<br>{metric}: {val:.2e}" 
+                      for sid, val in zip(valid_station_ids, valid_values)],
+                hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
+                name=metric,
+                customdata=valid_station_ids
+            ))
         
         # Update layout - make map bigger
         fig.update_layout(
             title=f"{metric} Distribution",
-            xaxis_title="X Coordinate (km)",
-            yaxis_title="Y Coordinate (km)",
+            xaxis_title="Fault-Normal Distance (km)",
+            yaxis_title="Along-Strike Distance (km)", 
             height=700,  # Increased height
             showlegend=False
         )
@@ -755,6 +870,7 @@ def main():
         with col2:
             st.subheader("📊 Station Details")
             
+            station_idx = st.session_state.selected_station_idx
             if 'station_ids' in data and station_idx < len(data['station_ids']):
                 station_id = data['station_ids'][station_idx]
                 location = data['locations'][station_idx]
