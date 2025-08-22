@@ -370,7 +370,11 @@ class GroundMotionExplorer:
             display_locations = valid_locations
         
         # Create interpolation grid for smooth contours
-        from scipy.interpolate import griddata
+        try:
+            from scipy.interpolate import griddata
+        except ImportError:
+            # Fallback to scatter plot if scipy not available
+            return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
         
         x_coords = display_locations[:, 0]
         y_coords = display_locations[:, 1]
