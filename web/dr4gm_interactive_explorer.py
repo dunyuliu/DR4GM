@@ -327,6 +327,7 @@ class GroundMotionExplorer:
             files = {
                 "EQDyna A Coarse Simulation": f"{github_base}/eqdyna.0001.A.coarse.npz",
                 "EQDyna B Coarse Simulation": f"{github_base}/eqdyna.0001.B.coarse.npz",
+                "EQDyna C Coarse Simulation": f"{github_base}/eqdyna.0001.C.coarse.npz",
                 "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz",
                 "Waveqlab3D A Coarse Simulation": f"{github_base}/waveqlab3d.0001.A.coarse.npz"
             }
@@ -343,8 +344,8 @@ class GroundMotionExplorer:
                         npz_files.append(os.path.join(root, file))
         return sorted(npz_files)
     
-    def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Plasma') -> go.Figure:
-        """Create contour map - simplified and bulletproof"""
+    def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Viridis') -> go.Figure:
+        """Create interactive station map with ground motion data"""
         if 'locations' not in data or metric not in data:
             return go.Figure()
         
@@ -362,144 +363,55 @@ class GroundMotionExplorer:
         valid_values = values[valid_mask]
         valid_station_ids = station_ids[valid_mask]
         
-        # Convert coordinates to km for display
-        coord_unit = data.get('coordinate_unit', 'km')
-        if coord_unit == 'm':
-            display_locations = valid_locations / 1000.0
-        else:
-            display_locations = valid_locations
-        
-        x_coords = display_locations[:, 0]
-        y_coords = display_locations[:, 1]
-        
-        # Create interpolation grid
-        try:
-            from scipy.interpolate import griddata
-            
-            # Simple grid
-            x_min, x_max = x_coords.min(), x_coords.max()
-            y_min, y_max = y_coords.min(), y_coords.max()
-            margin = 0.1
-            x_range = x_max - x_min
-            y_range = y_max - y_min
-            x_min -= margin * x_range
-            x_max += margin * x_range
-            y_min -= margin * y_range
-            y_max += margin * y_range
-            
-            xi = np.linspace(x_min, x_max, 50)
-            yi = np.linspace(y_min, y_max, 50)
-            Xi, Yi = np.meshgrid(xi, yi)
-            
-            # Interpolate
-            Zi = griddata((x_coords, y_coords), valid_values, (Xi, Yi), method='linear')
-            nan_mask = np.isnan(Zi)
-            if np.any(nan_mask):
-                Zi_nearest = griddata((x_coords, y_coords), valid_values, (Xi, Yi), method='nearest')
-                Zi[nan_mask] = Zi_nearest[nan_mask]
-            
-            # Create figure with contour
-            fig = go.Figure()
-            
-            # Add contour - no colorbar
-            fig.add_trace(go.Contour(
-                x=xi, y=yi, z=Zi,
-                colorscale=colorscale,
-                showscale=False
-            ))
-            
-            # Add stations
-            fig.add_trace(go.Scatter(
-                x=x_coords, y=y_coords,
-                mode='markers',
-                marker=dict(size=4, color='white', line=dict(width=1, color='black')),
-                text=[f"Station {sid}<br>{metric}: {val:.2e}" for sid, val in zip(valid_station_ids, valid_values)],
-                hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-                customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
-                showlegend=False
-            ))
-            
-        except:
-            # Fallback to scatter if anything fails
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=x_coords, y=y_coords,
-                mode='markers',
-                marker=dict(size=6, color='red', opacity=0.7),
-                text=[f"Station {sid}<br>{metric}: {val:.2e}" for sid, val in zip(valid_station_ids, valid_values)],
-                hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-                customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
-                showlegend=False
-            ))
-        
-        # Simple layout
-        fig.update_layout(
-            title=self._get_metric_display_name(metric),
-            xaxis_title="Along-Strike Distance (km)",
-            yaxis_title="Fault-Normal Distance (km)",
-            height=600,
-            yaxis=dict(scaleanchor="x", scaleratio=1)
-        )
-        
-        return fig
-    
-    def _create_fallback_scatter_map(self, display_locations, valid_values, valid_station_ids, metric, colorscale):
-        """Fallback scatter plot if contour interpolation fails - NO colorbar to avoid errors"""
+        # Create scatter plot
         fig = go.Figure()
         
+        # Add stations as scatter points
         fig.add_trace(go.Scatter(
-            x=display_locations[:, 0],
-            y=display_locations[:, 1],
+            x=valid_locations[:, 0],
+            y=valid_locations[:, 1],
             mode='markers',
             marker=dict(
-                size=8,
-                color='red',  # Simple solid color, no colorbar issues
-                opacity=0.7,
-                line=dict(width=1, color='black')
+                size=4,
+                color=valid_values,
+                colorscale=colorscale,
+                showscale=True,
+                colorbar=dict(title=metric)
             ),
             text=[f"Station {sid}<br>{metric}: {val:.2e}" 
                   for sid, val in zip(valid_station_ids, valid_values)],
             hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
             name=metric,
-            customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))])
+            customdata=valid_station_ids  # Store station IDs for click events
         ))
         
+        # Convert coordinates to km for display
+        coord_unit = data.get('coordinate_unit', 'km')
+        if coord_unit == 'm':
+            # Convert locations from meters to km for display
+            display_locations = valid_locations / 1000.0
+            display_unit = 'km'
+        else:
+            display_locations = valid_locations
+            display_unit = 'km'
+        
+        # Update scatter plot with converted coordinates
+        fig.data[0].x = display_locations[:, 0]
+        fig.data[0].y = display_locations[:, 1]
+        
+        # Update layout - make map bigger
         fig.update_layout(
-            title=self._get_metric_display_name(metric),
-            xaxis_title="Along-Strike Distance (km)",
-            yaxis_title="Fault-Normal Distance (km)",
-            height=600,
-            yaxis=dict(scaleanchor="x", scaleratio=1)
+            title=f"{metric} Distribution",
+            xaxis_title="X Coordinate (km)",
+            yaxis_title="Y Coordinate (km)",
+            height=700,  # Increased height
+            showlegend=False
         )
         
+        # Make axes equal
+        fig.update_yaxes(scaleanchor="x", scaleratio=1)
+        
         return fig
-    
-    def _get_metric_unit(self, metric: str) -> str:
-        """Get unit for metric"""
-        if metric == 'PGA' or metric.startswith('RSA_T_'):
-            return 'm/s²'
-        elif metric == 'PGV':
-            return 'm/s'
-        elif metric == 'PGD':
-            return 'm'
-        elif metric == 'CAV':
-            return 'm/s'
-        return ''
-    
-    def _get_metric_display_name(self, metric: str) -> str:
-        """Get display name for metric"""
-        if metric == 'PGA':
-            return 'Peak Ground Acceleration (PGA)'
-        elif metric == 'PGV':
-            return 'Peak Ground Velocity (PGV)'
-        elif metric == 'PGD':
-            return 'Peak Ground Displacement (PGD)'
-        elif metric == 'CAV':
-            return 'Cumulative Absolute Velocity (CAV)'
-        elif metric.startswith('RSA_T_'):
-            period = metric.replace('RSA_T_', '').replace('_', '.')
-            return f'Spectral Acceleration (T={period}s)'
-        return metric
     
     def create_time_series_plot(self, data: Dict, station_idx: int) -> go.Figure:
         """Create velocity time series plot for selected station"""
@@ -653,7 +565,39 @@ def main():
         # Get files based on hosting method
         discovered_files = explorer.get_dataset_files(hosting_method)
         
-        # Store files for later selection
+        # Add GitHub repository info
+        with st.sidebar.expander("📂 Data Repository"):
+            st.write("**DR4GM Data Archive:**")
+            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
+            st.write("• Professional data hosting")
+            st.write("• No download restrictions") 
+            st.write("• Version controlled")
+            if hosting_method == "GitHub (Reliable)":
+                st.warning("⚠️ GitHub raw files can be slow for large datasets")
+            
+        # Performance note
+        with st.sidebar.expander("⚡ Performance Tips"):
+            st.write("**For faster access:**")
+            st.write("1. **First load is slow** - files are cached after")
+            st.write("2. **FD3D works reliably** - try it first")
+            st.write("3. **EQDyna files are large** - may trigger virus scan")
+            st.write("4. **Alternative**: Download manually + upload")
+            st.write("5. **Best**: Use local files when possible")
+            
+        # Dataset status info
+        with st.sidebar.expander("📊 Dataset Status"):
+            if hosting_method == "Google Drive (Faster)":
+                st.write("**Google Drive - All datasets available:**")
+                st.write("✅ FD3D A Coarse (~8 MB)")
+                st.write("✅ EQDyna A, B, C Coarse (~8 MB each)")
+                st.write("✅ Waveqlab3D A Coarse (~8 MB)")
+                st.write("🚀 Fast downloads, no restrictions")
+            else:
+                st.write("**GitHub - All datasets available:**")
+                st.write("✅ EQDyna A, B, C Coarse")
+                st.write("✅ FD3D A Coarse")
+                st.write("✅ Waveqlab3D A Coarse")
+                st.write("⏳ Downloads may be slower but reliable")
         
         if discovered_files:
             sample_datasets = discovered_files  # URLs are ready to use
@@ -665,6 +609,16 @@ def main():
         else:
             st.sidebar.error("Could not discover files in Google Drive folder")
             npz_files = []
+            
+        # Cache management
+        if st.sidebar.button("🗑️ Clear Download Cache"):
+            import tempfile
+            import shutil
+            cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir)
+                st.sidebar.success("Cache cleared! Please reload the dataset.")
+                st.rerun()
             
     elif data_source == "Upload File":
         uploaded_file = st.sidebar.file_uploader(
@@ -709,9 +663,6 @@ def main():
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
         
-        # Analysis Settings - moved up as requested
-        st.sidebar.header("📊 Analysis Settings")
-        
         # Metric selection
         available_metrics = []
         basic_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
@@ -741,8 +692,8 @@ def main():
         else:
             metric_key = selected_metric
         
-        # Colorscale selection - default to Plasma
-        colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
+        # Colorscale selection
+        colorscales = ['Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
         # Station location finder
@@ -782,42 +733,20 @@ def main():
                 st.session_state.selected_station_idx = closest_idx
                 st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {display_distance:.2f} km")
         
-        # Explanatory content moved lower as requested
-        with st.sidebar.expander("📂 Data Repository"):
-            st.write("**DR4GM Data Archive:**")
-            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
-            st.write("• Professional data hosting")
-            st.write("• No download restrictions") 
-            st.write("• Version controlled")
-            
-        with st.sidebar.expander("⚡ Performance Tips"):
-            st.write("**For faster access:**")
-            st.write("1. **First load is slow** - files are cached after")
-            st.write("2. **FD3D works reliably** - try it first")
-            st.write("3. **EQDyna files are large** - may trigger virus scan")
-            st.write("4. **Alternative**: Download manually + upload")
-            st.write("5. **Best**: Use local files when possible")
-            
-        with st.sidebar.expander("📊 Dataset Status"):
-            st.write("**Available datasets:**")
-            st.write("✅ EQDyna A, B Coarse (~8 MB each)")
-            st.write("✅ FD3D A Coarse (~8 MB)")
-            st.write("✅ Waveqlab3D A Coarse (~8 MB)")
-            st.write("🚀 Fast downloads from Google Drive")
-        
-        # Cache management
-        if st.sidebar.button("🗑️ Clear Download Cache"):
-            import tempfile
-            import shutil
-            cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
-            if cache_dir.exists():
-                shutil.rmtree(cache_dir)
-                st.sidebar.success("Cache cleared! Please reload the dataset.")
-                st.rerun()
-        
         # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
             st.session_state.selected_station_idx = 0
+            
+        # Station selection slider at top
+        max_stations = len(data.get('station_ids', []))
+        station_idx = st.slider(
+            "🎯 Select Station to View Details",
+            0, max_stations - 1, 
+            value=st.session_state.selected_station_idx,
+            help="Select a station to view detailed metrics and update map highlight",
+            key="station_selector"
+        )
+        st.session_state.selected_station_idx = station_idx
         
         # Main content - make map bigger
         col1, col2 = st.columns([3, 1])
@@ -829,46 +758,28 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with click detection - fixed to avoid infinite loops
-                map_click = st.plotly_chart(
+                # Display map with click detection
+                clicked = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map"
+                    key="main_map",
+                    on_select="rerun"
                 )
                 
-                # Handle map clicks properly without causing rerun loops
-                if map_click and hasattr(map_click, 'selection') and map_click.selection:
-                    if hasattr(map_click.selection, 'point_indices') and map_click.selection.point_indices:
-                        # Get the clicked station index from the scatter trace (stations)
-                        clicked_idx = map_click.selection.point_indices[0]
-                        if clicked_idx < len(data.get('station_ids', [])):
-                            st.session_state.selected_station_idx = clicked_idx
+                # Handle map clicks - remove rerun to prevent loops
+                if clicked and hasattr(clicked, 'selection') and clicked.selection:
+                    if clicked.selection.point_indices:
+                        clicked_station_idx = clicked.selection.point_indices[0]
+                        st.session_state.selected_station_idx = clicked_station_idx
             else:
                 st.warning("No data to display on map")
         
         with col2:
             st.subheader("📊 Station Details")
             
-            # Station selection slider - moved here for better organization
-            max_stations = len(data.get('station_ids', []))
-            station_idx = st.slider(
-                "🎯 Select Station",
-                0, max_stations - 1, 
-                value=st.session_state.selected_station_idx,
-                help="Select a station to view detailed metrics. You can also click on the map.",
-                key="station_selector"
-            )
-            
-            # Update session state when slider changes
-            if station_idx != st.session_state.selected_station_idx:
-                st.session_state.selected_station_idx = station_idx
-            
-            # Use the session state value for consistent display
-            current_station_idx = st.session_state.selected_station_idx
-            
-            if 'station_ids' in data and current_station_idx < len(data['station_ids']):
-                station_id = data['station_ids'][current_station_idx]
-                location = data['locations'][current_station_idx]
+            if 'station_ids' in data and station_idx < len(data['station_ids']):
+                station_id = data['station_ids'][station_idx]
+                location = data['locations'][station_idx]
                 
                 # Convert coordinates to km for display
                 coord_unit = data.get('coordinate_unit', 'km')
@@ -886,7 +797,7 @@ def main():
                 
                 # Metrics table - more compact and fast
                 st.write("**Ground Motion Metrics**")
-                metrics_df = explorer.get_station_metrics(all_metrics_tables, current_station_idx)
+                metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
                 if not metrics_df.empty:
                     # Display as compact table - faster than st.dataframe
                     st.table(metrics_df.to_dict('records'))
@@ -905,11 +816,10 @@ def main():
         if 'vel_strike' in data:
             with st.expander("📈 Velocity Time Series", expanded=False):
                 # Use checkbox instead of button to avoid rerun loops
-                current_station_idx = st.session_state.selected_station_idx
-                show_timeseries = st.checkbox("📊 Show Time Series Plot", key=f"show_ts_{current_station_idx}")
+                show_timeseries = st.checkbox("📊 Show Time Series Plot", key=f"show_ts_{station_idx}")
                 
                 if show_timeseries:
-                    fig_ts = explorer.create_time_series_plot(data, current_station_idx)
+                    fig_ts = explorer.create_time_series_plot(data, station_idx)
                     if fig_ts.data:
                         st.plotly_chart(fig_ts, use_container_width=True)
                     else:
