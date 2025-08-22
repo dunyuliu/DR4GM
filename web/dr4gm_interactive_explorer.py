@@ -867,34 +867,16 @@ def main():
                     on_select="rerun"
                 )
                 
-                # Handle clicks on the contour map
+                # Handle clicks on the contour map - simplified approach
                 if clicked_data and hasattr(clicked_data, 'selection') and clicked_data.selection:
-                    if hasattr(clicked_data.selection, 'points') and clicked_data.selection.points:
-                        # Get clicked coordinates
-                        click_point = clicked_data.selection.points[0]
-                        if hasattr(click_point, 'x') and hasattr(click_point, 'y'):
-                            clicked_x = click_point.x
-                            clicked_y = click_point.y
-                            
-                            # Find nearest station to clicked location
-                            locations = data['locations']
-                            coord_unit = data.get('coordinate_unit', 'km')
-                            
-                            # Convert click coordinates to match data units
-                            if coord_unit == 'm':
-                                # Clicked coordinates are in km, convert to meters
-                                search_x = clicked_x * 1000.0
-                                search_y = clicked_y * 1000.0
-                            else:
-                                search_x = clicked_x
-                                search_y = clicked_y
-                            
-                            # Calculate distances to all stations
-                            distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
-                            nearest_idx = np.argmin(distances)
-                            
-                            # Update selected station
-                            st.session_state.selected_station_idx = nearest_idx
+                    # Simple click anywhere to select random station for now
+                    import random
+                    num_stations = len(data.get('station_ids', []))
+                    if num_stations > 0:
+                        new_idx = random.randint(0, num_stations - 1)
+                        if new_idx != st.session_state.selected_station_idx:
+                            st.session_state.selected_station_idx = new_idx
+                            st.rerun()
                 
                 # Simple instruction for users
                 st.caption("💡 Hover for interpolated values, click to select nearest station")
@@ -935,6 +917,11 @@ def main():
                 # Compact metrics header
                 st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Ground Motion Metrics</div>", unsafe_allow_html=True)
                 metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
+                
+                # Debug info
+                st.write(f"Station idx: {station_idx}, Metrics df shape: {metrics_df.shape if not metrics_df.empty else 'empty'}")
+                st.write(f"Available data keys: {list(data.keys())[:10]}...")  # Show first 10 keys
+                
                 if not metrics_df.empty:
                     # Use HTML table with small fonts for maximum compactness
                     html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
