@@ -456,24 +456,27 @@ class GroundMotionExplorer:
                         hovertemplate=f"<b>{metric}</b><br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<br>Value: %{{z:.2e}}<extra></extra>"
                     ))
                     
-                    # Add invisible scatter points for clicking (every 5th station to reduce clutter)
-                    step = max(1, len(valid_station_ids) // 100)  # Max 100 clickable points
-                    click_indices = np.arange(0, len(valid_station_ids), step)
-                    click_locations = display_locations[click_indices]
-                    click_ids = valid_station_ids[click_indices]
+                    # Add small hover points for station details (every 10th station to avoid clutter)
+                    step = max(1, len(valid_station_ids) // 200)  # Max 200 hover points
+                    hover_indices = np.arange(0, len(valid_station_ids), step)
+                    hover_locations = display_locations[hover_indices]
+                    hover_ids = valid_station_ids[hover_indices]
+                    hover_values = valid_values[hover_indices]
                     
                     fig.add_trace(go.Scatter(
-                        x=click_locations[:, 0],
-                        y=click_locations[:, 1],
+                        x=hover_locations[:, 0],
+                        y=hover_locations[:, 1],
                         mode='markers',
                         marker=dict(
-                            size=8,
-                            color='rgba(0,0,0,0)',  # Invisible
-                            line=dict(width=0)
+                            size=4,
+                            color='white',
+                            opacity=0.3,
+                            line=dict(width=1, color='black', width=0.5)
                         ),
-                        hoverinfo='skip',  # No hover on invisible points
-                        name="clickable_stations",
-                        customdata=click_indices,  # Store original indices for session state
+                        text=[f"Station {sid}" for sid in hover_ids],
+                        hovertemplate="<b>Station %{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<br>" + f"{metric}: %{{customdata:.2e}}<extra></extra>",
+                        customdata=hover_values,
+                        name="Stations",
                         showlegend=False
                     ))
                     
@@ -651,7 +654,7 @@ class GroundMotionExplorer:
 def main():
     """Main Streamlit app"""
     st.title("🌋 DR4GM Interactive Explorer")
-    st.markdown("**Dynamic Rupture for Ground Motion Applications** - Interactive exploration of earthquake simulation results")
+    st.markdown("**Dynamic Rupture for Ground Motion** - Interactive exploration of high-resolution physics-based earthquake scenarios")
     
     explorer = GroundMotionExplorer()
     
@@ -879,32 +882,23 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with click detection
-                clicked = st.plotly_chart(
+                # Display map with hover interaction
+                st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map",
-                    on_select="rerun"
+                    key="main_map"
                 )
                 
-                # Handle map clicks - use original station indices
-                if clicked and hasattr(clicked, 'selection') and clicked.selection:
-                    if clicked.selection.point_indices:
-                        # Get the clicked point index from the invisible scatter trace
-                        clicked_point_idx = clicked.selection.point_indices[0]
-                        # Get the original station index from customdata
-                        if len(fig_map.data) > 1 and hasattr(fig_map.data[1], 'customdata'):
-                            original_indices = fig_map.data[1].customdata
-                            if clicked_point_idx < len(original_indices):
-                                st.session_state.selected_station_idx = int(original_indices[clicked_point_idx])
-                                st.rerun()
+                # Simple instruction for users
+                st.caption("💡 Hover over white dots to see station details in the tooltip")
             else:
                 st.warning("No data to display on map")
         
         with col2:
             # Compact header with small font
-            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Station Details</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Example Station</h4>", unsafe_allow_html=True)
             
+            # Show example station data
             station_idx = st.session_state.selected_station_idx
             if 'station_ids' in data and station_idx < len(data['station_ids']):
                 station_id = data['station_ids'][station_idx]
@@ -919,10 +913,13 @@ def main():
                     display_x = location[0]
                     display_y = location[1]
                 
-                # Very compact station info with small fonts
+                # Instruction and example station
                 st.markdown(f"""
+                <div style='font-size: 11px; color: #666; margin-bottom: 8px;'>
+                    Hover over white dots on the map for station details
+                </div>
                 <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
-                    <strong>ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
+                    <strong>Example - ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
                     <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
                     <strong>Y:</strong> {display_y:.2f} km
                 </div>
