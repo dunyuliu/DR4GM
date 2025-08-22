@@ -317,10 +317,11 @@ class GroundMotionExplorer:
         if hosting_method == "Google Drive (Faster)":
             # All files now work reliably at ~8MB each - updated file IDs
             files = {
-                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1ajgZrclIxlWBy94LZvEHlPMwpDNa2e9i",
-                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1QoxU1t8jXbEkDhjxSSUzugv9KDgUjIVb",
-                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1bni54dY47ZeCIpRNL9dvpTGruHlSe72Q",
-                "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1LuZwncP0JbcDt-L-em8uZoR-rriQbvnP"
+                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
+                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1RT4TFtSvnz6v68kx2Ga14E7iqGFF-_J7",
+                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1zBheHWZHTj0QmRL7iFYtTYyFFq4_RTbH",
+                "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1s6H0F4O_IEbCnvKmZXpjZbcFBZhjM9YO",
+                "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=15rFvRpbKcGjNA_vJTZKrw3y22kxiSFyK"
             }
         else:
             # Reliable GitHub URLs (slower but no restrictions)
