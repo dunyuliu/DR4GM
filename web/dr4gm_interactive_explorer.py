@@ -456,21 +456,34 @@ class GroundMotionExplorer:
                     ))
                     
                     # Add scatter points for station locations (smaller, semi-transparent)
+                    # Only show a few key stations to avoid clutter
+                    if len(valid_station_ids) > 50:
+                        # Show every 10th station to avoid clutter
+                        step = max(1, len(valid_station_ids) // 50)
+                        sample_indices = np.arange(0, len(valid_station_ids), step)
+                        sample_locations = display_locations[sample_indices]
+                        sample_values = valid_values[sample_indices] 
+                        sample_ids = valid_station_ids[sample_indices]
+                    else:
+                        sample_locations = display_locations
+                        sample_values = valid_values
+                        sample_ids = valid_station_ids
+                    
                     fig.add_trace(go.Scatter(
-                        x=display_locations[:, 0],
-                        y=display_locations[:, 1],
+                        x=sample_locations[:, 0],
+                        y=sample_locations[:, 1],
                         mode='markers',
                         marker=dict(
                             size=3,
                             color='white',
-                            opacity=0.8,
+                            opacity=0.6,
                             line=dict(width=1, color='black')
                         ),
                         text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                              for sid, val in zip(valid_station_ids, valid_values)],
+                              for sid, val in zip(sample_ids, sample_values)],
                         hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
                         name="Stations",
-                        customdata=valid_station_ids,
+                        customdata=sample_ids,
                         showlegend=False
                     ))
                     
@@ -765,8 +778,22 @@ def main():
         if selected_metric.startswith('SA(T='):
             period_str = selected_metric.split('T=')[1].split('s)')[0]
             metric_key = f"RSA_T_{period_str.replace('.', '_')}"
+            
+            # Debug: Check if this key exists
+            if metric_key not in data:
+                st.sidebar.error(f"Key '{metric_key}' not found in data. Available SA keys: {[k for k in data.keys() if k.startswith('RSA_T_')]}")
+                # Try to find a close match
+                available_sa = [k for k in data.keys() if k.startswith('RSA_T_')]
+                if available_sa:
+                    st.sidebar.info(f"Using first available SA key: {available_sa[0]}")
+                    metric_key = available_sa[0]
         else:
             metric_key = selected_metric
+            
+        # Final check that metric exists
+        if metric_key not in data:
+            st.error(f"Metric '{metric_key}' not found in data. Available metrics: {list(data.keys())}")
+            return
         
         # Colorscale selection
         colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
@@ -835,9 +862,14 @@ def main():
                 st.sidebar.success("Cache cleared! Please reload the dataset.")
                 st.rerun()
         
-        # Initialize selected station
+        # Initialize selected station - pick a random one to avoid showing all white dots
         if 'selected_station_idx' not in st.session_state:
-            st.session_state.selected_station_idx = 0
+            import random
+            num_stations = len(data.get('station_ids', []))
+            if num_stations > 0:
+                st.session_state.selected_station_idx = random.randint(0, num_stations - 1)
+            else:
+                st.session_state.selected_station_idx = 0
             
         # Use session state for selected station (controlled by map clicks)
         
@@ -889,12 +921,20 @@ def main():
                 st.write(f"**X:** {display_x:.2f} km")
                 st.write(f"**Y:** {display_y:.2f} km")
                 
-                # Metrics table - more compact and fast
+                # Metrics table - compact with small fonts
                 st.write("**Ground Motion Metrics**")
                 metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
                 if not metrics_df.empty:
-                    # Display as compact table - faster than st.dataframe
-                    st.table(metrics_df.to_dict('records'))
+                    # Use HTML table with small fonts for maximum compactness
+                    html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
+                    html_table += "<table style='width: 100%; border-collapse: collapse;'>"
+                    html_table += "<tr style='background-color: #f0f0f0;'><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Metric</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: right;'>Value</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Unit</th></tr>"
+                    
+                    for _, row in metrics_df.iterrows():
+                        html_table += f"<tr><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Metric']}</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{row['Value']}</td><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Unit']}</td></tr>"
+                    
+                    html_table += "</table></div>"
+                    st.markdown(html_table, unsafe_allow_html=True)
                 
                 # Download button for station data
                 if not metrics_df.empty:
