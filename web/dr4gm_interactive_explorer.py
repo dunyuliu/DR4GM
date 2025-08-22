@@ -456,29 +456,6 @@ class GroundMotionExplorer:
                         hovertemplate=f"<b>{metric}</b><br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<br>Value: %{{z:.2e}}<extra></extra>"
                     ))
                     
-                    # Add small hover points for station details (every 10th station to avoid clutter)
-                    step = max(1, len(valid_station_ids) // 200)  # Max 200 hover points
-                    hover_indices = np.arange(0, len(valid_station_ids), step)
-                    hover_locations = display_locations[hover_indices]
-                    hover_ids = valid_station_ids[hover_indices]
-                    hover_values = valid_values[hover_indices]
-                    
-                    fig.add_trace(go.Scatter(
-                        x=hover_locations[:, 0],
-                        y=hover_locations[:, 1],
-                        mode='markers',
-                        marker=dict(
-                            size=4,
-                            color='white',
-                            opacity=0.3,
-                            line=dict(width=0.5, color='black')
-                        ),
-                        text=[f"Station {sid}" for sid in hover_ids],
-                        hovertemplate="<b>Station %{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<br>" + f"{metric}: %{{customdata:.2e}}<extra></extra>",
-                        customdata=hover_values,
-                        name="Stations",
-                        showlegend=False
-                    ))
                     
             except Exception as e:
                 st.warning(f"Contour interpolation failed: {str(e)} - using scatter plot")
@@ -890,7 +867,7 @@ def main():
                 )
                 
                 # Simple instruction for users
-                st.caption("💡 Hover over white dots to see station details in the tooltip")
+                st.caption("💡 Hover anywhere on the map to see interpolated values")
             else:
                 st.warning("No data to display on map")
         
@@ -916,10 +893,10 @@ def main():
                 # Instruction and example station
                 st.markdown(f"""
                 <div style='font-size: 11px; color: #666; margin-bottom: 8px;'>
-                    Hover over white dots on the map for station details
+                    Hover anywhere on the contour map to see interpolated values at that location
                 </div>
                 <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
-                    <strong>Example - ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
+                    <strong>Example Station - ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
                     <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
                     <strong>Y:</strong> {display_y:.2f} km
                 </div>
