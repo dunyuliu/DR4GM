@@ -317,11 +317,10 @@ class GroundMotionExplorer:
         if hosting_method == "Google Drive (Faster)":
             # All files now work reliably at ~8MB each - updated file IDs
             files = {
-                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1OezHfbDot2PC_ktoug7FeQ36WY9KPh3p",
-                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1RT4TFtSvnz6v68kx2Ga14E7iqGFF-_J7",
-                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1zBheHWZHTj0QmRL7iFYtTYyFFq4_RTbH",
-                "EQDyna C Coarse Simulation": "https://drive.google.com/uc?export=download&id=1s6H0F4O_IEbCnvKmZXpjZbcFBZhjM9YO",
-                "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=15rFvRpbKcGjNA_vJTZKrw3y22kxiSFyK"
+                "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1ajgZrclIxlWBy94LZvEHlPMwpDNa2e9i",
+                "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1QoxU1t8jXbEkDhjxSSUzugv9KDgUjIVb",
+                "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1bni54dY47ZeCIpRNL9dvpTGruHlSe72Q",
+                "Waveqlab3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1LuZwncP0JbcDt-L-em8uZoR-rriQbvnP"
             }
         else:
             # Reliable GitHub URLs (slower but no restrictions)
@@ -345,7 +344,7 @@ class GroundMotionExplorer:
                         npz_files.append(os.path.join(root, file))
         return sorted(npz_files)
     
-    def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Viridis') -> go.Figure:
+    def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Plasma') -> go.Figure:
         """Create interactive station map with ground motion data"""
         if 'locations' not in data or metric not in data:
             return go.Figure()
@@ -490,13 +489,13 @@ class GroundMotionExplorer:
                 if metric in data and station_idx < len(data[metric]):
                     value = data[metric][station_idx]
                     if metric == 'PGA':
-                        unit = 'm/s²'
+                        unit = 'cm/s²'
                     elif metric == 'PGV':
-                        unit = 'm/s'
+                        unit = 'cm/s'
                     elif metric == 'PGD':
-                        unit = 'm'
+                        unit = 'cm'
                     elif metric == 'CAV':
-                        unit = 'm/s'
+                        unit = 'cm/s'
                     else:
                         unit = ''
                     
@@ -514,7 +513,7 @@ class GroundMotionExplorer:
                     metrics_data.append({
                         'Metric': f'SA(T={period}s)',
                         'Value': f"{value:.3e}",
-                        'Unit': 'm/s²'
+                        'Unit': 'cm/s²'
                     })
             
             all_tables[station_idx] = pd.DataFrame(metrics_data)
@@ -566,39 +565,7 @@ def main():
         # Get files based on hosting method
         discovered_files = explorer.get_dataset_files(hosting_method)
         
-        # Add GitHub repository info
-        with st.sidebar.expander("📂 Data Repository"):
-            st.write("**DR4GM Data Archive:**")
-            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
-            st.write("• Professional data hosting")
-            st.write("• No download restrictions") 
-            st.write("• Version controlled")
-            if hosting_method == "GitHub (Reliable)":
-                st.warning("⚠️ GitHub raw files can be slow for large datasets")
-            
-        # Performance note
-        with st.sidebar.expander("⚡ Performance Tips"):
-            st.write("**For faster access:**")
-            st.write("1. **First load is slow** - files are cached after")
-            st.write("2. **FD3D works reliably** - try it first")
-            st.write("3. **EQDyna files are large** - may trigger virus scan")
-            st.write("4. **Alternative**: Download manually + upload")
-            st.write("5. **Best**: Use local files when possible")
-            
-        # Dataset status info
-        with st.sidebar.expander("📊 Dataset Status"):
-            if hosting_method == "Google Drive (Faster)":
-                st.write("**Google Drive - All datasets available:**")
-                st.write("✅ FD3D A Coarse (~8 MB)")
-                st.write("✅ EQDyna A, B, C Coarse (~8 MB each)")
-                st.write("✅ Waveqlab3D A Coarse (~8 MB)")
-                st.write("🚀 Fast downloads, no restrictions")
-            else:
-                st.write("**GitHub - All datasets available:**")
-                st.write("✅ EQDyna A, B, C Coarse")
-                st.write("✅ FD3D A Coarse")
-                st.write("✅ Waveqlab3D A Coarse")
-                st.write("⏳ Downloads may be slower but reliable")
+        # Store files for later selection
         
         if discovered_files:
             sample_datasets = discovered_files  # URLs are ready to use
@@ -610,16 +577,6 @@ def main():
         else:
             st.sidebar.error("Could not discover files in Google Drive folder")
             npz_files = []
-            
-        # Cache management
-        if st.sidebar.button("🗑️ Clear Download Cache"):
-            import tempfile
-            import shutil
-            cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
-            if cache_dir.exists():
-                shutil.rmtree(cache_dir)
-                st.sidebar.success("Cache cleared! Please reload the dataset.")
-                st.rerun()
             
     elif data_source == "Upload File":
         uploaded_file = st.sidebar.file_uploader(
@@ -664,6 +621,9 @@ def main():
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
         
+        # Variable selection - moved up as requested
+        st.sidebar.header("📊 Analysis Settings")
+        
         # Metric selection
         available_metrics = []
         basic_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
@@ -694,10 +654,10 @@ def main():
             metric_key = selected_metric
         
         # Colorscale selection
-        colorscales = ['Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
+        colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
-        # Station location finder
+        # Station location finder - moved up as requested
         st.sidebar.header("🎯 Find Station by Location")
         
         col_x, col_y = st.sidebar.columns(2)
@@ -734,20 +694,37 @@ def main():
                 st.session_state.selected_station_idx = closest_idx
                 st.sidebar.success(f"Found station {data['station_ids'][closest_idx]} at distance {display_distance:.2f} km")
         
+        # Move explanatory content to bottom
+        with st.sidebar.expander("📂 Data Repository"):
+            st.write("**DR4GM Data Archive:**")
+            st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
+            st.write("• Professional data hosting")
+            st.write("• No download restrictions") 
+            st.write("• Version controlled")
+            
+        with st.sidebar.expander("⚡ Performance Tips"):
+            st.write("**For faster access:**")
+            st.write("1. **First load is slow** - files are cached after")
+            st.write("2. **FD3D works reliably** - try it first")
+            st.write("3. **EQDyna files are large** - may trigger virus scan")
+            st.write("4. **Alternative**: Download manually + upload")
+            st.write("5. **Best**: Use local files when possible")
+        
+        # Cache management
+        if st.sidebar.button("🗑️ Clear Download Cache"):
+            import tempfile
+            import shutil
+            cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir)
+                st.sidebar.success("Cache cleared! Please reload the dataset.")
+                st.rerun()
+        
         # Initialize selected station
         if 'selected_station_idx' not in st.session_state:
             st.session_state.selected_station_idx = 0
             
-        # Station selection slider at top
-        max_stations = len(data.get('station_ids', []))
-        station_idx = st.slider(
-            "🎯 Select Station to View Details",
-            0, max_stations - 1, 
-            value=st.session_state.selected_station_idx,
-            help="Select a station to view detailed metrics and update map highlight",
-            key="station_selector"
-        )
-        st.session_state.selected_station_idx = station_idx
+        # Use session state for selected station (controlled by map clicks)
         
         # Main content - make map bigger
         col1, col2 = st.columns([3, 1])
