@@ -859,178 +859,108 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with hover-based station selection
-                hover_data = st.plotly_chart(
+                # Display map with click-based interaction (since hover events aren't captured by Streamlit)
+                click_data = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
                     key="main_map",
                     on_select="rerun"
                 )
                 
-                # Debug hover events
-                st.sidebar.write(f"Hover data: {hover_data}")
-                st.sidebar.write(f"Has selection: {hasattr(hover_data, 'selection') if hover_data else False}")
-                
-                # Handle hover events to capture real-time data
-                if hover_data and hasattr(hover_data, 'selection') and hover_data.selection:
-                    st.sidebar.write(f"Selection: {hover_data.selection}")
-                    st.sidebar.write(f"Has points: {hasattr(hover_data.selection, 'points')}")
-                    if hasattr(hover_data.selection, 'points'):
-                        st.sidebar.write(f"Points: {hover_data.selection.points}")
-                    
-                    if hasattr(hover_data.selection, 'points') and hover_data.selection.points:
-                        hover_point = hover_data.selection.points[0]
-                        st.sidebar.write(f"Hover point: {hover_point}")
-                        if hasattr(hover_point, 'x') and hasattr(hover_point, 'y') and hasattr(hover_point, 'z'):
-                            # Store the exact hover data
-                            st.session_state.hover_x = hover_point.x
-                            st.session_state.hover_y = hover_point.y 
-                            st.session_state.hover_value = hover_point.z
-                            st.session_state.hover_metric = metric_key
-                            st.sidebar.write(f"Stored hover: {hover_point.x}, {hover_point.y}, {hover_point.z}")
+                # Handle click events to find nearest station
+                if click_data and hasattr(click_data, 'selection') and click_data.selection:
+                    if hasattr(click_data.selection, 'points') and click_data.selection.points:
+                        click_point = click_data.selection.points[0]
+                        if hasattr(click_point, 'x') and hasattr(click_point, 'y'):
+                            clicked_x = click_point.x
+                            clicked_y = click_point.y
+                            
+                            # Convert click coordinates to data coordinates
+                            coord_unit = data.get('coordinate_unit', 'km')
+                            if coord_unit == 'm':
+                                search_x = clicked_x * 1000.0
+                                search_y = clicked_y * 1000.0
+                            else:
+                                search_x = clicked_x
+                                search_y = clicked_y
+                            
+                            # Find nearest station
+                            locations = data['locations']
+                            distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
+                            nearest_idx = np.argmin(distances)
+                            
+                            # Update session state
+                            if nearest_idx != st.session_state.selected_station_idx:
+                                st.session_state.selected_station_idx = nearest_idx
                 
                 # Simple instruction for users
-                st.caption("💡 Hover anywhere on the map to update station details")
+                st.caption("💡 Hover to see values in tooltip, click anywhere to see full metrics for nearest station")
             else:
                 st.warning("No data to display on map")
         
         with col2:
             # Compact header with small font
-            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Hover Data</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Station Data</h4>", unsafe_allow_html=True)
             
-            # Show interpolated metrics table at hover location
-            if hasattr(st.session_state, 'hover_x') and st.session_state.hover_x is not None:
-                # Display hover coordinates
+            # Show station metrics table
+            if 'station_ids' in data and len(data['station_ids']) > 0:
+                # Ensure station index is valid
+                station_idx = st.session_state.selected_station_idx
+                if station_idx >= len(data['station_ids']):
+                    station_idx = 0
+                    st.session_state.selected_station_idx = 0
+                
+                station_id = data['station_ids'][station_idx]
+                location = data['locations'][station_idx]
+                
+                # Convert coordinates to km for display
+                coord_unit = data.get('coordinate_unit', 'km')
+                if coord_unit == 'm':
+                    display_x = location[0] / 1000.0
+                    display_y = location[1] / 1000.0
+                else:
+                    display_x = location[0]
+                    display_y = location[1]
+                
+                # Station info
                 st.markdown(f"""
                 <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
-                    <strong>X:</strong> {st.session_state.hover_x:.2f} km &nbsp;&nbsp;&nbsp; 
-                    <strong>Y:</strong> {st.session_state.hover_y:.2f} km
+                    <strong>Station ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
+                    <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
+                    <strong>Y:</strong> {display_y:.2f} km
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Show complete interpolated metrics table
-                st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Interpolated Ground Motion Metrics</div>", unsafe_allow_html=True)
+                # Show complete metrics table
+                st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Ground Motion Metrics</div>", unsafe_allow_html=True)
                 
-                # Get interpolated values for all metrics at this location
-                hover_x_km = st.session_state.hover_x
-                hover_y_km = st.session_state.hover_y
+                # Get metrics for this station
+                metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
                 
-                # Convert to data coordinates if needed
-                coord_unit = data.get('coordinate_unit', 'km')
-                if coord_unit == 'm':
-                    search_x = hover_x_km * 1000.0
-                    search_y = hover_y_km * 1000.0
+                if not metrics_df.empty:
+                    # Use HTML table with small fonts for maximum compactness
+                    html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
+                    html_table += "<table style='width: 100%; border-collapse: collapse;'>"
+                    html_table += "<tr style='background-color: #f0f0f0;'><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Metric</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: right;'>Value</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Unit</th></tr>"
+                    
+                    for _, row in metrics_df.iterrows():
+                        html_table += f"<tr><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Metric']}</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{row['Value']}</td><td style='padding: 2px 4px; border: 1px solid #ddd;'>{row['Unit']}</td></tr>"
+                    
+                    html_table += "</table></div>"
+                    st.markdown(html_table, unsafe_allow_html=True)
+                    
+                    # Download button for station data
+                    csv = metrics_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Station Data",
+                        data=csv,
+                        file_name=f"station_{station_id}_metrics.csv",
+                        mime="text/csv"
+                    )
                 else:
-                    search_x = hover_x_km
-                    search_y = hover_y_km
-                
-                # Interpolate all available metrics at this point
-                try:
-                    from scipy.interpolate import griddata
-                    locations = data['locations']
-                    
-                    interpolated_metrics = []
-                    
-                    # Basic metrics
-                    basic_metrics = ['PGA', 'PGV', 'PGD', 'CAV']
-                    for metric in basic_metrics:
-                        if metric in data:
-                            values = data[metric]
-                            valid_mask = (values > 0) & (~np.isnan(values)) & (~np.isinf(values))
-                            if np.any(valid_mask):
-                                valid_locations = locations[valid_mask]
-                                valid_values = values[valid_mask]
-                                
-                                # Interpolate at hover point
-                                interp_value = griddata(
-                                    (valid_locations[:, 0], valid_locations[:, 1]),
-                                    valid_values,
-                                    (search_x, search_y),
-                                    method='linear'
-                                )
-                                
-                                # Fill NaN with nearest neighbor
-                                if np.isnan(interp_value):
-                                    interp_value = griddata(
-                                        (valid_locations[:, 0], valid_locations[:, 1]),
-                                        valid_values,
-                                        (search_x, search_y),
-                                        method='nearest'
-                                    )
-                                
-                                if not np.isnan(interp_value):
-                                    if metric == 'PGA':
-                                        unit = 'cm/s²'
-                                    elif metric == 'PGV':
-                                        unit = 'cm/s'
-                                    elif metric == 'PGD':
-                                        unit = 'cm'
-                                    elif metric == 'CAV':
-                                        unit = 'cm/s'
-                                    else:
-                                        unit = ''
-                                    
-                                    interpolated_metrics.append({
-                                        'Metric': metric,
-                                        'Value': f"{interp_value:.3e}",
-                                        'Unit': unit
-                                    })
-                    
-                    # Spectral acceleration
-                    sa_keys = sorted([key for key in data.keys() if key.startswith('RSA_T_')])
-                    for sa_key in sa_keys:
-                        values = data[sa_key]
-                        valid_mask = (values > 0) & (~np.isnan(values)) & (~np.isinf(values))
-                        if np.any(valid_mask):
-                            valid_locations = locations[valid_mask]
-                            valid_values = values[valid_mask]
-                            
-                            # Interpolate at hover point
-                            interp_value = griddata(
-                                (valid_locations[:, 0], valid_locations[:, 1]),
-                                valid_values,
-                                (search_x, search_y),
-                                method='linear'
-                            )
-                            
-                            # Fill NaN with nearest neighbor
-                            if np.isnan(interp_value):
-                                interp_value = griddata(
-                                    (valid_locations[:, 0], valid_locations[:, 1]),
-                                    valid_values,
-                                    (search_x, search_y),
-                                    method='nearest'
-                                )
-                            
-                            if not np.isnan(interp_value):
-                                period = sa_key.replace('RSA_T_', '').replace('_', '.')
-                                interpolated_metrics.append({
-                                    'Metric': f'SA(T={period}s)',
-                                    'Value': f"{interp_value:.3e}",
-                                    'Unit': 'cm/s²'
-                                })
-                    
-                    # Display interpolated metrics table
-                    if interpolated_metrics:
-                        html_table = "<div style='font-size: 11px; line-height: 1.2;'>"
-                        html_table += "<table style='width: 100%; border-collapse: collapse;'>"
-                        html_table += "<tr style='background-color: #f0f0f0;'><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Metric</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: right;'>Value</th><th style='padding: 2px 4px; border: 1px solid #ddd; text-align: left;'>Unit</th></tr>"
-                        
-                        for metric_data in interpolated_metrics:
-                            html_table += f"<tr><td style='padding: 2px 4px; border: 1px solid #ddd;'>{metric_data['Metric']}</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{metric_data['Value']}</td><td style='padding: 2px 4px; border: 1px solid #ddd;'>{metric_data['Unit']}</td></tr>"
-                        
-                        html_table += "</table></div>"
-                        st.markdown(html_table, unsafe_allow_html=True)
-                    else:
-                        st.info("No interpolated metrics available")
-                        
-                except ImportError:
-                    st.warning("scipy not available - cannot interpolate all metrics")
-                except Exception as e:
-                    st.error(f"Interpolation failed: {e}")
-                
+                    st.info("No metrics data available for this station")
             else:
-                st.info("Hover over the map to see interpolated metrics here")
+                st.error("No station data found in dataset")
         
         # Time series plot (full width) - make it optional for speed
         if 'vel_strike' in data:
