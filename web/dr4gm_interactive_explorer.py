@@ -739,7 +739,7 @@ def main():
     
     if data_source == "DR4GM Data Archive":
         with st.sidebar.expander("💾 Download Method"):
-            download_method = st.sidebar.radio(
+            download_method = st.radio(
                 "Choose Download Source",
                 ["Google Drive (Faster)", "GitHub (Reliable)"],
                 index=0,
@@ -752,15 +752,17 @@ def main():
     if data_source == "DR4GM Data Archive":
         discovered_files = explorer.get_dataset_files(download_method)
         
-        with st.sidebar.expander("📄 Dataset Selection", expanded=True):
-            if discovered_files:
-                selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
-                if selected_sample:
-                    npz_files = [discovered_files[selected_sample]]
-                    st.sidebar.success(f"✅ Dataset ready: {selected_sample}")
-                    st.sidebar.info(f"📡 Source: {download_method}")
-            else:
-                st.sidebar.error("Could not discover files in archive")
+        if discovered_files:
+            selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
+            if selected_sample:
+                npz_files = [discovered_files[selected_sample]]
+                
+                # Fold all status information
+                with st.sidebar.expander("📄 Dataset Details"):
+                    st.success(f"✅ Dataset ready: {selected_sample}")
+                    st.info(f"📡 Source: {download_method}")
+        else:
+            st.sidebar.error("Could not discover files in archive")
             
     elif data_source == "Local Files":
         data_dir = st.sidebar.text_input("Data Directory", value="./")
@@ -770,6 +772,13 @@ def main():
                                                format_func=lambda x: os.path.basename(x))
             npz_files = [selected_file] if selected_file else []
             
+            # Fold file details
+            if npz_files:
+                with st.sidebar.expander("📄 Dataset Details"):
+                    st.success(f"✅ File selected: {os.path.basename(selected_file)}")
+                    if os.path.exists(selected_file):
+                        st.info(f"📁 Size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
+            
     elif data_source == "Upload File":
         uploaded_file = st.sidebar.file_uploader("Choose Dataset", type=['npz'])
         if uploaded_file:
@@ -777,9 +786,14 @@ def main():
             with tempfile.NamedTemporaryFile(delete=False, suffix='.npz') as tmp_file:
                 tmp_file.write(uploaded_file.read())
                 npz_files = [tmp_file.name]
+                
+            # Fold upload details
+            with st.sidebar.expander("📄 Dataset Details"):
+                st.success(f"✅ File uploaded: {uploaded_file.name}")
+                st.info(f"📁 Size: {len(uploaded_file.getvalue()) / 1024 / 1024:.1f} MB")
     
     if not npz_files:
-        st.sidebar.warning("No dataset selected")
+        st.sidebar.warning("⚠️ No dataset selected")
         st.warning("Please select a dataset to continue.")
         return
     
