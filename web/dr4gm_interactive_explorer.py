@@ -438,7 +438,7 @@ class GroundMotionExplorer:
                         )
                         zi[nan_mask] = zi_nearest[nan_mask]
                     
-                    # Add contour plot
+                    # Add contour plot only - clean and beautiful
                     fig.add_trace(go.Contour(
                         x=xi,
                         y=yi,
@@ -452,39 +452,8 @@ class GroundMotionExplorer:
                             size=(np.percentile(valid_values, 95) - np.percentile(valid_values, 5)) / 15
                         ),
                         line=dict(width=0),  # Remove contour lines for smooth appearance
-                        name=metric
-                    ))
-                    
-                    # Add scatter points for station locations (smaller, semi-transparent)
-                    # Only show a few key stations to avoid clutter
-                    if len(valid_station_ids) > 50:
-                        # Show every 10th station to avoid clutter
-                        step = max(1, len(valid_station_ids) // 50)
-                        sample_indices = np.arange(0, len(valid_station_ids), step)
-                        sample_locations = display_locations[sample_indices]
-                        sample_values = valid_values[sample_indices] 
-                        sample_ids = valid_station_ids[sample_indices]
-                    else:
-                        sample_locations = display_locations
-                        sample_values = valid_values
-                        sample_ids = valid_station_ids
-                    
-                    fig.add_trace(go.Scatter(
-                        x=sample_locations[:, 0],
-                        y=sample_locations[:, 1],
-                        mode='markers',
-                        marker=dict(
-                            size=3,
-                            color='white',
-                            opacity=0.6,
-                            line=dict(width=1, color='black')
-                        ),
-                        text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                              for sid, val in zip(sample_ids, sample_values)],
-                        hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-                        name="Stations",
-                        customdata=sample_ids,
-                        showlegend=False
+                        name=metric,
+                        hovertemplate=f"<b>{metric}</b><br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<br>Value: %{{z:.2e}}<extra></extra>"
                     ))
                     
             except Exception as e:
@@ -777,7 +746,8 @@ def main():
         # Convert display name back to data key
         if selected_metric.startswith('SA(T='):
             period_str = selected_metric.split('T=')[1].split('s)')[0]
-            metric_key = f"RSA_T_{period_str.replace('.', '_')}"
+            # Don't replace dots with underscores - keep the original format
+            metric_key = f"RSA_T_{period_str}"
             
             # Debug: Check if this key exists
             if metric_key not in data:
@@ -900,7 +870,8 @@ def main():
                 st.warning("No data to display on map")
         
         with col2:
-            st.subheader("📊 Station Details")
+            # Compact header with small font
+            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Station Details</h4>", unsafe_allow_html=True)
             
             station_idx = st.session_state.selected_station_idx
             if 'station_ids' in data and station_idx < len(data['station_ids']):
@@ -916,13 +887,17 @@ def main():
                     display_x = location[0]
                     display_y = location[1]
                 
-                # Compact station info in km
-                st.write(f"**Station ID:** {station_id}")
-                st.write(f"**X:** {display_x:.2f} km")
-                st.write(f"**Y:** {display_y:.2f} km")
+                # Very compact station info with small fonts
+                st.markdown(f"""
+                <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
+                    <strong>ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
+                    <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
+                    <strong>Y:</strong> {display_y:.2f} km
+                </div>
+                """, unsafe_allow_html=True)
                 
-                # Metrics table - compact with small fonts
-                st.write("**Ground Motion Metrics**")
+                # Compact metrics header
+                st.markdown("<div style='font-size: 13px; font-weight: bold; margin-bottom: 5px;'>Ground Motion Metrics</div>", unsafe_allow_html=True)
                 metrics_df = explorer.get_station_metrics(all_metrics_tables, station_idx)
                 if not metrics_df.empty:
                     # Use HTML table with small fonts for maximum compactness
