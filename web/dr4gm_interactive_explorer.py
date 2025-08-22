@@ -344,7 +344,7 @@ class GroundMotionExplorer:
         return sorted(npz_files)
     
     def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Plasma') -> go.Figure:
-        """Create stunning contour map with ground motion data like the PGD visualization"""
+        """Create contour map - simplified and bulletproof"""
         if 'locations' not in data or metric not in data:
             return go.Figure()
         
@@ -369,181 +369,82 @@ class GroundMotionExplorer:
         else:
             display_locations = valid_locations
         
-        # Create interpolation grid for smooth contours
-        try:
-            from scipy.interpolate import griddata
-        except ImportError:
-            # Fallback to scatter plot if scipy not available
-            return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
-        
         x_coords = display_locations[:, 0]
         y_coords = display_locations[:, 1]
         
-        # Create fine grid for smooth contours
-        x_min, x_max = x_coords.min(), x_coords.max()
-        y_min, y_max = y_coords.min(), y_coords.max()
-        
-        # Add margin for better visualization
-        x_range = x_max - x_min
-        y_range = y_max - y_min
-        margin = 0.1
-        x_min -= margin * x_range
-        x_max += margin * x_range
-        y_min -= margin * y_range
-        y_max += margin * y_range
-        
-        # Create fine grid (100x100 points for smooth contours)
-        xi = np.linspace(x_min, x_max, 100)
-        yi = np.linspace(y_min, y_max, 100)
-        Xi, Yi = np.meshgrid(xi, yi)
-        
+        # Create interpolation grid
         try:
-            # Interpolate data onto grid
-            Zi = griddata((x_coords, y_coords), valid_values, (Xi, Yi), method='linear')
+            from scipy.interpolate import griddata
             
-            # Fill NaN values with nearest neighbor
+            # Simple grid
+            x_min, x_max = x_coords.min(), x_coords.max()
+            y_min, y_max = y_coords.min(), y_coords.max()
+            margin = 0.1
+            x_range = x_max - x_min
+            y_range = y_max - y_min
+            x_min -= margin * x_range
+            x_max += margin * x_range
+            y_min -= margin * y_range
+            y_max += margin * y_range
+            
+            xi = np.linspace(x_min, x_max, 50)
+            yi = np.linspace(y_min, y_max, 50)
+            Xi, Yi = np.meshgrid(xi, yi)
+            
+            # Interpolate
+            Zi = griddata((x_coords, y_coords), valid_values, (Xi, Yi), method='linear')
             nan_mask = np.isnan(Zi)
             if np.any(nan_mask):
                 Zi_nearest = griddata((x_coords, y_coords), valid_values, (Xi, Yi), method='nearest')
                 Zi[nan_mask] = Zi_nearest[nan_mask]
-        except:
-            # Fallback to simple scatter plot if interpolation fails
-            return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
-        
-        # Create reliable visualization - try contour first, fall back to scatter
-        fig = go.Figure()
-        contour_success = False
-        
-        # Try simple contour without any colorbar complications
-        try:
+            
+            # Create figure with contour
+            fig = go.Figure()
+            
+            # Add contour - no colorbar
             fig.add_trace(go.Contour(
-                x=xi,
-                y=yi,
-                z=Zi,
+                x=xi, y=yi, z=Zi,
                 colorscale=colorscale,
-                showscale=False,  # No colorbar at all
-                contours_coloring='fill',
-                line_width=0,
-                hovertemplate=f"{metric}: %{{z:.2e}}<br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<extra></extra>"
+                showscale=False
             ))
-            contour_success = True
-        except:
-            # If contour fails completely, use scatter plot
-            pass
-        
-        # Add colored scatter points (bulletproof approach)
-        try:
-            # Try with colorbar first
+            
+            # Add stations
             fig.add_trace(go.Scatter(
-                x=x_coords,
-                y=y_coords,
+                x=x_coords, y=y_coords,
                 mode='markers',
-                marker=dict(
-                    size=8 if not contour_success else 4,
-                    color=valid_values,
-                    colorscale=colorscale,
-                    showscale=True,
-                    opacity=0.8 if not contour_success else 0.6,
-                    line=dict(width=1, color='white')
-                ),
-                text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                      for sid, val in zip(valid_station_ids, valid_values)],
+                marker=dict(size=4, color='white', line=dict(width=1, color='black')),
+                text=[f"Station {sid}<br>{metric}: {val:.2e}" for sid, val in zip(valid_station_ids, valid_values)],
                 hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-                name="Stations",
                 customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
                 showlegend=False
             ))
+            
         except:
-            # Ultimate fallback - no colorbar, simple scatter
+            # Fallback to scatter if anything fails
+            fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=x_coords,
-                y=y_coords,
+                x=x_coords, y=y_coords,
                 mode='markers',
-                marker=dict(
-                    size=6,
-                    color='red',
-                    opacity=0.7,
-                    line=dict(width=1, color='white')
-                ),
-                text=[f"Station {sid}<br>{metric}: {val:.2e}" 
-                      for sid, val in zip(valid_station_ids, valid_values)],
+                marker=dict(size=6, color='red', opacity=0.7),
+                text=[f"Station {sid}<br>{metric}: {val:.2e}" for sid, val in zip(valid_station_ids, valid_values)],
                 hovertemplate="<b>%{text}</b><br>X: %{x:.2f} km<br>Y: %{y:.2f} km<extra></extra>",
-                name="Stations",
                 customdata=np.column_stack([valid_station_ids, np.arange(len(valid_station_ids))]),
                 showlegend=False
             ))
         
-        # Get metric properties for title
-        metric_props = self._get_metric_display_name(metric)
-        
-        # Update layout with stunning design
+        # Simple layout
         fig.update_layout(
-            title=dict(
-                text=metric_props,
-                x=0.5,
-                font=dict(size=20, family="Arial, sans-serif", color="black")
-            ),
-            xaxis=dict(
-                title=dict(
-                    text="Along-Strike Distance (km)",
-                    font=dict(size=16, family="Arial, sans-serif")
-                ),
-                tickfont=dict(size=14, family="Arial, sans-serif"),
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(255,255,255,0.3)',
-                zeroline=True,
-                zerolinewidth=2,
-                zerolinecolor='rgba(255,255,255,0.5)'
-            ),
-            yaxis=dict(
-                title=dict(
-                    text="Fault-Normal Distance (km)", 
-                    font=dict(size=16, family="Arial, sans-serif")
-                ),
-                tickfont=dict(size=14, family="Arial, sans-serif"),
-                showgrid=True,
-                gridwidth=1,
-                gridcolor='rgba(255,255,255,0.3)',
-                zeroline=True,
-                zerolinewidth=2,
-                zerolinecolor='rgba(255,255,255,0.5)',
-                scaleanchor="x",
-                scaleratio=1
-            ),
+            title=self._get_metric_display_name(metric),
+            xaxis_title="Along-Strike Distance (km)",
+            yaxis_title="Fault-Normal Distance (km)",
             height=600,
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            margin=dict(l=60, r=100, t=80, b=60)
-        )
-        
-        # Colorbar is handled by the invisible scatter trace above
-        
-        # Add statistics annotation (like the PGD map)
-        stats_text = (f"Min: {valid_values.min():.2e}<br>"
-                     f"Max: {valid_values.max():.2e}<br>"
-                     f"Mean: {valid_values.mean():.2e}<br>"
-                     f"Stations: {len(valid_values):,}")
-        
-        fig.add_annotation(
-            x=0.02,
-            y=0.98,
-            xref="paper",
-            yref="paper",
-            text=stats_text,
-            showarrow=False,
-            font=dict(size=12, family="Arial, sans-serif", color="black"),
-            bgcolor="rgba(255,255,255,0.8)",
-            bordercolor="black",
-            borderwidth=1,
-            xanchor="left",
-            yanchor="top"
+            yaxis=dict(scaleanchor="x", scaleratio=1)
         )
         
         return fig
     
     def _create_fallback_scatter_map(self, display_locations, valid_values, valid_station_ids, metric, colorscale):
-        """Fallback scatter plot if contour interpolation fails"""
+        """Fallback scatter plot if contour interpolation fails - NO colorbar to avoid errors"""
         fig = go.Figure()
         
         fig.add_trace(go.Scatter(
@@ -551,15 +452,10 @@ class GroundMotionExplorer:
             y=display_locations[:, 1],
             mode='markers',
             marker=dict(
-                size=6,
-                color=valid_values,
-                colorscale=colorscale,
-                showscale=True,
-                colorbar=dict(
-                    title=self._get_metric_unit(metric),
-                    thickness=20,
-                    len=0.8
-                )
+                size=8,
+                color='red',  # Simple solid color, no colorbar issues
+                opacity=0.7,
+                line=dict(width=1, color='black')
             ),
             text=[f"Station {sid}<br>{metric}: {val:.2e}" 
                   for sid, val in zip(valid_station_ids, valid_values)],
