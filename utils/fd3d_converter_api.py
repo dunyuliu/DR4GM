@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+
+"""
+FD3D Dataset Converter API
+
+Converts FD3D scenario datasets to parsable station lists and velocity time history databases
+in NPZ format following the DR4GM standard.
+
+FD3D outputs time series as 3 ASCII files in gnuplot format:
+- seisoutU.surface.gnuplot.dat: North component velocities
+- seisoutV.surface.gnuplot.dat: East component velocities  
+- seisoutW.surface.gnuplot.dat: Vertical component velocities
+
+Data format from readdata.f90:
+- Grid: 900 x 250 stations (fault-parallel x fault-normal)
+- Spacing: 0.1 km grid sampling
+- Time: 1600 time steps, dt = 0.025 s
+- Each line contains 250 values (nyt), 900 lines per time step (nxt)
+
+Usage:
+    python fd3d_converter_api.py --input_dir <fd3d_dir> --output_dir <output_dir>
+    
+Example:
+    python fd3d_converter_api.py --input_dir ../datasets/fd3d/nucl_cent --output_dir ./converted_data
+"""
+
+import os
+import sys
+import argparse
+import numpy as np
+import logging
+from typing import Dict, List, Tuple, Optional
+import time
+from pathlib import Path
+
+# Import DR4GM standards
+from npz_format_standard import DR4GM_NPZ_Standard
+
+class FD3DConverter:
+    """Convert FD3D datasets to DR4GM NPZ format"""
+    
+    def __init__(self, input_dir: str, output_dir: str, 
+                 nxt: int = 900, nyt: int = 250, dh: float = 0.1, 
+                 np_time: int = 1600, dt: float = 0.025):
+        """
+        Initialize converter
+        
+        Args:
+            input_dir: Directory containing FD3D data files
+            output_dir: Directory to save converted NPZ files
+            nxt: Number of points fault-parallel (default: 900)
+            nyt: Number of points fault-normal (default: 250)  
+            dh: Grid sampling in km (default: 0.1)
+            np_time: Number of time steps (default: 1600)
+            dt: Time step in seconds (default: 0.025)
+        """
+        self.input_dir = Path(input_dir)
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Grid parameters from readdata.f90
+        self.nxt = nxt  # fault-parallel points
+        self.nyt = nyt  # fault-normal points
+        self.dh = dh    # grid spacing in km
+        self.np_time = np_time  # number of time steps
+        self.dt = dt    # time step in seconds
+        
+        # Total number of stations
+        self.total_stations = self.nxt * self.nyt
+        
+        # Station data
+        self.global_station_id = 0
+        
+        # File names
+        self.file_names = {
+            'U': 'seisoutU.surface.gnuplot.dat',  # North component
+            'V': 'seisoutV.surface.gnuplot.dat',  # East component
+            'W': 'seisoutW.surface.gnuplot.dat'   # Vertical component
+        }
+        
+        # Logging setup
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+    
+    def generate_station_coordinates(self) -> np.ndarray:
+        """
+        Generate station coordinates following readdata.f90 logic exactly
+        
+        Returns:
+            Array of shape [total_stations, 3] with X, Y, Z coordinates
+        """
+        self.logger.info(f"Generating station coordinates for {self.nxt}x{self.nyt} grid")
+        
+        # Following readdata.f90 lines 14-20:
+        # staN(i,j) = dh*i (fault-parallel, North direction)  
+        # staE(i,j) = -dh*(nyt-j+1) (fault-normal, East direction)
+        # The station indexing must match the data reading order: i varies first, then j
+        
+        coordinates = np.zeros((self.total_stations, 3))
+        station_idx = 0
+        
+        # Match Fortran indexing exactly: j outer loop, i inner loop  
+        for i in range(1, self.nxt + 1):  # fault-parallel (FORTRAN 1-based)
+            for j in range(1, self.nyt + 1):  # fault-normal (FORTRAN 1-based)
+                sta_north = self.dh * i * 1000.0  # Fault-parallel (North) - convert km to m
+                sta_east = -self.dh * (self.nyt - j + 1) * 1000.0  # Fault-normal (East) - convert km to m
+                sta_z = 0.0  # Surface stations
+                
+                # Apply counterclockwise 90-degree rotation: (x, y) -> (-y, x)
+                # This aligns the coordinate system with standard conventions
+                rotated_x = -sta_east  # new_x = -old_y (old_y = sta_east)
+                rotated_y = sta_north  # new_y = old_x (old_x = sta_north)
+                
+                coordinates[station_idx] = [rotated_x, rotated_y, sta_z]
+                station_idx += 1
+        
+        self.logger.info(f"Generated {self.total_stations} station coordinates")
+        self.logger.info(f"Applied counterclockwise 90° rotation: (x,y) -> (-y,x)")
+        self.logger.info(f"X range: {coordinates[:, 0].min():.1f} to {coordinates[:, 0].max():.1f} m")
+        self.logger.info(f"Y range: {coordinates[:, 1].min():.1f} to {coordinates[:, 1].max():.1f} m")
+        
+        return coordinates
+    
+    def read_fd3d_file(self, component: str) -> np.ndarray:
+        """
+        Read FD3D ASCII data file using vectorized operations
+        
+        Args:
+            component: 'U', 'V', or 'W' component
+            
+        Returns:
+            Array of shape [total_stations, np_time] with time series data
+        """
+        filename = self.file_names[component]
+        filepath = self.input_dir / filename
+        
+        if not filepath.exists():
+            raise FileNotFoundError(f"FD3D file not found: {filepath}")
+        
+        self.logger.info(f"Reading {component} component from {filename}")
+        
+        try:
+            # Try vectorized approach first
+            return self._read_fd3d_vectorized(filepath, component)
+        except Exception as e:
+            self.logger.warning(f"Vectorized reading failed: {e}, falling back to loop method")
+            return self._read_fd3d_fallback(filepath, component)
+    
+    def _read_fd3d_vectorized(self, filepath, component: str) -> np.ndarray:
+        """Vectorized FD3D file reading using numpy loadtxt for speed"""
+        self.logger.info(f"Attempting vectorized reading of {component} component")
+        
+        try:
+            # Try using numpy's optimized loadtxt for maximum speed
+            self.logger.info("Using numpy.loadtxt for bulk data loading")
+            
+            # Load entire file as 2D array - this is much faster than line-by-line parsing
+            data_array = np.loadtxt(filepath, dtype=np.float32)
+            
+            self.logger.info(f"Loaded data array with shape: {data_array.shape}")
+            
+            # Check if dimensions match expected format
+            expected_total_lines = self.np_time * self.nxt
+            
+            if data_array.shape[0] != expected_total_lines:
+                self.logger.warning(f"Expected {expected_total_lines} rows, got {data_array.shape[0]}")
+                
+                if data_array.shape[0] > expected_total_lines:
+                    data_array = data_array[:expected_total_lines]
+                else:
+                    # Pad with zeros if insufficient data
+                    padding_rows = expected_total_lines - data_array.shape[0]
+                    padding = np.zeros((padding_rows, data_array.shape[1]), dtype=np.float32)
+                    data_array = np.vstack([data_array, padding])
+            
+            if data_array.shape[1] != self.nyt:
+                self.logger.warning(f"Expected {self.nyt} columns, got {data_array.shape[1]}")
+                
+                if data_array.shape[1] > self.nyt:
+                    data_array = data_array[:, :self.nyt]
+                else:
+                    # Pad with zeros if insufficient columns
+                    padding_cols = self.nyt - data_array.shape[1]
+                    padding = np.zeros((data_array.shape[0], padding_cols), dtype=np.float32)
+                    data_array = np.hstack([data_array, padding])
+            
+            self.logger.info(f"Processed data array shape: {data_array.shape}")
+            
+            # Reshape to [time_steps, nxt, nyt] using vectorized operations
+            reshaped = data_array.reshape(self.np_time, self.nxt, self.nyt)
+            
+            # Convert to station-major format: [total_stations, time_steps] using vectorized indexing
+            self.logger.info("Reshaping to station-major format")
+            timeseries = np.zeros((self.total_stations, self.np_time), dtype=np.float32)
+            
+            # Convert to station-major format following Fortran indexing
+            # Fortran: seissurfU(k,i,j) where i=1:nxt, j=1:nyt  
+            # Data is read as: for each time k, for each i, read line with j=1:nyt values
+            # So reshaped[k,i-1,:] gives the j values for time k, fault-parallel i
+            station_idx = 0
+            for i in range(self.nxt):  # fault-parallel (0-based in Python)
+                for j in range(self.nyt):  # fault-normal (0-based in Python)
+                    # Extract time series for station at (i,j)
+                    timeseries[station_idx, :] = reshaped[:, i, j]
+                    station_idx += 1
+            
+            self.logger.info(f"Completed vectorized reading: {timeseries.shape}")
+            return timeseries
+            
+        except Exception as e:
+            self.logger.error(f"numpy.loadtxt failed: {e}")
+            # If loadtxt fails, fall back to the manual parsing method
+            raise e
+    
+    def _read_fd3d_fallback(self, filepath, component: str) -> np.ndarray:
+        """Fallback loop-based reading method"""
+        self.logger.info(f"Using fallback loop method for {component} component")
+        
+        # Initialize output array
+        timeseries = np.zeros((self.total_stations, self.np_time))
+        
+        # Read file following readdata.f90 logic
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+        
+        # Check if we have enough lines
+        expected_lines = self.np_time * self.nxt
+        if len(lines) < expected_lines:
+            self.logger.warning(f"File has {len(lines)} lines, expected {expected_lines}")
+        
+        line_idx = 0
+        
+        for k in range(self.np_time):  # Time steps
+            if k % 200 == 0:
+                self.logger.info(f"  Processing time step {k}/{self.np_time} ({100*k/self.np_time:.1f}%)")
+            
+            for i in range(self.nxt):  # Fault-parallel points
+                if line_idx >= len(lines):
+                    self.logger.error(f"Ran out of lines at time step {k}, fault-parallel point {i}")
+                    break
+                
+                # Parse line - should contain nyt values
+                try:
+                    values = [float(x) for x in lines[line_idx].split()]
+                    if len(values) != self.nyt:
+                        if len(values) > 0:  # Only warn for non-empty lines
+                            self.logger.warning(f"Line {line_idx}: expected {self.nyt} values, got {len(values)}")
+                    
+                    # Store values for all fault-normal points at this fault-parallel location
+                    for j in range(min(len(values), self.nyt)):
+                        # Calculate station index: j varies fastest (fault-normal), then i (fault-parallel)
+                        station_global_idx = i * self.nyt + j
+                        if station_global_idx < self.total_stations:
+                            timeseries[station_global_idx, k] = values[j]
+                    
+                    line_idx += 1
+                    
+                except ValueError as e:
+                    # Skip malformed lines silently to reduce spam
+                    line_idx += 1
+                    continue
+        
+        self.logger.info(f"Completed fallback reading: {timeseries.shape}")
+        return timeseries
+    
+    def convert_dataset(self) -> Dict:
+        """Convert FD3D dataset to station and velocity data"""
+        self.logger.info(f"Converting FD3D dataset from {self.input_dir}")
+        
+        # Generate station coordinates
+        coordinates = self.generate_station_coordinates()
+        
+        # Read velocity components
+        vel_north = self.read_fd3d_file('U')  # North component
+        vel_east = self.read_fd3d_file('V')   # East component
+        
+        # Try to read vertical component, use zeros if not available
+        try:
+            vel_vertical = self.read_fd3d_file('W')  # Vertical component
+        except (FileNotFoundError, Exception) as e:
+            self.logger.warning(f"Could not read W component: {e}, using zeros")
+            vel_vertical = np.zeros_like(vel_north)
+        
+        # Generate station IDs
+        station_ids = np.arange(self.global_station_id, self.global_station_id + self.total_stations)
+        self.global_station_id += self.total_stations
+        
+        # Convert North/East to Strike/Normal (assuming fault runs North-South)
+        # For now, keep as North/East - can be rotated later if fault orientation is known
+        vel_strike = vel_north    # Fault-parallel assumed as North
+        vel_normal = vel_east     # Fault-normal assumed as East
+        
+        # Store conversion data
+        conversion_data = {
+            'station_ids': station_ids,
+            'locations': coordinates,
+            'vel_strike': vel_strike,   # North component (fault-parallel)
+            'vel_normal': vel_normal,   # East component (fault-normal)
+            'vel_vertical': vel_vertical,  # Vertical component
+            'time_steps': self.np_time,
+            'dt': self.dt,
+            'grid_info': {
+                'nxt': self.nxt,
+                'nyt': self.nyt, 
+                'dh': self.dh,
+                'total_stations': self.total_stations
+            }
+        }
+        
+        self.logger.info(f"Converted {self.total_stations} stations with {self.np_time} time steps")
+        return conversion_data
+    
+    def create_station_list_npz(self, conversion_data: Dict) -> str:
+        """Create station list NPZ file following DR4GM standard"""
+        self.logger.info("Creating station list NPZ file")
+        
+        station_data = {
+            'station_ids': conversion_data['station_ids'],
+            'locations': conversion_data['locations'],
+            'chunk_ids': np.zeros(len(conversion_data['station_ids'])),  # Single chunk for FD3D
+            'local_ids': np.arange(len(conversion_data['station_ids'])),
+            'station_types': np.ones(len(conversion_data['station_ids'])),  # All surface stations
+            'coordinate_units': 'm'
+        }
+        
+        output_file = self.output_dir / "stations.npz"
+        np.savez_compressed(output_file, **station_data)
+        
+        # Validate against DR4GM standard
+        is_valid = DR4GM_NPZ_Standard.validate_npz(str(output_file), 'layer2_stations')
+        self.logger.info(f"Station list NPZ created: {output_file} (Valid: {is_valid})")
+        
+        return str(output_file)
+    
+    def create_velocity_database_npz(self, conversion_data: Dict) -> str:
+        """Create velocity time history database NPZ file"""
+        self.logger.info("Creating velocity database NPZ file")
+        
+        n_stations = len(conversion_data['station_ids'])
+        time_steps = conversion_data['time_steps']
+        dt = conversion_data['dt']
+        
+        velocity_data = {
+            'station_ids': conversion_data['station_ids'],
+            'locations': conversion_data['locations'],
+            'vel_strike': conversion_data['vel_strike'],
+            'vel_normal': conversion_data['vel_normal'],
+            'vel_vertical': conversion_data['vel_vertical'],
+            'time_steps': np.full(n_stations, time_steps),
+            'dt_values': np.full(n_stations, dt),
+            'duration': time_steps * dt,
+            'units': 'm/s',
+            'coordinate_units': 'm'
+        }
+        
+        output_file = self.output_dir / "velocities.npz"
+        np.savez_compressed(output_file, **velocity_data)
+        
+        # Validate against DR4GM standard
+        is_valid = DR4GM_NPZ_Standard.validate_npz(str(output_file), 'layer3_velocities')
+        self.logger.info(f"Velocity database NPZ created: {output_file} (Valid: {is_valid})")
+        
+        return str(output_file)
+    
+    def create_fault_geometry_npz(self) -> str:
+        """Create fault geometry NPZ file for fd3d scenario"""
+        self.logger.info("Creating fault geometry NPZ file")
+        
+        # FD3D original coordinate system:
+        # sta_north = dh*i (fault-parallel, i=1 to nxt) -> 0.1 to 90 km
+        # sta_east = -dh*(nyt-j+1) (fault-normal, j=1 to nyt) -> -25 to -0.1 km
+        # Original fault location: sta_east = 0 (at the boundary)
+        #
+        # After counterclockwise 90° rotation: (x,y) -> (-y,x)
+        # rotated_x = -sta_east, rotated_y = sta_north
+        # Fault location after rotation: rotated_x = 0
+        
+        # Calculate fault extent in rotated coordinates
+        # FD3D fault is 40km long, centered in the domain
+        fault_length_km = 40.0  # FD3D fault length
+        domain_length_km = self.nxt * self.dh  # Total domain length (90km)
+        
+        # Center the 40km fault in the 90km domain
+        fault_start_km = (domain_length_km - fault_length_km) / 2 + self.dh * 1  # Offset by minimum Y
+        fault_end_km = fault_start_km + fault_length_km
+        
+        fault_y_start = fault_start_km * 1000.0  # Convert to meters
+        fault_y_end = fault_end_km * 1000.0      # Convert to meters  
+        fault_x = 0.0  # Fault at X=0 after rotation (original fault at sta_east=0)
+        
+        fault_data = {
+            'fault_type': 'strike-slip',  # Assumed for FD3D
+            'fault_trace_start': np.array([fault_x, fault_y_start, 0.0]),  # Start point after rotation (m)
+            'fault_trace_end': np.array([fault_x, fault_y_end, 0.0]),      # End point after rotation (m)
+            'fault_dip': 90.0,  # Vertical fault
+            'fault_strike': 90.0,  # Along Y-axis after rotation (North-South)
+            'coordinate_units': 'm',
+            'fault_length': fault_y_end - fault_y_start,  # Total fault length in meters
+            'rotation_applied': 'counterclockwise_90deg',
+            'description': f'FD3D fault after 90° CCW rotation: X=0, Y={fault_y_start/1000:.1f} to {fault_y_end/1000:.1f}km, vertical fault'
+        }
+        
+        output_file = self.output_dir / "geometry.npz"
+        np.savez_compressed(output_file, **fault_data)
+        
+        self.logger.info(f"Fault geometry NPZ created: {output_file}")
+        self.logger.info(f"Fault trace: ({fault_data['fault_trace_start'][0]:.0f}, {fault_data['fault_trace_start'][1]:.0f}) to ({fault_data['fault_trace_end'][0]:.0f}, {fault_data['fault_trace_end'][1]:.0f})")
+        return str(output_file)
+    
+    def convert_all_datasets(self) -> Dict[str, str]:
+        """Convert FD3D dataset to NPZ format"""
+        start_time = time.time()
+        self.logger.info(f"Starting conversion of {self.input_dir}")
+        
+        # Check that required files exist
+        missing_files = []
+        for component, filename in self.file_names.items():
+            if component in ['U', 'V']:  # U and V are required, W is optional
+                filepath = self.input_dir / filename
+                if not filepath.exists():
+                    missing_files.append(filename)
+        
+        if missing_files:
+            raise ValueError(f"Missing required FD3D files: {missing_files}")
+        
+        # Convert the dataset
+        conversion_data = self.convert_dataset()
+        
+        # Create NPZ files
+        station_file = self.create_station_list_npz(conversion_data)
+        velocity_file = self.create_velocity_database_npz(conversion_data)
+        geometry_file = self.create_fault_geometry_npz()
+        
+        # Summary
+        total_stations = len(conversion_data['station_ids'])
+        duration = time.time() - start_time
+        
+        self.logger.info(f"Conversion complete in {duration:.2f}s")
+        self.logger.info(f"Total stations: {total_stations}")
+        self.logger.info(f"Grid: {conversion_data['grid_info']['nxt']}x{conversion_data['grid_info']['nyt']}")
+        self.logger.info(f"Files created: {station_file}, {velocity_file}, {geometry_file}")
+        
+        return {
+            'station_list': station_file,
+            'velocity_database': velocity_file,
+            'fault_geometry': geometry_file,
+            'total_stations': total_stations,
+            'grid_info': conversion_data['grid_info'],
+            'conversion_time': duration
+        }
+
+def main():
+    """Main entry point for the converter API"""
+    parser = argparse.ArgumentParser(description='Convert FD3D datasets to DR4GM NPZ format')
+    parser.add_argument('--input_dir', required=True, help='Input directory containing FD3D seisout*.dat files')
+    parser.add_argument('--output_dir', required=True, help='Output directory for NPZ files')
+    parser.add_argument('--nxt', type=int, default=900, help='Number of fault-parallel points (default: 900)')
+    parser.add_argument('--nyt', type=int, default=250, help='Number of fault-normal points (default: 250)')
+    parser.add_argument('--dh', type=float, default=0.1, help='Grid spacing in km (default: 0.1)')
+    parser.add_argument('--np_time', type=int, default=1600, help='Number of time steps (default: 1600)')
+    parser.add_argument('--dt', type=float, default=0.025, help='Time step in seconds (default: 0.025)')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    
+    args = parser.parse_args()
+    
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    
+    try:
+        converter = FD3DConverter(
+            args.input_dir, args.output_dir, 
+            args.nxt, args.nyt, args.dh, args.np_time, args.dt
+        )
+        results = converter.convert_all_datasets()
+        
+        print("\n=== Conversion Results ===")
+        print(f"Station list: {results['station_list']}")
+        print(f"Velocity database: {results['velocity_database']}")
+        print(f"Total stations: {results['total_stations']}")
+        print(f"Grid: {results['grid_info']['nxt']}x{results['grid_info']['nyt']}")
+        print(f"Conversion time: {results['conversion_time']:.2f}s")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

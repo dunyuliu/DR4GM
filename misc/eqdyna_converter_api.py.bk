@@ -1,0 +1,352 @@
+#!/usr/bin/env python3
+
+"""
+EQDyna Dataset Converter API
+
+Converts EQDyna scenario datasets to parsable station lists and velocity time history databases
+in NPZ format following the DR4GM standard.
+
+Usage:
+    python eqdyna_converter_api.py --input_dir <eqdyna_dir> --output_dir <output_dir>
+    
+Example:
+    python eqdyna_converter_api.py --input_dir ../../datasets/eqdyna/eqdyna.0001.A.100m --output_dir ./converted_data
+"""
+
+import os
+import sys
+import argparse
+import numpy as np
+import logging
+from typing import Dict, List, Tuple, Optional
+import time
+from pathlib import Path
+
+# Import DR4GM standards
+from npz_format_standard import DR4GM_NPZ_Standard
+
+class EQDynaConverter:
+    """Convert EQDyna datasets to DR4GM NPZ format"""
+    
+    def __init__(self, input_dir: str, output_dir: str, dt: float = None):
+        """
+        Initialize converter
+        
+        Args:
+            input_dir: Directory containing eqdyna data files
+            output_dir: Directory to save converted NPZ files
+            dt: Time step (if None, will try to read from user_defined_params.py)
+        """
+        self.input_dir = Path(input_dir)
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Data type for binary files
+        self.dtype = np.float64
+        self.value_size = np.dtype(self.dtype).itemsize
+        
+        # Try to get dt from parameters file
+        self.dt = dt
+        if self.dt is None:
+            self.dt = self._get_dt_from_params()
+        
+        # Station and time series data
+        self.stations_data = {}
+        self.chunk_mapping = {}
+        self.global_station_id = 0
+        
+        # Logging setup
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.logger = logging.getLogger(__name__)
+    
+    def _get_dt_from_params(self) -> float:
+        """Try to get dt from user_defined_params.py and multiply by 10 for GM sampling"""
+        try:
+            params_file = self.input_dir / 'user_defined_params.py'
+            if params_file.exists():
+                sys.path.insert(0, str(self.input_dir))
+                from user_defined_params import par
+                # Multiply by 10 for GM sampling rate as per eqdyna convention
+                return par.dt * 10
+        except:
+            self.logger.warning("Could not read dt from user_defined_params.py, using default 0.05")
+        
+        return 0.05  # Default dt value (0.005 * 10)
+    
+    def discover_chunks(self) -> List[int]:
+        """Discover all available chunk IDs from surface coordinate files"""
+        chunk_ids = []
+        
+        for file_path in self.input_dir.glob("surface_coor.txt*"):
+            chunk_str = file_path.name.replace("surface_coor.txt", "")
+            if chunk_str.isdigit():
+                chunk_ids.append(int(chunk_str))
+            elif chunk_str == "":  # surface_coor.txt without number
+                chunk_ids.append(0)
+        
+        chunk_ids.sort()
+        self.logger.info(f"Discovered {len(chunk_ids)} chunks: {chunk_ids}")
+        return chunk_ids
+    
+    def load_station_locations(self, chunk_id: int) -> np.ndarray:
+        """Load station locations from surface_coor.txt file"""
+        if chunk_id == 0:
+            filename = "surface_coor.txt"
+        else:
+            filename = f"surface_coor.txt{chunk_id}"
+        
+        filepath = self.input_dir / filename
+        
+        if not filepath.exists():
+            raise FileNotFoundError(f"Station coordinate file not found: {filepath}")
+        
+        # Load coordinates (X, Y, Z)
+        coords = np.loadtxt(filepath)
+        
+        # Ensure 3D coordinates
+        if coords.ndim == 1:
+            coords = coords.reshape(1, -1)
+        
+        if coords.shape[1] < 3:
+            # Add Z=0 if missing
+            z_coords = np.zeros((coords.shape[0], 1))
+            coords = np.column_stack([coords, z_coords])
+        
+        self.logger.info(f"Loaded {coords.shape[0]} stations from chunk {chunk_id}")
+        return coords
+    
+    def get_velocity_timeseries(self, chunk_id: int, station_idx: int, coords: np.ndarray) -> Dict[str, np.ndarray]:
+        """Extract velocity time series for a specific station"""
+        if chunk_id == 0:
+            gm_filename = "gm"
+        else:
+            gm_filename = f"gm{chunk_id}"
+        
+        gm_filepath = self.input_dir / gm_filename
+        
+        if not gm_filepath.exists():
+            raise FileNotFoundError(f"GM binary file not found: {gm_filepath}")
+        
+        # Calculate file structure
+        file_size = gm_filepath.stat().st_size
+        num_data_points = file_size // self.value_size
+        num_stations = coords.shape[0]
+        components_per_station = 3  # strike, normal, vertical
+        num_time_steps = num_data_points // (num_stations * components_per_station)
+        
+        # Initialize arrays for velocity components
+        vel_strike = np.empty(num_time_steps)
+        vel_normal = np.empty(num_time_steps)
+        vel_vertical = np.empty(num_time_steps)
+        
+        # Calculate indices for this station
+        indices_strike = np.arange(num_time_steps) * num_stations * 3 + station_idx * 3
+        
+        with open(gm_filepath, 'rb') as f:
+            for i, index in enumerate(indices_strike):
+                f.seek(index * self.value_size)
+                values = np.fromfile(f, dtype=self.dtype, count=3)
+                vel_strike[i] = values[0]
+                vel_normal[i] = values[1]
+                vel_vertical[i] = values[2]
+        
+        return {
+            'strike': vel_strike,
+            'normal': vel_normal, 
+            'vertical': vel_vertical,
+            'time_steps': num_time_steps,
+            'dt': self.dt
+        }
+    
+    def convert_chunk(self, chunk_id: int) -> Dict:
+        """Convert a single chunk to station data"""
+        self.logger.info(f"Converting chunk {chunk_id}")
+        
+        # Load station coordinates
+        coords = self.load_station_locations(chunk_id)
+        num_stations = coords.shape[0]
+        
+        # Initialize storage for this chunk
+        chunk_data = {
+            'station_ids': [],
+            'locations': [],
+            'chunk_ids': [],
+            'local_ids': [],
+            'vel_strike': [],
+            'vel_normal': [],
+            'vel_vertical': [],
+            'time_steps': None,
+            'dt': self.dt
+        }
+        
+        for station_idx in range(num_stations):
+            # Assign global station ID
+            global_id = self.global_station_id
+            self.global_station_id += 1
+            
+            # Get coordinates
+            location = coords[station_idx]
+            
+            # Extract velocity time series
+            try:
+                velocity_data = self.get_velocity_timeseries(chunk_id, station_idx, coords)
+                
+                # Store data
+                chunk_data['station_ids'].append(global_id)
+                chunk_data['locations'].append(location)
+                chunk_data['chunk_ids'].append(chunk_id)
+                chunk_data['local_ids'].append(station_idx)
+                chunk_data['vel_strike'].append(velocity_data['strike'])
+                chunk_data['vel_normal'].append(velocity_data['normal'])
+                chunk_data['vel_vertical'].append(velocity_data['vertical'])
+                
+                if chunk_data['time_steps'] is None:
+                    chunk_data['time_steps'] = velocity_data['time_steps']
+                
+                if station_idx % 100 == 0:
+                    self.logger.info(f"  Processed {station_idx}/{num_stations} stations")
+                    
+            except Exception as e:
+                self.logger.error(f"Error processing station {station_idx} in chunk {chunk_id}: {e}")
+                continue
+        
+        # Convert lists to arrays
+        for key in ['station_ids', 'locations', 'chunk_ids', 'local_ids']:
+            chunk_data[key] = np.array(chunk_data[key])
+        
+        for key in ['vel_strike', 'vel_normal', 'vel_vertical']:
+            chunk_data[key] = np.array(chunk_data[key])
+        
+        self.logger.info(f"Chunk {chunk_id}: Converted {len(chunk_data['station_ids'])} stations")
+        return chunk_data
+    
+    def create_station_list_npz(self, all_chunks_data: List[Dict]) -> str:
+        """Create station list NPZ file following DR4GM standard"""
+        self.logger.info("Creating station list NPZ file")
+        
+        # Combine all chunk data
+        combined_data = {
+            'station_ids': np.concatenate([chunk['station_ids'] for chunk in all_chunks_data]),
+            'locations': np.vstack([chunk['locations'] for chunk in all_chunks_data]),
+            'chunk_ids': np.concatenate([chunk['chunk_ids'] for chunk in all_chunks_data]),
+            'local_ids': np.concatenate([chunk['local_ids'] for chunk in all_chunks_data]),
+            'station_types': np.ones(sum(len(chunk['station_ids']) for chunk in all_chunks_data))  # All surface stations
+        }
+        
+        output_file = self.output_dir / "eqdyna_stations.npz"
+        np.savez_compressed(output_file, **combined_data)
+        
+        # Validate against DR4GM standard
+        is_valid = DR4GM_NPZ_Standard.validate_npz(str(output_file), 'layer2_stations')
+        self.logger.info(f"Station list NPZ created: {output_file} (Valid: {is_valid})")
+        
+        return str(output_file)
+    
+    def create_velocity_database_npz(self, all_chunks_data: List[Dict]) -> str:
+        """Create velocity time history database NPZ file"""
+        self.logger.info("Creating velocity database NPZ file")
+        
+        # Get common time parameters
+        time_steps = all_chunks_data[0]['time_steps']
+        dt = all_chunks_data[0]['dt']
+        
+        # Combine velocity data
+        all_vel_strike = np.vstack([chunk['vel_strike'] for chunk in all_chunks_data])
+        all_vel_normal = np.vstack([chunk['vel_normal'] for chunk in all_chunks_data])
+        all_vel_vertical = np.vstack([chunk['vel_vertical'] for chunk in all_chunks_data])
+        
+        velocity_data = {
+            'station_ids': np.concatenate([chunk['station_ids'] for chunk in all_chunks_data]),
+            'locations': np.vstack([chunk['locations'] for chunk in all_chunks_data]),
+            'vel_strike': all_vel_strike,
+            'vel_normal': all_vel_normal,
+            'vel_vertical': all_vel_vertical,
+            'time_steps': np.full(len(all_vel_strike), time_steps),
+            'dt_values': np.full(len(all_vel_strike), dt),
+            'duration': time_steps * dt,
+            'units': 'm/s'
+        }
+        
+        output_file = self.output_dir / "eqdyna_velocities.npz"
+        np.savez_compressed(output_file, **velocity_data)
+        
+        # Validate against DR4GM standard
+        is_valid = DR4GM_NPZ_Standard.validate_npz(str(output_file), 'layer3_velocities')
+        self.logger.info(f"Velocity database NPZ created: {output_file} (Valid: {is_valid})")
+        
+        return str(output_file)
+    
+    def convert_dataset(self) -> Dict[str, str]:
+        """Convert complete EQDyna dataset to NPZ format"""
+        start_time = time.time()
+        self.logger.info(f"Starting conversion of {self.input_dir}")
+        
+        # Discover available chunks
+        chunk_ids = self.discover_chunks()
+        
+        if not chunk_ids:
+            raise ValueError("No valid chunks found in input directory")
+        
+        # Convert each chunk
+        all_chunks_data = []
+        for chunk_id in chunk_ids:
+            try:
+                chunk_data = self.convert_chunk(chunk_id)
+                all_chunks_data.append(chunk_data)
+            except Exception as e:
+                self.logger.error(f"Failed to convert chunk {chunk_id}: {e}")
+                continue
+        
+        if not all_chunks_data:
+            raise ValueError("No chunks were successfully converted")
+        
+        # Create NPZ files
+        station_file = self.create_station_list_npz(all_chunks_data)
+        velocity_file = self.create_velocity_database_npz(all_chunks_data)
+        
+        # Summary
+        total_stations = sum(len(chunk['station_ids']) for chunk in all_chunks_data)
+        duration = time.time() - start_time
+        
+        self.logger.info(f"Conversion complete in {duration:.2f}s")
+        self.logger.info(f"Total stations: {total_stations}")
+        self.logger.info(f"Files created: {station_file}, {velocity_file}")
+        
+        return {
+            'station_list': station_file,
+            'velocity_database': velocity_file,
+            'total_stations': total_stations,
+            'chunks_processed': len(all_chunks_data),
+            'conversion_time': duration
+        }
+
+def main():
+    """Main entry point for the converter API"""
+    parser = argparse.ArgumentParser(description='Convert EQDyna datasets to DR4GM NPZ format')
+    parser.add_argument('--input_dir', required=True, help='Input directory containing eqdyna files')
+    parser.add_argument('--output_dir', required=True, help='Output directory for NPZ files')
+    parser.add_argument('--dt', type=float, help='Time step (default: read from user_defined_params.py)')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    
+    args = parser.parse_args()
+    
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    
+    try:
+        converter = EQDynaConverter(args.input_dir, args.output_dir, args.dt)
+        results = converter.convert_dataset()
+        
+        print("\n=== Conversion Results ===")
+        print(f"Station list: {results['station_list']}")
+        print(f"Velocity database: {results['velocity_database']}")
+        print(f"Total stations: {results['total_stations']}")
+        print(f"Chunks processed: {results['chunks_processed']}")
+        print(f"Conversion time: {results['conversion_time']:.2f}s")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
