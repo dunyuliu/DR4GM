@@ -69,24 +69,23 @@ class GroundMotionExplorer:
             try:
                 # Quick validation - try to load as NPZ with pickle support
                 with np.load(cache_path, allow_pickle=True):
-                    st.sidebar.success(f"Using cached file: {filename}")
+                    # Don't show cache message to keep UI clean
                     return str(cache_path)
             except:
                 try:
                     # Try without pickle
                     with np.load(cache_path, allow_pickle=False):
-                        st.sidebar.success(f"Using cached file: {filename}")
+                        # Don't show cache message to keep UI clean
                         return str(cache_path)
                 except:
                     # Cache is corrupted, delete it
                     cache_path.unlink()
-                    st.sidebar.warning(f"Cleared corrupted cache for {filename}")
+                    # Don't show cache warning to keep UI clean
         
         try:
             with st.spinner(f"Downloading {filename}..."):
                 # Check if it's a GitHub raw URL - these can be slow for large files
                 if 'github.com' in url and '/raw/' in url:
-                    st.sidebar.warning("Large file download from GitHub may take time...")
                     # Use a longer timeout for GitHub downloads
                     timeout = 600  # 10 minutes
                 else:
@@ -110,7 +109,7 @@ class GroundMotionExplorer:
                 
                 for attempt_url in urls_to_try:
                     try:
-                        st.sidebar.info(f"Trying download method...")
+                        # Try download without showing intermediate messages
                         response = session.get(attempt_url, stream=True, allow_redirects=True)
                         
                         # Check content type
@@ -122,7 +121,6 @@ class GroundMotionExplorer:
                             
                             # Check for virus scan warning
                             if "can't scan this file for viruses" in content or "Download anyway" in content:
-                                st.sidebar.info("Handling Google Drive virus scan warning...")
                                 # Look for the download anyway link
                                 import re
                                 patterns = [
@@ -139,7 +137,7 @@ class GroundMotionExplorer:
                                             download_url = f"https://drive.google.com{download_url}"
                                         download_url = download_url.replace('&amp;', '&')
                                         
-                                        st.sidebar.info("Using 'Download anyway' link...")
+                                        # Use 'Download anyway' link
                                         response = session.get(download_url, stream=True)
                                         content_type = response.headers.get('content-type', '')
                                         break
@@ -160,12 +158,12 @@ class GroundMotionExplorer:
                                             download_url = f"https://drive.google.com{download_url}"
                                         download_url = download_url.replace('\\u003d', '=').replace('\\u0026', '&')
                                         
-                                        st.sidebar.info("Found embedded download link...")
+                                        # Use embedded download link
                                         response = session.get(download_url, stream=True)
                                         content_type = response.headers.get('content-type', '')
                                         break
                         
-                        st.sidebar.info(f"Content-type: {content_type}")
+                        # Check content type without showing message
                         
                         # Check if we got a binary file
                         if 'text/html' not in content_type or 'application' in content_type:
@@ -173,7 +171,7 @@ class GroundMotionExplorer:
                             break
                             
                     except Exception as e:
-                        st.sidebar.warning(f"Method failed: {str(e)[:50]}")
+                        # Method failed, try next one
                         continue
                 
                 if not success:
@@ -188,7 +186,7 @@ class GroundMotionExplorer:
                         f.write(chunk)
                         total_size += len(chunk)
                 
-                st.sidebar.success(f"Downloaded {total_size / 1024 / 1024:.1f} MB")
+                # File downloaded successfully
                 
                 # Validate downloaded file
                 try:
@@ -245,9 +243,8 @@ class GroundMotionExplorer:
         # Load ground motion metrics
         gm_data = {}
         
-        # Debug: show what keys are available
+        # Debug: show what keys are available (only in expander context)
         available_keys = list(data.keys())
-        st.sidebar.info(f"Available data keys: {available_keys}")
         
         # Basic info
         if 'station_ids' in data:
@@ -761,6 +758,14 @@ def main():
                 with st.sidebar.expander("📄 Dataset Details"):
                     st.success(f"✅ Dataset ready: {selected_sample}")
                     st.info(f"📡 Source: {download_method}")
+                    
+                    # Show file size if available
+                    if npz_files[0].startswith('http'):
+                        st.info("📎 File size: ~1MB (optimized)")
+                    
+                    # Show available data keys if data is loaded
+                    if hasattr(st.session_state, 'current_filename'):
+                        st.info("🗺️ Ready for analysis")
         else:
             st.sidebar.error("Could not discover files in archive")
             
