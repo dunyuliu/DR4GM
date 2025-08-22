@@ -430,8 +430,7 @@ class GroundMotionExplorer:
             colorbar=dict(
                 title=dict(
                     text=self._get_metric_unit(metric),
-                    font=dict(size=16, family="Arial, sans-serif"),
-                    side="right"
+                    font=dict(size=16, family="Arial, sans-serif")
                 ),
                 titleside="right",
                 thickness=20,
