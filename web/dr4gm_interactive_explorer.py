@@ -415,13 +415,13 @@ class GroundMotionExplorer:
         
         # Add smooth contour filled plot with robust error handling
         try:
-            # Try most basic contour first
+            # Try most basic contour first - no colorbar to avoid errors
             fig.add_trace(go.Contour(
                 x=xi,
                 y=yi,
                 z=Zi,
                 colorscale=colorscale,
-                showscale=True,
+                showscale=False,  # Disable colorbar to avoid configuration errors
                 contours=dict(
                     coloring='fill',
                     showlines=True
@@ -431,6 +431,27 @@ class GroundMotionExplorer:
         except Exception as e:
             # If that fails, fallback to scatter plot
             return self._create_fallback_scatter_map(display_locations, valid_values, valid_station_ids, metric, colorscale)
+        
+        # Add invisible scatter trace for colorbar
+        try:
+            fig.add_trace(go.Scatter(
+                x=[x_coords.min()],  # Single invisible point
+                y=[y_coords.min()],
+                mode='markers',
+                marker=dict(
+                    size=0.1,
+                    color=[valid_values.min()],
+                    colorscale=colorscale,
+                    showscale=True,
+                    cmin=valid_values.min(),
+                    cmax=valid_values.max(),
+                    colorbar=dict(title=self._get_metric_unit(metric))
+                ),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+        except:
+            pass  # If colorbar still fails, continue without it
         
         # Add station points for interaction
         fig.add_trace(go.Scatter(
@@ -495,11 +516,7 @@ class GroundMotionExplorer:
             margin=dict(l=60, r=100, t=80, b=60)
         )
         
-        # Try to update colorbar title via layout if possible
-        try:
-            fig.update_coloraxes(colorbar_title_text=self._get_metric_unit(metric))
-        except:
-            pass  # Use default colorbar if custom styling fails
+        # Colorbar is handled by the invisible scatter trace above
         
         # Add statistics annotation (like the PGD map)
         stats_text = (f"Min: {valid_values.min():.2e}<br>"
