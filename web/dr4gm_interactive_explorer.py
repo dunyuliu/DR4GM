@@ -859,23 +859,53 @@ def main():
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
             
             if fig_map.data:
-                # Display map with hover interaction
-                st.plotly_chart(
+                # Display map with click interaction
+                clicked_data = st.plotly_chart(
                     fig_map, 
                     use_container_width=True,
-                    key="main_map"
+                    key="main_map",
+                    on_select="rerun"
                 )
                 
+                # Handle clicks on the contour map
+                if clicked_data and hasattr(clicked_data, 'selection') and clicked_data.selection:
+                    if hasattr(clicked_data.selection, 'points') and clicked_data.selection.points:
+                        # Get clicked coordinates
+                        click_point = clicked_data.selection.points[0]
+                        if hasattr(click_point, 'x') and hasattr(click_point, 'y'):
+                            clicked_x = click_point.x
+                            clicked_y = click_point.y
+                            
+                            # Find nearest station to clicked location
+                            locations = data['locations']
+                            coord_unit = data.get('coordinate_unit', 'km')
+                            
+                            # Convert click coordinates to match data units
+                            if coord_unit == 'm':
+                                # Clicked coordinates are in km, convert to meters
+                                search_x = clicked_x * 1000.0
+                                search_y = clicked_y * 1000.0
+                            else:
+                                search_x = clicked_x
+                                search_y = clicked_y
+                            
+                            # Calculate distances to all stations
+                            distances = np.sqrt((locations[:, 0] - search_x)**2 + (locations[:, 1] - search_y)**2)
+                            nearest_idx = np.argmin(distances)
+                            
+                            # Update selected station
+                            st.session_state.selected_station_idx = nearest_idx
+                
                 # Simple instruction for users
-                st.caption("💡 Hover anywhere on the map to see interpolated values")
+                st.caption("💡 Hover for interpolated values, click to select nearest station")
             else:
                 st.warning("No data to display on map")
         
         with col2:
             # Compact header with small font
-            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Example Station</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='font-size: 16px; margin-bottom: 10px;'>📊 Selected Station</h4>", unsafe_allow_html=True)
             
-            # Show example station data
+            # Show selected station data
             station_idx = st.session_state.selected_station_idx
             if 'station_ids' in data and station_idx < len(data['station_ids']):
                 station_id = data['station_ids'][station_idx]
@@ -890,13 +920,13 @@ def main():
                     display_x = location[0]
                     display_y = location[1]
                 
-                # Instruction and example station
+                # Instruction and selected station info
                 st.markdown(f"""
                 <div style='font-size: 11px; color: #666; margin-bottom: 8px;'>
-                    Hover anywhere on the contour map to see interpolated values at that location
+                    Click anywhere on the map to select the nearest station
                 </div>
                 <div style='font-size: 12px; line-height: 1.3; margin-bottom: 8px;'>
-                    <strong>Example Station - ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
+                    <strong>Station ID:</strong> {station_id} &nbsp;&nbsp;&nbsp; 
                     <strong>X:</strong> {display_x:.2f} km &nbsp;&nbsp;&nbsp; 
                     <strong>Y:</strong> {display_y:.2f} km
                 </div>
