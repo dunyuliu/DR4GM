@@ -733,42 +733,45 @@ def main():
         index=0
     )
     
-    # 2. Select Dataset
-    st.sidebar.header("📊 Select Dataset")
+    # 2. Download Method (only for DR4GM Data Archive)
     npz_files = []
+    download_method = "Google Drive (Faster)"  # Default
     
     if data_source == "DR4GM Data Archive":
-        # Download Method subsection
-        st.sidebar.subheader("💾 Download Method")
-        download_method = st.sidebar.radio(
-            "Choose Download Source",
-            ["Google Drive (Faster)", "GitHub (Reliable)"],
-            index=0,
-            help="Google Drive is faster but may require virus scan confirmation for large files"
-        )
-        
-        # Select NPZ File subsection
-        st.sidebar.subheader("📄 Select NPZ File")
+        with st.sidebar.expander("💾 Download Method"):
+            download_method = st.sidebar.radio(
+                "Choose Download Source",
+                ["Google Drive (Faster)", "GitHub (Reliable)"],
+                index=0,
+                help="Google Drive is faster but may require virus scan confirmation for large files"
+            )
+    
+    # 3. Select Dataset
+    st.sidebar.header("📊 Select Dataset")
+    
+    if data_source == "DR4GM Data Archive":
         discovered_files = explorer.get_dataset_files(download_method)
         
-        if discovered_files:
-            selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
-            if selected_sample:
-                npz_files = [discovered_files[selected_sample]]
-                st.sidebar.success(f"✅ Dataset ready: {selected_sample}")
-        else:
-            st.sidebar.error("Could not discover files in archive")
+        with st.sidebar.expander("📄 Dataset Selection", expanded=True):
+            if discovered_files:
+                selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
+                if selected_sample:
+                    npz_files = [discovered_files[selected_sample]]
+                    st.sidebar.success(f"✅ Dataset ready: {selected_sample}")
+                    st.sidebar.info(f"📡 Source: {download_method}")
+            else:
+                st.sidebar.error("Could not discover files in archive")
             
     elif data_source == "Local Files":
         data_dir = st.sidebar.text_input("Data Directory", value="./")
         npz_files = explorer.find_npz_files(data_dir)
         if npz_files:
-            selected_file = st.sidebar.selectbox("Select NPZ File", npz_files, 
+            selected_file = st.sidebar.selectbox("Choose Dataset", npz_files, 
                                                format_func=lambda x: os.path.basename(x))
             npz_files = [selected_file] if selected_file else []
             
     elif data_source == "Upload File":
-        uploaded_file = st.sidebar.file_uploader("Upload NPZ File", type=['npz'])
+        uploaded_file = st.sidebar.file_uploader("Choose Dataset", type=['npz'])
         if uploaded_file:
             import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix='.npz') as tmp_file:
@@ -800,7 +803,7 @@ def main():
         # Pre-compute all metrics tables for fast station switching
         all_metrics_tables = explorer.create_all_metrics_tables(data)
         
-        # 3. Analysis Settings
+        # 4. Analysis Settings
         st.sidebar.header("📊 Analysis Settings")
         
         # Metric selection
@@ -940,7 +943,7 @@ def main():
                     st.error(f"Error reading file: {e}")
                     st.info("Expected format: x,y coordinates in km, one pair per line")
         
-        # 4. Data Repository Performance Tips
+        # 5. Data Repository Performance Tips
         with st.sidebar.expander("📂 Data Repository"):
             st.write("**DR4GM Data Archive:**")
             st.write("[github.com/dunyuliu/DR4GM-Data-Archive](https://github.com/dunyuliu/DR4GM-Data-Archive)")
