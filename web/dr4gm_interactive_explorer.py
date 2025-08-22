@@ -438,7 +438,7 @@ class GroundMotionExplorer:
                         )
                         zi[nan_mask] = zi_nearest[nan_mask]
                     
-                    # Add contour plot only - clean and beautiful
+                    # Add contour plot - clean and beautiful
                     fig.add_trace(go.Contour(
                         x=xi,
                         y=yi,
@@ -454,6 +454,27 @@ class GroundMotionExplorer:
                         line=dict(width=0),  # Remove contour lines for smooth appearance
                         name=metric,
                         hovertemplate=f"<b>{metric}</b><br>X: %{{x:.2f}} km<br>Y: %{{y:.2f}} km<br>Value: %{{z:.2e}}<extra></extra>"
+                    ))
+                    
+                    # Add invisible scatter points for clicking (every 5th station to reduce clutter)
+                    step = max(1, len(valid_station_ids) // 100)  # Max 100 clickable points
+                    click_indices = np.arange(0, len(valid_station_ids), step)
+                    click_locations = display_locations[click_indices]
+                    click_ids = valid_station_ids[click_indices]
+                    
+                    fig.add_trace(go.Scatter(
+                        x=click_locations[:, 0],
+                        y=click_locations[:, 1],
+                        mode='markers',
+                        marker=dict(
+                            size=8,
+                            color='rgba(0,0,0,0)',  # Invisible
+                            line=dict(width=0)
+                        ),
+                        hoverinfo='skip',  # No hover on invisible points
+                        name="clickable_stations",
+                        customdata=click_indices,  # Store original indices for session state
+                        showlegend=False
                     ))
                     
             except Exception as e:
@@ -496,13 +517,19 @@ class GroundMotionExplorer:
                 customdata=valid_station_ids
             ))
         
-        # Update layout - make map bigger
+        # Update layout - compact title
         fig.update_layout(
-            title=f"{metric} Distribution",
+            title=dict(
+                text=metric,
+                font=dict(size=14),
+                x=0.5,
+                xanchor='center'
+            ),
             xaxis_title="Fault-Normal Distance (km)",
             yaxis_title="Along-Strike Distance (km)", 
-            height=700,  # Increased height
-            showlegend=False
+            height=600,  # Reduced height for better proportions
+            showlegend=False,
+            margin=dict(t=40, b=40, l=40, r=40)  # Tighter margins
         )
         
         # Make axes equal
@@ -843,11 +870,10 @@ def main():
             
         # Use session state for selected station (controlled by map clicks)
         
-        # Main content - make map bigger
-        col1, col2 = st.columns([3, 1])
+        # Main content - better proportions
+        col1, col2 = st.columns([2.5, 1])
         
         with col1:
-            st.subheader(f"📍 {selected_metric} Map")
             
             # Create and display map
             fig_map = explorer.create_station_map(data, metric_key, colorscale)
@@ -861,11 +887,17 @@ def main():
                     on_select="rerun"
                 )
                 
-                # Handle map clicks - remove rerun to prevent loops
+                # Handle map clicks - use original station indices
                 if clicked and hasattr(clicked, 'selection') and clicked.selection:
                     if clicked.selection.point_indices:
-                        clicked_station_idx = clicked.selection.point_indices[0]
-                        st.session_state.selected_station_idx = clicked_station_idx
+                        # Get the clicked point index from the invisible scatter trace
+                        clicked_point_idx = clicked.selection.point_indices[0]
+                        # Get the original station index from customdata
+                        if len(fig_map.data) > 1 and hasattr(fig_map.data[1], 'customdata'):
+                            original_indices = fig_map.data[1].customdata
+                            if clicked_point_idx < len(original_indices):
+                                st.session_state.selected_station_idx = int(original_indices[clicked_point_idx])
+                                st.rerun()
             else:
                 st.warning("No data to display on map")
         
