@@ -26,6 +26,10 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 import logging
+import json
+import datetime
+import uuid
+from dataclasses import dataclass, asdict
 
 # Configure page
 st.set_page_config(
@@ -35,12 +39,71 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Usage tracking data structure
+@dataclass
+class UsageEvent:
+    session_id: str
+    timestamp: str
+    event_type: str
+    details: dict
+
+class UsageTracker:
+    """Simple usage tracking for analytics"""
+    
+    def __init__(self):
+        self.session_id = self._get_session_id()
+        self.events = []
+        self.log_file = Path("usage_analytics.log")
+        
+    def _get_session_id(self):
+        """Get or create session ID"""
+        if 'session_id' not in st.session_state:
+            st.session_state.session_id = str(uuid.uuid4())
+        return st.session_state.session_id
+    
+    def track_event(self, event_type: str, details: dict = None):
+        """Track a usage event"""
+        if details is None:
+            details = {}
+            
+        event = UsageEvent(
+            session_id=self.session_id,
+            timestamp=datetime.datetime.now().isoformat(),
+            event_type=event_type,
+            details=details
+        )
+        
+        self.events.append(event)
+        self._save_event(event)
+    
+    def _save_event(self, event: UsageEvent):
+        """Save event to log file"""
+        try:
+            with open(self.log_file, 'a') as f:
+                f.write(json.dumps(asdict(event)) + '\n')
+        except Exception as e:
+            # Silently fail - don't disrupt user experience
+            pass
+    
+    def get_session_stats(self):
+        """Get current session statistics"""
+        return {
+            'session_id': self.session_id,
+            'events_count': len(self.events),
+            'event_types': list(set(event.event_type for event in self.events))
+        }
+
+# Initialize usage tracker
+if 'usage_tracker' not in st.session_state:
+    st.session_state.usage_tracker = UsageTracker()
+
 class GroundMotionExplorer:
     """Interactive ground motion data explorer"""
     
     def __init__(self):
         self.data_cache = {}
         self.setup_logging()
+        self.usage_tracker = st.session_state.usage_tracker
     
     def setup_logging(self):
         """Setup logging"""
@@ -212,6 +275,12 @@ class GroundMotionExplorer:
     def load_npz_data(_self, npz_file: str) -> Dict:
         """Load and cache NPZ data"""
         try:
+            # Track data loading event
+            _self.usage_tracker.track_event("data_loaded", {
+                "file_name": os.path.basename(npz_file),
+                "file_type": "url" if npz_file.startswith('http') else "local"
+            })
+            
             # Download if it's a URL
             if npz_file.startswith('http'):
                 npz_file = _self.download_from_url(npz_file)
@@ -723,6 +792,45 @@ def main():
     
     explorer = GroundMotionExplorer()
     
+    # Track page view
+    explorer.usage_tracker.track_event("page_view", {
+        "user_agent": st.context.headers.get("User-Agent", "unknown") if hasattr(st.context, 'headers') else "unknown"
+    })
+    
+    # Privacy notice
+    with st.expander("🔒 Privacy & Usage Data Collection"):
+        st.markdown("""
+        **Data Collection Notice:**
+        
+        This application collects anonymous usage analytics to improve the user experience and understand how the tool is being used. 
+        
+        **What we collect:**
+        - Session information (anonymous session ID)
+        - Page visits and feature usage
+        - Dataset selections and analysis actions
+        - Error events and performance metrics
+        - General browser information
+        
+        **What we DON'T collect:**
+        - Personal identifying information
+        - Your uploaded data or analysis results
+        - IP addresses or location data
+        - Account information (no accounts required)
+        
+        **Purpose:**
+        - Improve application performance and reliability
+        - Understand which features are most useful
+        - Identify and fix common issues
+        - Guide future development priorities
+        
+        **Data Storage:**
+        - Analytics data is stored locally in log files
+        - No data is transmitted to external servers
+        - Data is anonymized using session UUIDs
+        
+        By using this application, you consent to this anonymous data collection. The data helps us make DR4GM better for everyone.
+        """)
+    
     # 1. Data Selection
     st.sidebar.header("📁 Data Selection")
     data_source = st.sidebar.radio(
@@ -730,6 +838,11 @@ def main():
         ["DR4GM Data Archive", "Local Files", "Upload File"],
         index=0
     )
+    
+    # Track data source selection
+    if 'last_data_source' not in st.session_state or st.session_state.last_data_source != data_source:
+        explorer.usage_tracker.track_event("data_source_selected", {"source": data_source})
+        st.session_state.last_data_source = data_source
     
     # 2. Download Method (only for DR4GM Data Archive)
     npz_files = []
@@ -754,6 +867,14 @@ def main():
             selected_sample = st.sidebar.selectbox("Choose Dataset", list(discovered_files.keys()))
             if selected_sample:
                 npz_files = [discovered_files[selected_sample]]
+                
+                # Track dataset selection
+                if 'last_selected_sample' not in st.session_state or st.session_state.last_selected_sample != selected_sample:
+                    explorer.usage_tracker.track_event("dataset_selected", {
+                        "dataset": selected_sample,
+                        "source": "archive"
+                    })
+                    st.session_state.last_selected_sample = selected_sample
                 
                 # Fold all status information
                 with st.sidebar.expander("📄 Dataset Details"):
@@ -879,6 +1000,11 @@ def main():
             available_metrics
         )
         
+        # Track metric selection
+        if 'last_selected_metric' not in st.session_state or st.session_state.last_selected_metric != selected_metric:
+            explorer.usage_tracker.track_event("metric_selected", {"metric": selected_metric})
+            st.session_state.last_selected_metric = selected_metric
+        
         # Convert display name back to data key
         if selected_metric.startswith('SA(T='):
             period_str = selected_metric.split('T=')[1].split('s)')[0]
@@ -905,6 +1031,11 @@ def main():
         colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
+        # Track colorscale selection
+        if 'last_colorscale' not in st.session_state or st.session_state.last_colorscale != colorscale:
+            explorer.usage_tracker.track_event("colorscale_selected", {"colorscale": colorscale})
+            st.session_state.last_colorscale = colorscale
+        
         # Station location finder
         with st.sidebar.expander("🎯 Find Station by Location"):
             col_x, col_y = st.columns(2)
@@ -915,6 +1046,11 @@ def main():
                 
             if st.button("🔍 Find Closest Station"):
                 if 'locations' in data:
+                    explorer.usage_tracker.track_event("station_search", {
+                        "search_x": target_x,
+                        "search_y": target_y
+                    })
+                    
                     coord_unit = data.get('coordinate_unit', 'km')
                     search_x = target_x * 1000.0 if coord_unit == 'm' else target_x
                     search_y = target_y * 1000.0 if coord_unit == 'm' else target_y
@@ -963,6 +1099,10 @@ def main():
                         
                         # Compute interpolated metrics for custom locations
                         if st.button("🧮 Compute GM Metrics"):
+                            explorer.usage_tracker.track_event("custom_metrics_computed", {
+                                "station_count": len(custom_locations)
+                            })
+                            
                             with st.spinner("Computing ground motion metrics..."):
                                 custom_metrics = explorer.compute_custom_station_metrics(data, custom_locations)
                                 
@@ -983,12 +1123,15 @@ def main():
                             np.savez(buffer, **st.session_state.custom_metrics_data)
                             buffer.seek(0)
                             
-                            st.download_button(
+                            if st.download_button(
                                 label="📥 Download Custom Metrics (NPZ)",
                                 data=buffer.getvalue(),
                                 file_name="custom_station_metrics.npz",
                                 mime="application/zip"
-                            )
+                            ):
+                                explorer.usage_tracker.track_event("custom_metrics_downloaded", {
+                                    "station_count": len(st.session_state.custom_metrics_data.get('locations', []))
+                                })
                     
                 except Exception as e:
                     st.error(f"Error reading file: {e}")
@@ -1013,6 +1156,8 @@ def main():
         
         # Cache management
         if st.sidebar.button("🗑️ Clear Download Cache"):
+            explorer.usage_tracker.track_event("cache_cleared", {})
+            
             import tempfile
             import shutil
             cache_dir = Path(tempfile.gettempdir()) / "dr4gm_cache"
@@ -1066,6 +1211,11 @@ def main():
                         nearest_idx = np.argmin(distances)
                         
                         if nearest_idx != st.session_state.selected_station_idx:
+                            explorer.usage_tracker.track_event("station_selected_click", {
+                                "station_idx": nearest_idx,
+                                "click_x": clicked_x,
+                                "click_y": clicked_y
+                            })
                             st.session_state.selected_station_idx = nearest_idx
                 
                 st.caption("💡 Hover for interpolated values, click to select nearest station")
@@ -1125,12 +1275,15 @@ def main():
                     
                     # Download button for station data
                     csv = metrics_df.to_csv(index=False)
-                    st.download_button(
+                    if st.download_button(
                         label="📥 Download Station Data",
                         data=csv,
                         file_name=f"station_{station_id}_metrics.csv",
                         mime="text/csv"
-                    )
+                    ):
+                        explorer.usage_tracker.track_event("station_data_downloaded", {
+                            "station_id": str(station_id)
+                        })
                 else:
                     st.info("No metrics data available for this station")
             else:
@@ -1141,6 +1294,13 @@ def main():
             with st.expander("📈 Velocity Time Series", expanded=False):
                 # Use checkbox instead of button to avoid rerun loops
                 show_timeseries = st.checkbox("📊 Show Time Series Plot", key=f"show_ts_{station_idx}")
+                
+                # Track time series viewing
+                if show_timeseries and f'ts_viewed_{station_idx}' not in st.session_state:
+                    explorer.usage_tracker.track_event("timeseries_viewed", {
+                        "station_idx": station_idx
+                    })
+                    st.session_state[f'ts_viewed_{station_idx}'] = True
                 
                 if show_timeseries:
                     fig_ts = explorer.create_time_series_plot(data, station_idx)
@@ -1176,6 +1336,37 @@ def main():
                 st.text(f"Data file: {os.path.basename(selected_file)}")
                 if os.path.exists(selected_file):
                     st.text(f"File size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
+        
+        # Session analytics (for debugging/development)
+        with st.expander("📊 Session Analytics (Debug)"):
+            session_stats = explorer.usage_tracker.get_session_stats()
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.metric("Events This Session", session_stats['events_count'])
+                st.write("**Event Types:**")
+                for event_type in session_stats.get('event_types', []):
+                    st.write(f"• {event_type}")
+                    
+            with col2:
+                st.write("**Session ID:**")
+                st.code(session_stats['session_id'][:8] + "...")
+                st.write("**Recent Events:**")
+                recent_events = explorer.usage_tracker.events[-3:] if explorer.usage_tracker.events else []
+                for event in recent_events:
+                    st.write(f"• {event.event_type} at {event.timestamp.split('T')[1][:8]}")
+                
+            if st.button("📥 Download Session Analytics"):
+                analytics_data = {
+                    'session_summary': session_stats,
+                    'events': [asdict(event) for event in explorer.usage_tracker.events]
+                }
+                st.download_button(
+                    label="Download JSON",
+                    data=json.dumps(analytics_data, indent=2),
+                    file_name=f"session_analytics_{session_stats['session_id'][:8]}.json",
+                    mime="application/json"
+                )
 
 if __name__ == "__main__":
     main()
