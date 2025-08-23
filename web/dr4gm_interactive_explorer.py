@@ -422,15 +422,15 @@ class UsageTracker:
             pass
     
     def _send_email_notification(self, event_data):
-        """Send email notifications for important events"""
+        """Send email notifications only for new sessions"""
         try:
-            # Only send emails for important events to avoid spam
-            important_events = {
-                'page_view', 'dataset_selected', 'custom_metrics_computed',
-                'station_data_downloaded', 'error_occurred'
-            }
+            # Only send emails for new sessions (first page_view of a session)
+            if event_data['event_type'] != 'page_view':
+                return
             
-            if event_data['event_type'] not in important_events:
+            # Check if this is the first event of the session
+            session_events_count = event_data.get('details', {}).get('session_events_count', 0)
+            if session_events_count != 1:
                 return
             
             # Get email settings from secrets
@@ -442,19 +442,33 @@ class UsageTracker:
             
             import requests
             
-            # Create email content
-            subject = f"DR4GM Usage Alert: {event_data['event_type']}"
+            # Create email content for new session
+            details = event_data.get('details', {})
+            user_type = details.get('user_type', 'unknown')
+            deployment = details.get('deployment', 'unknown')
+            
+            # Determine if this is you (developer) or a real user
+            is_developer = (user_type == 'developer' or 'localhost' in details.get('host', ''))
+            user_emoji = '👨‍💻 [YOU]' if is_developer else '👤 [NEW USER]'
+            
+            subject = f"🌋 DR4GM Session Started: {user_emoji}"
             
             body = f"""
-🌋 DR4GM Interactive Explorer - Usage Notification
+🌋 DR4GM Interactive Explorer - New Session Alert
+
+{user_emoji} **{'Developer Session' if is_developer else 'NEW USER SESSION!'}**
 
 📅 Time: {event_data['timestamp']}
 👤 Session: {event_data['session_id'][:8]}...
-🎯 Event: {event_data['event_type']}
-📊 Details: {json.dumps(event_data['details'], indent=2)}
+🌐 Source: {deployment} ({details.get('host', 'unknown')})
+🔍 Browser: {details.get('browser', 'unknown')} on {details.get('os', 'unknown')}
+📱 Device: {details.get('device_type', 'unknown')}
+
+{'' if is_developer else '🎉 **REAL USER ACTIVITY!** Someone is using your DR4GM tool!'}
 
 ---
 This is an automated notification from your DR4GM usage tracking system.
+View complete analytics: [Google Sheets]
             """
             
             # Send via webhook (works with Zapier, IFTTT, etc.)
