@@ -333,7 +333,8 @@ class UsageTracker:
         self._send_email_notification(event_data)
     
     def _save_to_supabase(self, event_data):
-        """Save to Supabase database - immediate and reliable"""
+        """Save to Supabase database - optional backup storage"""
+        # Supabase is optional - only try if configured
         try:
             import requests
             
@@ -342,7 +343,7 @@ class UsageTracker:
             supabase_key = st.secrets.get("supabase_key", "")
             
             if not supabase_url or not supabase_key:
-                return  # No credentials configured
+                return  # No credentials configured - this is fine
             
             headers = {
                 "apikey": supabase_key,
@@ -1897,49 +1898,81 @@ def main():
             
             # Tab 3: Settings & Setup
             with tab3:
-                st.write("**🔧 Data Storage Configuration:**")
+                st.write("**🔧 Current Configuration:**")
                 
-                # Check configuration status
-                has_supabase = bool(st.secrets.get("supabase_url") and st.secrets.get("supabase_key"))
-                has_sheets = bool(st.secrets.get("google_sheets_webhook"))
+                # Check actual configuration status
+                try:
+                    sheets_webhook = st.secrets.get("google_sheets_webhook", "")
+                    has_sheets = bool(sheets_webhook)
+                    notification_email = st.secrets.get("notification_email", "")
+                    has_email = bool(notification_email)
+                except Exception:
+                    # If secrets don't load (local development without .streamlit folder)
+                    has_sheets = False
+                    has_email = False
+                    sheets_webhook = ""
+                    notification_email = ""
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    if has_supabase:
-                        st.success("✅ Supabase: Configured")
-                    else:
-                        st.error("❌ Supabase: Not configured")
+                # Show current status
+                if has_sheets:
+                    st.success("✅ Google Sheets Integration: **ACTIVE**")
+                    st.code(f"Webhook: {sheets_webhook[:50]}...")
+                else:
+                    st.error("❌ Google Sheets: Not configured")
                 
-                with col2:
-                    if has_sheets:
-                        st.success("✅ Google Sheets: Configured") 
-                    else:
-                        st.warning("⚠️ Google Sheets: Not configured")
+                if has_email:
+                    st.success(f"✅ Email Notifications: **ACTIVE** → {notification_email}")
+                else:
+                    st.warning("⚠️ Email notifications: Not configured")
                 
-                st.write("**📋 Setup Instructions:**")
-                if not has_supabase:
-                    st.code("""
+                # Configuration instructions only if needed
+                if not has_sheets or not has_email:
+                    st.write("**📋 Setup Instructions:**")
+                    st.code(f"""
 # Add to .streamlit/secrets.toml:
-[supabase]
-supabase_url = "https://your-project.supabase.co"
-supabase_key = "your-anon-key"
+google_sheets_webhook = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+notification_email = "dunyuliu@gmail.com"
                     """)
                 
                 # Storage methods explanation
                 st.info("""
-                **Storage Methods (Zero Data Loss):**
-                1. **Supabase Database**: Primary storage, immediate saving
-                2. **Google Sheets**: Backup storage via webhook
-                3. **Local File**: Works in development
-                4. **Git Commits**: Works locally only
+                **Current Storage Methods:**
+                ✅ **Google Sheets**: Primary analytics storage (real-time)
+                ✅ **Email Alerts**: Smart notifications (dunyuliu@gmail.com)  
+                ✅ **Local Files**: Development backup (usage_analytics.log)
+                ✅ **Git Commits**: Local development tracking
                 
-                **Recommendation**: Configure Supabase for 100% reliable data capture.
+                **Status**: Comprehensive analytics fully operational!
                 """)
                 
-                # Force commit for local testing
-                if st.button("🔄 Force Git Commit (Local Only)"):
-                    explorer.usage_tracker.force_commit()
-                    st.success("✅ Local git commit completed!")
+                # Test buttons
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("📊 Test Google Sheets"):
+                        if has_sheets:
+                            import requests
+                            import json
+                            test_data = {
+                                'timestamp': datetime.datetime.now().isoformat(),
+                                'session_id': 'settings-test',
+                                'event_type': 'settings_test',
+                                'details': json.dumps({'test': 'manual_test_from_settings'})
+                            }
+                            try:
+                                response = requests.post(sheets_webhook, json=test_data, timeout=5)
+                                if response.status_code == 200:
+                                    st.success("✅ Google Sheets test successful!")
+                                else:
+                                    st.error("❌ Test failed")
+                            except Exception as e:
+                                st.error(f"❌ Test failed: {e}")
+                        else:
+                            st.error("Configure Google Sheets first")
+                
+                with col2:
+                    if st.button("🔄 Force Git Commit (Local Only)"):
+                        explorer.usage_tracker.force_commit()
+                        st.success("✅ Local git commit completed!")
 
 if __name__ == "__main__":
     main()
