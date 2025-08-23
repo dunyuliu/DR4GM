@@ -140,10 +140,8 @@ class UsageTracker:
         metrics = st.session_state.behavioral_metrics
         now = datetime.datetime.now()
         
-        # Update metrics based on event type
-        if event_type == 'page_view':
-            metrics['page_views'] += 1
-        elif 'click' in event_type.lower():
+        # Update metrics based on event type (skip page_view)
+        if 'click' in event_type.lower():
             metrics['clicks'] += 1
             metrics['interactions'] += 1
         elif 'download' in event_type.lower():
@@ -422,15 +420,17 @@ class UsageTracker:
             pass
     
     def _send_email_notification(self, event_data):
-        """Send email notifications only for new sessions"""
+        """Send email notification on first user action"""
         try:
-            # Only send emails for new sessions (first page_view of a session)
-            if event_data['event_type'] != 'page_view':
-                return
+            # Initialize action counter if not exists
+            if 'total_user_actions' not in st.session_state:
+                st.session_state.total_user_actions = 0
             
-            # Check if this is the first event of the session
-            session_events_count = event_data.get('details', {}).get('session_events_count', 0)
-            if session_events_count != 1:
+            # Increment total actions counter
+            st.session_state.total_user_actions += 1
+            
+            # Only send email on the very first action
+            if st.session_state.total_user_actions != 1:
                 return
             
             # Get email settings from secrets
@@ -451,20 +451,22 @@ class UsageTracker:
             is_developer = (user_type == 'developer' or 'localhost' in details.get('host', ''))
             user_emoji = '👨‍💻 [YOU]' if is_developer else '👤 [NEW USER]'
             
-            subject = f"🌋 DR4GM Session Started: {user_emoji}"
+            subject = f"🌋 DR4GM First Action: {user_emoji}"
             
             body = f"""
-🌋 DR4GM Interactive Explorer - New Session Alert
+🌋 DR4GM Interactive Explorer - First User Action
 
-{user_emoji} **{'Developer Session' if is_developer else 'NEW USER SESSION!'}**
+{user_emoji} **{'Developer Action' if is_developer else 'REAL USER ACTION!'}**
 
 📅 Time: {event_data['timestamp']}
 👤 Session: {event_data['session_id'][:8]}...
+🎯 First Action: {event_data['event_type']}
 🌐 Source: {deployment} ({details.get('host', 'unknown')})
 🔍 Browser: {details.get('browser', 'unknown')} on {details.get('os', 'unknown')}
 📱 Device: {details.get('device_type', 'unknown')}
+📊 Total Actions: {st.session_state.total_user_actions}
 
-{'' if is_developer else '🎉 **REAL USER ACTIVITY!** Someone is using your DR4GM tool!'}
+{'' if is_developer else '🎉 **REAL USER IS INTERACTING!** Someone is actively using your DR4GM tool!'}
 
 ---
 This is an automated notification from your DR4GM usage tracking system.
@@ -1272,9 +1274,6 @@ def main():
     
     # Disable debug mode by default
     st.session_state['debug_analytics'] = False
-    
-    # Track comprehensive page view
-    explorer.usage_tracker.track_page_view("dr4gm_main")
     
     # Privacy notice
     with st.expander("🔒 Privacy & Usage Data Collection"):
