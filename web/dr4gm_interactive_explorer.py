@@ -30,6 +30,8 @@ import json
 import datetime
 import uuid
 from dataclasses import dataclass, asdict
+import subprocess
+import tempfile
 
 # Configure page
 st.set_page_config(
@@ -48,12 +50,14 @@ class UsageEvent:
     details: dict
 
 class UsageTracker:
-    """Simple usage tracking for analytics"""
+    """Simple usage tracking for analytics with GitHub integration"""
     
     def __init__(self):
         self.session_id = self._get_session_id()
         self.events = []
         self.log_file = Path("usage_analytics.log")
+        self.batch_events = []  # Buffer for batch commits
+        self.batch_size = 10  # Commit every 10 events
         
     def _get_session_id(self):
         """Get or create session ID"""
@@ -74,23 +78,72 @@ class UsageTracker:
         )
         
         self.events.append(event)
+        self.batch_events.append(event)
         self._save_event(event)
+        
+        # Commit to git if batch is full
+        if len(self.batch_events) >= self.batch_size:
+            self._commit_to_git()
     
     def _save_event(self, event: UsageEvent):
         """Save event to log file"""
         try:
+            # Save to local file
             with open(self.log_file, 'a') as f:
                 f.write(json.dumps(asdict(event)) + '\n')
         except Exception as e:
             # Silently fail - don't disrupt user experience
             pass
     
+    def _commit_to_git(self):
+        """Commit usage data to git repository"""
+        if not self.batch_events:
+            return
+            
+        try:
+            # Check if we're in a git repository
+            result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
+                                  capture_output=True, text=True)
+            if result.returncode != 0:
+                return  # Not in a git repo
+            
+            # Add the log file
+            subprocess.run(['git', 'add', str(self.log_file)], 
+                          capture_output=True, text=True)
+            
+            # Create commit message
+            event_types = list(set(event.event_type for event in self.batch_events))
+            commit_msg = f"Update usage analytics: {len(self.batch_events)} events ({', '.join(event_types[:3])})"
+            if len(event_types) > 3:
+                commit_msg += f" +{len(event_types)-3} more"
+            
+            # Commit
+            subprocess.run(['git', 'commit', '-m', commit_msg], 
+                          capture_output=True, text=True)
+            
+            # Try to push (will fail if no remote or no auth, but that's OK)
+            subprocess.run(['git', 'push'], 
+                          capture_output=True, text=True, timeout=10)
+            
+            # Clear batch
+            self.batch_events = []
+            
+        except Exception as e:
+            # Silently fail - don't disrupt user experience
+            pass
+    
+    def force_commit(self):
+        """Force commit any pending events"""
+        if self.batch_events:
+            self._commit_to_git()
+    
     def get_session_stats(self):
         """Get current session statistics"""
         return {
             'session_id': self.session_id,
             'events_count': len(self.events),
-            'event_types': list(set(event.event_type for event in self.events))
+            'event_types': list(set(event.event_type for event in self.events)),
+            'pending_commits': len(self.batch_events)
         }
 
 # Initialize usage tracker
@@ -1338,12 +1391,13 @@ def main():
                     st.text(f"File size: {os.path.getsize(selected_file) / 1024 / 1024:.1f} MB")
         
         # Session analytics (for debugging/development)
-        with st.expander("📊 Session Analytics (Debug)"):
+        with st.expander("📊 Session Analytics & GitHub Integration"):
             session_stats = explorer.usage_tracker.get_session_stats()
             col1, col2 = st.columns(2)
             
             with col1:
                 st.metric("Events This Session", session_stats['events_count'])
+                st.metric("Pending Commits", session_stats.get('pending_commits', 0))
                 st.write("**Event Types:**")
                 for event_type in session_stats.get('event_types', []):
                     st.write(f"• {event_type}")
@@ -1355,18 +1409,34 @@ def main():
                 recent_events = explorer.usage_tracker.events[-3:] if explorer.usage_tracker.events else []
                 for event in recent_events:
                     st.write(f"• {event.event_type} at {event.timestamp.split('T')[1][:8]}")
-                
-            if st.button("📥 Download Session Analytics"):
-                analytics_data = {
-                    'session_summary': session_stats,
-                    'events': [asdict(event) for event in explorer.usage_tracker.events]
-                }
-                st.download_button(
-                    label="Download JSON",
-                    data=json.dumps(analytics_data, indent=2),
-                    file_name=f"session_analytics_{session_stats['session_id'][:8]}.json",
-                    mime="application/json"
-                )
+            
+            # Git integration controls
+            st.write("**📁 GitHub Integration:**")
+            col3, col4 = st.columns(2)
+            with col3:
+                if st.button("🔄 Force Commit to Git"):
+                    explorer.usage_tracker.force_commit()
+                    st.success("✅ Committed pending events to git!")
+            
+            with col4:
+                if st.button("📥 Download Session Analytics"):
+                    analytics_data = {
+                        'session_summary': session_stats,
+                        'events': [asdict(event) for event in explorer.usage_tracker.events]
+                    }
+                    st.download_button(
+                        label="Download JSON",
+                        data=json.dumps(analytics_data, indent=2),
+                        file_name=f"session_analytics_{session_stats['session_id'][:8]}.json",
+                        mime="application/json"
+                    )
+            
+            # Usage info
+            st.info("""
+            **Auto-commit:** Every 10 events are automatically committed to git.
+            **File location:** `usage_analytics.log` in your repository.
+            **Streamlit Cloud:** Commits will appear in your GitHub repo automatically.
+            """)
 
 if __name__ == "__main__":
     main()
