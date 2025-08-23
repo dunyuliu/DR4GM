@@ -1331,8 +1331,11 @@ def main():
         index=0
     )
     
-    # Track data source selection with comprehensive analytics
-    if 'last_data_source' not in st.session_state or st.session_state.last_data_source != data_source:
+    # Track data source selection with comprehensive analytics (only on actual user changes)
+    if 'last_data_source' not in st.session_state:
+        st.session_state.last_data_source = data_source  # Set initial without tracking
+    elif st.session_state.last_data_source != data_source:
+        # Only track when user actually changes selection
         explorer.usage_tracker.track_interaction("radio_button", "data_source", "selection")
         explorer.usage_tracker.track_event("data_source_selected", {
             "source": data_source,
@@ -1365,8 +1368,11 @@ def main():
             if selected_sample:
                 npz_files = [discovered_files[selected_sample]]
                 
-                # Track dataset selection
-                if 'last_selected_sample' not in st.session_state or st.session_state.last_selected_sample != selected_sample:
+                # Track dataset selection (only on actual user changes)
+                if 'last_selected_sample' not in st.session_state:
+                    st.session_state.last_selected_sample = selected_sample  # Set initial without tracking
+                elif st.session_state.last_selected_sample != selected_sample:
+                    # Only track when user actually changes selection
                     explorer.usage_tracker.track_event("dataset_selected", {
                         "dataset": selected_sample,
                         "source": "archive"
@@ -1497,8 +1503,11 @@ def main():
             available_metrics
         )
         
-        # Track metric selection
-        if 'last_selected_metric' not in st.session_state or st.session_state.last_selected_metric != selected_metric:
+        # Track metric selection (only on actual user changes)
+        if 'last_selected_metric' not in st.session_state:
+            st.session_state.last_selected_metric = selected_metric  # Set initial without tracking
+        elif st.session_state.last_selected_metric != selected_metric:
+            # Only track when user actually changes selection
             explorer.usage_tracker.track_event("metric_selected", {"metric": selected_metric})
             st.session_state.last_selected_metric = selected_metric
         
@@ -1528,8 +1537,11 @@ def main():
         colorscales = ['Plasma', 'Viridis', 'Inferno', 'Magma', 'Cividis', 'Hot', 'Jet']
         colorscale = st.sidebar.selectbox("Color Scale", colorscales)
         
-        # Track colorscale selection
-        if 'last_colorscale' not in st.session_state or st.session_state.last_colorscale != colorscale:
+        # Track colorscale selection (only on actual user changes)
+        if 'last_colorscale' not in st.session_state:
+            st.session_state.last_colorscale = colorscale  # Set initial without tracking
+        elif st.session_state.last_colorscale != colorscale:
+            # Only track when user actually changes selection
             explorer.usage_tracker.track_event("colorscale_selected", {"colorscale": colorscale})
             st.session_state.last_colorscale = colorscale
         
