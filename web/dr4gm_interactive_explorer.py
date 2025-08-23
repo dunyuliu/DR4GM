@@ -370,6 +370,7 @@ class UsageTracker:
             webhook_url = st.secrets.get("google_sheets_webhook", "")
             
             if not webhook_url:
+                st.error("🚨 DEBUG: No Google Sheets webhook configured!")
                 return
             
             import requests
@@ -382,6 +383,9 @@ class UsageTracker:
                 'details': json.dumps(event_data['details'])  # Convert dict to JSON string
             }
             
+            # DEBUG: Show what we're sending (remove this after debugging)
+            st.success(f"📊 DEBUG: Sending {event_data['event_type']} to Google Sheets...")
+            
             # Send to Google Apps Script webhook
             response = requests.post(
                 webhook_url,
@@ -390,8 +394,15 @@ class UsageTracker:
                 timeout=5
             )
             
-        except Exception:
-            # Silently fail - don't disrupt user experience
+            # DEBUG: Show response (remove this after debugging)
+            if response.status_code == 200:
+                st.success(f"✅ DEBUG: Google Sheets responded: {response.text[:100]}")
+            else:
+                st.error(f"❌ DEBUG: Google Sheets error: {response.status_code}")
+            
+        except Exception as e:
+            # Show the error for debugging
+            st.error(f"🚨 DEBUG: Google Sheets error: {str(e)}")
             pass
     
     def _send_email_notification(self, event_data):
@@ -1230,7 +1241,9 @@ def main():
     explorer = GroundMotionExplorer()
     
     # Track comprehensive page view
+    st.success("🚀 DEBUG: Starting page view tracking...")
     explorer.usage_tracker.track_page_view("dr4gm_main")
+    st.success("✅ DEBUG: Page view tracking completed!")
     
     # Privacy notice
     with st.expander("🔒 Privacy & Usage Data Collection"):
