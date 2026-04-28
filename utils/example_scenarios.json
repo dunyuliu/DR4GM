@@ -1,0 +1,28 @@
+{
+  "description": "Sample scenarios for testing plot_gm_scenarios.py",
+  "scenarios": [
+    "eqdyna.0001.A.100m",
+    "eqdyna.0001.B.100m",
+    "eqdyna.0001.C.100m",
+    "mafe.1",
+    "mafe.2",
+    "mafe.3",
+    "seissol.1",
+    "seissol.3",
+    "seissol.4",
+    "seissol.5",
+    "specfem3d.model1",
+    "specfem3d.model2",
+    "specfem3d.model3",
+    "fd3d.ncent.sd4",
+    "fd3d.nleft.sd4",
+    "fd3d.nright.sd4",
+    "fd3d.ncent.sd8",
+    "fd3d.nleft.sd8",
+    "fd3d.nright.sd8",
+    "waveqlab3d.a24",
+    "waveqlab3d.c24",
+    "waveqlab3d.d24",
+    "sord_scenario"
+  ]
+}

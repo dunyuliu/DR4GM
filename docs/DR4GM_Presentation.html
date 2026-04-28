@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DR4GM: Earthquake Simulation Processing Platform</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #2E86AB 0%, #A23B72 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .hero-section {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #2E86AB, #F18F01);
+            border-radius: 20px;
+            color: white;
+            box-shadow: 0 10px 30px rgba(46, 134, 171, 0.3);
+        }
+        
+        .hero-title {
+            font-size: 4em;
+            font-weight: 300;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            min-width: 120px;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .section {
+            margin-bottom: 60px;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+        }
+        
+        .section-title {
+            font-size: 2.2em;
+            color: #2E86AB;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 300;
+            position: relative;
+        }
+        
+        .section-title:after {
+            content: '';
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #2E86AB, #F18F01);
+            display: block;
+            margin: 15px auto;
+            border-radius: 2px;
+        }
+        
+        .workflow-diagram {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+        
+        .step {
+            background: linear-gradient(145deg, #2E86AB, #1f5f8b);
+            color: white;
+            padding: 30px 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(46, 134, 171, 0.3);
+            text-align: center;
+            min-width: 200px;
+            position: relative;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .step:nth-child(odd) {
+            background: linear-gradient(145deg, #F18F01, #e6750a);
+            box-shadow: 0 10px 25px rgba(241, 143, 1, 0.3);
+        }
+        
+        .step:nth-child(3n) {
+            background: linear-gradient(145deg, #C73E1D, #a02f15);
+            box-shadow: 0 10px 25px rgba(199, 62, 29, 0.3);
+        }
+        
+        .step:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(46, 134, 171, 0.4);
+        }
+        
+        .step-number {
+            background: rgba(255,255,255,0.2);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-weight: bold;
+            font-size: 1.4em;
+        }
+        
+        .step h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.3em;
+        }
+        
+        .step p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.95em;
+        }
+        
+        .arrow {
+            font-size: 2.5em;
+            color: #2E86AB;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .benefit-card {
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-left: 5px solid #2E86AB;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .benefit-card:nth-child(2) { border-left-color: #F18F01; }
+        .benefit-card:nth-child(3) { border-left-color: #C73E1D; }
+        
+        .benefit-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.12);
+        }
+        
+        .benefit-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #2E86AB, #F18F01);
+        }
+        
+        .benefit-title {
+            color: #2E86AB;
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .benefit-icon {
+            font-size: 1.8em;
+        }
+        
+        .benefit-description {
+            color: #4B5563;
+            margin-bottom: 20px;
+            font-size: 1.05em;
+        }
+        
+        .benefit-features {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .benefit-features li {
+            color: #6B7280;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+        
+        .benefit-features li:before {
+            content: '✓';
+            color: #2E86AB;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .tech-specs {
+            background: linear-gradient(135deg, #1F2937, #374151);
+            color: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+        }
+        
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+        
+        .tech-item {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .tech-item h4 {
+            color: #F18F01;
+            margin: 0 0 10px 0;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, #2E86AB, #F18F01);
+            color: white;
+            text-align: center;
+            padding: 50px 40px;
+            border-radius: 20px;
+            margin-top: 40px;
+            box-shadow: 0 15px 35px rgba(46, 134, 171, 0.3);
+        }
+        
+        .cta-title {
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+        
+        .cta-subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        
+        .cta-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .workflow-diagram {
+                flex-direction: column;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+            }
+            
+            .hero-stats {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .hero-title {
+                font-size: 2.5em;
+            }
+            
+            .benefits-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1 class="hero-title">DR4GM</h1>
+            <p class="hero-subtitle">Complete Earthquake Simulation Processing Platform</p>
+            <p style="font-size: 1.1em; opacity: 0.8;">Transform weeks of analysis into minutes of insight</p>
+            
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">80%</span>
+                    <span class="stat-label">Time Savings</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Accuracy</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">4+</span>
+                    <span class="stat-label">Formats</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works Section -->
+        <div class="section">
+            <h2 class="section-title">How DR4GM Works</h2>
+            <div class="workflow-diagram">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>INPUT</h3>
+                    <p>Raw Simulation Data</p>
+                    <p><small>EQDyna • FD3D • WaveQLab3D • SeisSol</small></p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>PROCESS</h3>
+                    <p>Automated Pipeline</p>
+                    <p><small>Convert • Grid • Analyze • Visualize</small></p>
+                </div>
+                <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>RESULTS</h3>
+                    <p>Decision-Ready Outputs</p>
+                    <p><small>Maps • Statistics • Reports</small></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits Section -->
+        <div class="section">
+            <h2 class="section-title">Who Benefits from DR4GM?</h2>
+            <div class="benefits-grid">
+                <div class="benefit-card">
+                    <h3 class="benefit-title">
+                        <span class="benefit-icon">🚨</span>
+                        Emergency Managers
+                    </h3>
+                    <p class="benefit-description">
+                        Make critical decisions with confidence using real-time earthquake risk analysis and visualization tools.
+                    </p>
+                    <ul class="benefit-features">
+                        <li>Risk assessment and hazard mapping</li>
+                        <li>Real-time decision support systems</li>
+                        <li>Resource allocation optimization</li>
+                        <li>Evacuation zone planning</li>
+                        <li>Infrastructure vulnerability analysis</li>
+                    </ul>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3 class="benefit-title">
+                        <span class="benefit-icon">🔬</span>
+                        Research Scientists
+                    </h3>
+                    <p class="benefit-description">
+                        Access standardized, high-quality ground motion data with comprehensive statistical analysis capabilities.
+                    </p>
+                    <ul class="benefit-features">
+                        <li>Ground motion metrics (PGA, PGV, RSA)</li>
+                        <li>Statistical analysis and modeling</li>
+                        <li>Standardized data formats</li>
+                        <li>Publication-ready visualizations</li>
+                        <li>Attenuation relationship studies</li>
+                    </ul>
+                </div>
+                
+                <div class="benefit-card">
+                    <h3 class="benefit-title">
+                        <span class="benefit-icon">🏗️</span>
+                        Engineering Professionals
+                    </h3>
+                    <p class="benefit-description">
+                        Get site-specific ground motion data for structural design and seismic hazard assessment projects.
+                    </p>
+                    <ul class="benefit-features">
+                        <li>Structural design support</li>
+                        <li>Site-specific ground motions</li>
+                        <li>Building code compliance</li>
+                        <li>Seismic hazard assessment</li>
+                        <li>Performance-based design</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Specifications -->
+        <div class="tech-specs">
+            <h2 class="section-title" style="color: white;">Technical Specifications</h2>
+            <div class="tech-grid">
+                <div class="tech-item">
+                    <h4>Supported Formats</h4>
+                    <p>EQDyna<br>FD3D<br>WaveQLab3D<br>SeisSol</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Output Metrics</h4>
+                    <p>PGA, PGV<br>Response Spectra<br>Duration Metrics<br>Intensity Measures</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Grid Resolution</h4>
+                    <p>Flexible: 100m - 2000m<br>or All Stations<br>Adaptive Options</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Processing Speed</h4>
+                    <p>Minutes vs Weeks<br>Automated Pipeline<br>Parallel Processing</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Visualization</h4>
+                    <p>Interactive Maps<br>Statistical Plots<br>Web Interface<br>Export Options</p>
+                </div>
+                <div class="tech-item">
+                    <h4>Deployment</h4>
+                    <p>Local Processing<br>Web Interface<br>Cloud Ready<br>Docker Support</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <h2 class="cta-title">Ready to Transform Your Analysis?</h2>
+            <p class="cta-subtitle">
+                Join researchers, emergency managers, and engineers worldwide who trust DR4GM for critical earthquake risk analysis
+            </p>
+            <a href="#contact" class="cta-button">Get Started Today</a>
+        </div>
+    </div>
+</body>
+</html>

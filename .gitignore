@@ -1,2 +1,30 @@
-
+# macOS
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Frozen baseline and large data — collaborators download from figshare links in README
+reference/
+datasets
+results/
+
+# Per-script working dirs
+utils/results/
+
+# Heavy media not tracked in git
+*.webm
+
+# web/ local-only state — Streamlit secrets, runtime telemetry, caches
+web/.streamlit/
+web/usage_analytics.log
+web/__pycache__/
+web/.DS_Store
+
+# Editor/OS noise
+*.swp
+.vscode/
+.idea/
