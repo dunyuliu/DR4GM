@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DR4GM: Earthquake Simulation Processing Platform - Flyer</title>
+    
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                margin: 0;
+                padding: 20px;
+                background: linear-gradient(135deg, #2E86AB 0%, #A23B72 100%);
+                min-height: 100vh;
+            }
+            
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 20px;
+                padding: 40px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            }
+            
+            .hero-section {
+                text-align: center;
+                margin-bottom: 60px;
+                padding: 40px 20px;
+                background: linear-gradient(135deg, #2E86AB, #F18F01);
+                border-radius: 20px;
+                color: white;
+                box-shadow: 0 10px 30px rgba(46, 134, 171, 0.3);
+            }
+            
+            .hero-title {
+                font-size: 4em;
+                font-weight: 300;
+                margin-bottom: 20px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            }
+            
+            .hero-subtitle {
+                font-size: 1.5em;
+                margin-bottom: 30px;
+                opacity: 0.9;
+            }
+            
+            .hero-stats {
+                display: flex;
+                justify-content: center;
+                gap: 40px;
+                margin-top: 30px;
+                flex-wrap: wrap;
+            }
+            
+            .stat {
+                background: rgba(255,255,255,0.2);
+                padding: 20px;
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+                min-width: 120px;
+            }
+            
+            .stat-number {
+                font-size: 2.5em;
+                font-weight: bold;
+                display: block;
+            }
+            
+            .stat-label {
+                font-size: 0.9em;
+                opacity: 0.8;
+            }
+            
+            .section {
+                margin-bottom: 60px;
+                padding: 40px;
+                background: #F8F9FA;
+                border-radius: 20px;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+            }
+            
+            .section-title {
+                font-size: 2.2em;
+                color: #2E86AB;
+                margin-bottom: 30px;
+                text-align: center;
+                font-weight: 300;
+                position: relative;
+            }
+            
+            .section-title:after {
+                content: '';
+                width: 80px;
+                height: 3px;
+                background: linear-gradient(90deg, #2E86AB, #F18F01);
+                display: block;
+                margin: 15px auto;
+                border-radius: 2px;
+            }
+            
+            .workflow-diagram {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 30px;
+                margin: 40px 0;
+                flex-wrap: wrap;
+            }
+            
+            .step {
+                background: linear-gradient(145deg, #2E86AB, #1f5f8b);
+                color: white;
+                padding: 40px 30px;
+                border-radius: 20px;
+                box-shadow: 0 10px 25px rgba(46, 134, 171, 0.3);
+                text-align: center;
+                min-width: 280px;
+                min-height: 400px;
+                position: relative;
+                transition: all 0.3s ease;
+                backdrop-filter: blur(10px);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+            }
+            
+            .step:nth-child(odd) {
+                background: linear-gradient(145deg, #F18F01, #e6750a);
+                box-shadow: 0 10px 25px rgba(241, 143, 1, 0.3);
+            }
+            
+            .step:nth-child(3n) {
+                background: linear-gradient(145deg, #C73E1D, #a02f15);
+                box-shadow: 0 10px 25px rgba(199, 62, 29, 0.3);
+            }
+            
+            .step:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 15px 35px rgba(46, 134, 171, 0.4);
+            }
+            
+            .step-number {
+                background: rgba(255,255,255,0.2);
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 15px;
+                font-weight: bold;
+                font-size: 1.4em;
+            }
+            
+            .step h3 {
+                margin: 0 0 10px 0;
+                font-size: 1.3em;
+            }
+            
+            .step p {
+                margin: 0;
+                opacity: 0.9;
+                font-size: 0.95em;
+            }
+            
+            .arrow {
+                font-size: 2.5em;
+                color: #2E86AB;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .benefits-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 30px;
+                margin: 40px 0;
+            }
+            
+            .benefit-card {
+                background: linear-gradient(145deg, #ffffff, #f8f9fa);
+                border-left: 5px solid #2E86AB;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .benefit-card:nth-child(2) { border-left-color: #F18F01; }
+            .benefit-card:nth-child(3) { border-left-color: #C73E1D; }
+            
+            .benefit-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 35px rgba(0,0,0,0.12);
+            }
+            
+            .benefit-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #2E86AB, #F18F01);
+            }
+            
+            .benefit-title {
+                color: #2E86AB;
+                font-size: 1.4em;
+                font-weight: 600;
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .benefit-icon {
+                font-size: 1.8em;
+            }
+            
+            .benefit-description {
+                color: #4B5563;
+                margin-bottom: 20px;
+                font-size: 1.05em;
+            }
+            
+            .benefit-features {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .benefit-features li {
+                color: #6B7280;
+                margin-bottom: 8px;
+                padding-left: 20px;
+                position: relative;
+            }
+            
+            .benefit-features li:before {
+                content: '✓';
+                color: #2E86AB;
+                font-weight: bold;
+                position: absolute;
+                left: 0;
+            }
+            
+            .tech-specs {
+                background: linear-gradient(135deg, #1F2937, #374151);
+                color: white;
+                border-radius: 20px;
+                padding: 40px;
+                margin: 40px 0;
+            }
+            
+            .tech-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 25px;
+                margin-top: 30px;
+            }
+            
+            .tech-item {
+                background: rgba(255,255,255,0.1);
+                padding: 20px;
+                border-radius: 12px;
+                text-align: center;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.1);
+            }
+            
+            .tech-item h4 {
+                color: #F18F01;
+                margin: 0 0 10px 0;
+            }
+            
+            .cta-section {
+                background: linear-gradient(135deg, #2E86AB, #F18F01);
+                color: white;
+                text-align: center;
+                padding: 50px 40px;
+                border-radius: 20px;
+                margin-top: 40px;
+                box-shadow: 0 15px 35px rgba(46, 134, 171, 0.3);
+            }
+            
+            .cta-title {
+                font-size: 2.5em;
+                font-weight: 300;
+                margin-bottom: 20px;
+            }
+            
+            .cta-subtitle {
+                font-size: 1.2em;
+                opacity: 0.9;
+                margin-bottom: 30px;
+            }
+            
+            @media (max-width: 768px) {
+                .workflow-diagram {
+                    flex-direction: column;
+                }
+                
+                .arrow {
+                    transform: rotate(90deg);
+                }
+                
+                .hero-stats {
+                    flex-direction: column;
+                    align-items: center;
+                }
+                
+                .hero-title {
+                    font-size: 2.5em;
+                }
+                
+                .benefits-grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .container {
+                    padding: 20px;
+                }
+            }
+        </style>
+        
+</head>
+<body>
+    <div class="container">
+        
+        <div class="hero-section">
+            <h1 class="hero-title">DR4GM</h1>
+            <p class="hero-subtitle">Complete Earthquake Simulation Processing Platform</p>
+            <p style="font-size: 1.1em; opacity: 0.8;">Transform weeks of analysis into minutes of insight</p>
+            
+            <div class="hero-stats">
+                
+                <div class="stat">
+                    <span class="stat-number">80%</span>
+                    <span class="stat-label">Time Savings</span>
+                </div>
+            
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Accuracy</span>
+                </div>
+            
+                <div class="stat">
+                    <span class="stat-number">4+</span>
+                    <span class="stat-label">Formats</span>
+                </div>
+            
+            </div>
+        </div>
+        
+        
+        <div class="section">
+            <h2 class="section-title">How DR4GM Works</h2>
+            <div class="workflow-diagram">
+                
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3 style="margin: 15px 0 20px 0; font-size: 1.4em;">INPUT</h3>
+                    <p style="margin-bottom: 25px; font-size: 1em; line-height: 1.4;">Dense physics-based seismograms from state of the art diverse dynamic rupture softwares</p>
+                    <div style="margin-top: auto; padding-top: 20px;">
+                        <div style='margin: 8px 0; text-align: left;'>• EQDyna</div><div style='margin: 8px 0; text-align: left;'>• FD3D</div><div style='margin: 8px 0; text-align: left;'>• WaveQLab3D</div><div style='margin: 8px 0; text-align: left;'>• SeisSol</div>
+                    </div>
+                </div>
+            <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3 style="margin: 15px 0 20px 0; font-size: 1.4em;">PROCESS</h3>
+                    <p style="margin-bottom: 25px; font-size: 1em; line-height: 1.4;">Automated Pipeline</p>
+                    <div style="margin-top: auto; padding-top: 20px;">
+                        <div style='margin: 8px 0; text-align: left;'>• Format Conversion</div><div style='margin: 8px 0; text-align: left;'>• Station Grid Selection</div><div style='margin: 8px 0; text-align: left;'>• Ground Motion Analysis</div><div style='margin: 8px 0; text-align: left;'>• Statistical Processing</div>
+                    </div>
+                </div>
+            <div class="arrow">→</div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3 style="margin: 15px 0 20px 0; font-size: 1.4em;">PRODUCTS</h3>
+                    <p style="margin-bottom: 25px; font-size: 1em; line-height: 1.4;">Decision-Ready Outputs</p>
+                    <div style="margin-top: auto; padding-top: 20px;">
+                        <div style='margin: 8px 0; text-align: left;'>• Interactive Web Interface</div><div style='margin: 8px 0; text-align: left;'>• Desktop GUI Application</div><div style='margin: 8px 0; text-align: left;'>• Statistical Reports</div><div style='margin: 8px 0; text-align: left;'>• Visualization Maps</div><div style='margin: 8px 0; text-align: left;'>• Standardized Data Formats</div>
+                    </div>
+                </div>
+            
+            </div>
+        </div>
+        
+        
+        <div class="cta-section" style="margin-top: 40px; padding: 30px 40px;">
+            <h2 style="font-size: 1.8em; margin-bottom: 15px;">Transform Weeks of Analysis into Minutes of Insight</h2>
+            <p style="font-size: 1.1em; opacity: 0.9; margin-bottom: 0;">
+                For more information: DR4GM@example.com | Visit: dr4gm.org
+            </p>
+        </div>
+        
+    </div>
+</body>
+</html>
