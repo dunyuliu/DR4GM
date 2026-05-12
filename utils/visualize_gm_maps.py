@@ -151,30 +151,71 @@ class GroundMotionVisualizer:
     def get_metric_properties(self, metric_key: str) -> Dict[str, str]:
         """Get display properties for a metric"""
         properties = {
-            'PGA': {'title': 'Peak Ground Acceleration (PGA)', 'unit': 'cm/s²', 'log_scale': True},
+            'PGA': {'title': 'Peak Ground Acceleration (PGA)', 'unit': 'g', 'log_scale': True},
             'PGV': {'title': 'Peak Ground Velocity (PGV)', 'unit': 'cm/s', 'log_scale': True},
             'PGD': {'title': 'Peak Ground Displacement (PGD)', 'unit': 'cm', 'log_scale': True},
             'CAV': {'title': 'Cumulative Absolute Velocity (CAV)', 'unit': 'cm/s', 'log_scale': True}
         }
-        
+
         if metric_key in properties:
             return properties[metric_key]
         elif metric_key.startswith('RSA_T_'):
             period_str = metric_key.replace('RSA_T_', '')
             return {
                 'title': f'Spectral Acceleration (T={period_str}s)',
-                'unit': 'cm/s²',
+                'unit': 'g',
                 'log_scale': True
             }
         else:
             return {'title': metric_key, 'unit': '', 'log_scale': False}
+
+    @staticmethod
+    def _is_acceleration_metric(metric_key: str) -> bool:
+        return metric_key == 'PGA' or metric_key.startswith('RSA_T_')
+
+    def _to_display_units(self, metric_key: str, values: np.ndarray) -> np.ndarray:
+        """Convert raw stored values to display units. Acceleration metrics
+        (PGA, RSA_T_*) are stored in cm/s² and shown in g (1 g = 981 cm/s²)."""
+        if self._is_acceleration_metric(metric_key):
+            return values / 981.0
+        return values
+
+    def _load_fault_trace_km(self):
+        """Return (start_xy_km, end_xy_km) fault trace endpoints, or None.
+        Endpoints are read from the sibling geometry.npz (always in meters
+        per the converter contract) and converted to km for plotting."""
+        if hasattr(self, '_fault_trace_km_cache'):
+            return self._fault_trace_km_cache
+        geometry_file = self.gm_npz.parent / 'geometry.npz'
+        trace = None
+        if geometry_file.exists():
+            try:
+                geom = np.load(geometry_file, allow_pickle=True)
+                start_m = np.asarray(geom['fault_trace_start']).ravel()
+                end_m = np.asarray(geom['fault_trace_end']).ravel()
+                trace = (start_m[:2] / 1000.0, end_m[:2] / 1000.0)
+            except Exception as e:
+                self.logger.warning(f"Could not read fault trace from {geometry_file}: {e}")
+        self._fault_trace_km_cache = trace
+        return trace
+
+    def _overlay_fault_trace(self, ax) -> None:
+        """Overlay the fault trace as a thick black line, if geometry is available."""
+        trace = self._load_fault_trace_km()
+        if trace is None:
+            return
+        start_km, end_km = trace
+        ax.plot([start_km[0], end_km[0]], [start_km[1], end_km[1]],
+                color='black', linewidth=3.0, solid_capstyle='round',
+                zorder=5)
     
     def create_map(self, metric_key: str, save_path: Optional[str] = None) -> str:
         """Create a single ground motion map"""
         # Get metric data and properties
         values = self.get_metric_data(metric_key)
+        values = self._to_display_units(metric_key, values)
         props = self.get_metric_properties(metric_key)
-        
+
         # Remove zero/invalid values for better visualization
         valid_mask = (values > 0) & np.isfinite(values)
         if not np.any(valid_mask):
@@ -277,12 +318,14 @@ class GroundMotionVisualizer:
         cbar.ax.tick_params(labelsize=12, width=1.5)
         
         # Formatting - larger and bolder fonts for better readability
-        ax.set_xlabel('Along-Strike Distance (km)', fontsize=16, fontweight='bold')
-        ax.set_ylabel('Fault-Normal Distance (km)', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Fault-Normal Distance (km)', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Along-Strike Distance (km)', fontsize=16, fontweight='bold')
         ax.set_title(props['title'], fontsize=18, fontweight='bold', pad=20)
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3, linewidth=1.2)
         ax.tick_params(labelsize=14, width=1.5, length=6)
+
+        self._overlay_fault_trace(ax)
 
         if self.coordinate_units == 'km':
             disp_x, disp_y = valid_x, valid_y
@@ -370,8 +413,8 @@ class GroundMotionVisualizer:
         cbar.ax.tick_params(labelsize=12, width=1.5)
         
         # Formatting
-        ax.set_xlabel('Along-Strike Distance (km)', fontsize=16, fontweight='bold')
-        ax.set_ylabel('Fault-Normal Distance (km)', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Fault-Normal Distance (km)', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Along-Strike Distance (km)', fontsize=16, fontweight='bold')
         ax.set_title('RJB Distance from Fault', fontsize=18, fontweight='bold', pad=20)
         ax.set_aspect('equal')
         ax.grid(True, alpha=0.3, linewidth=1.2)
@@ -587,8 +630,9 @@ class GroundMotionVisualizer:
             
             # Get data
             values = self.get_metric_data(metric_key)
+            values = self._to_display_units(metric_key, values)
             props = self.get_metric_properties(metric_key)
-            
+
             # Process data - same as individual maps
             valid_mask = (values > 0) & np.isfinite(values)
             if not np.any(valid_mask):
@@ -672,8 +716,9 @@ class GroundMotionVisualizer:
             # Formatting - adapted for summary plots
             title = props['title'].replace(' (', '\n(')  # Break long titles
             ax.set_title(title, fontsize=12, fontweight='bold')
-            ax.set_xlabel('Along-Strike (km)', fontsize=11, fontweight='bold')
-            ax.set_ylabel('Fault-Normal (km)', fontsize=11, fontweight='bold')
+            ax.set_xlabel('Fault-Normal (km)', fontsize=11, fontweight='bold')
+            ax.set_ylabel('Along-Strike (km)', fontsize=11, fontweight='bold')
+            self._overlay_fault_trace(ax)
             ax.set_aspect('equal')
             ax.tick_params(labelsize=10, width=1.2)
 

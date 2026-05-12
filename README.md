@@ -70,6 +70,22 @@ python utils/visualize_ensemble_stats.py \
     eqdyna/0001.A.100m fd3d/ncent.sd4 mafe/1 seissol/1 waveqlab3d/a24
 ```
 
+`visualize_ensemble_stats.py` produces the manuscript-aligned ensemble pool:
+
+| output                                            | corresponds to     |
+|---|---|
+| `RSA_T*s_vs_distance.png` / `*_std_vs_distance.png` | Fig 13 / 15 (per-code bold mean + transparent individuals + on-plot legend + GMM band) |
+| `response_spectra_vs_periods_Rjb_*km.png`         | Fig 14 left  |
+| `response_spectra_bias_vs_periods_Rjb_*km.png`    | Fig 14 right (`ln(SA_sim / SA_GMM_avg)` per period) |
+| `response_spectra_std_vs_periods_Rjb_*km.png`     | Fig 16       |
+| `tau_T*s_vs_distance.png`                         | Fig 17 (inter-event τ; per-code dashed within-group + black solid epistemic τ) |
+| `tau_vs_periods_Rjb_*km.png`                      | Fig 18       |
+| `CAV_vs_distance.png` / `CAV_std_vs_distance.png` | Fig 19 (no GMM band — see note in source) |
+| `SA_T*s_per_group_<code>.png`                     | Fig 12 (per-code ensemble: scatter + dashed sims + bold group mean + GMM band) |
+
+Per-group Fig 12 panels can also be produced standalone via
+`python utils/plot_pergroup_ens_figure12.py`.
+
 ## Reference baseline (`reference/`)
 
 Time-frozen, read-only inputs and outputs of the per-station `gmpe-smtk`
