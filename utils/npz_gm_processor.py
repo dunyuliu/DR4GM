@@ -78,7 +78,7 @@ class FastNPZGroundMotionProcessor:
             self.dt = 0.05
             
         # Ground motion parameters
-        self.periods = np.array([0.100, 0.125, 0.25, 1/3, 0.4, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5])
+        self.periods = np.array([0.100, 0.125, 0.25, 1/3, 0.4, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 5, 7, 10])
         self.gm_metrics_keys = ['PGA', 'PGV', 'PGD', 'CAV']
         self.periods_keys = [f'RSA_T_{period:.3f}' for period in self.periods]
         self.total_gm_metrics_keys = self.gm_metrics_keys + self.periods_keys

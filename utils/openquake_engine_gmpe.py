@@ -127,15 +127,15 @@ def _build_context(distances_km: np.ndarray,
     return ctx
 
 
-def _compute_one(gsim, ctx: RuptureContext, imt) -> tuple[np.ndarray, np.ndarray]:
-    """Run one GMPE and return (mean in ln units, total stddev in ln units)."""
+def _compute_one(gsim, ctx: RuptureContext, imt) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Run one GMPE and return (mean_ln, sig_ln, tau_ln, phi_ln)."""
     n = ctx.rrup.size
     mean = np.zeros((1, n), dtype=float)
-    sig = np.zeros((1, n), dtype=float)
-    tau = np.zeros((1, n), dtype=float)
-    phi = np.zeros((1, n), dtype=float)
+    sig  = np.zeros((1, n), dtype=float)
+    tau  = np.zeros((1, n), dtype=float)
+    phi  = np.zeros((1, n), dtype=float)
     gsim.compute(ctx, [imt], mean, sig, tau, phi)
-    return mean[0], sig[0]
+    return mean[0], sig[0], tau[0], phi[0]
 
 
 def get_nga_west2_gmpe_predictions(distances, magnitude, periods, vs30):
@@ -186,24 +186,67 @@ def get_nga_west2_gmpe_predictions(distances, magnitude, periods, vs30):
         per_gmpe: dict = {}
         means_ln_stack = []
         sigmas_ln_stack = []
+        phis_ln_stack = []
+        taus_ln_stack = []
         for tag, gsim in gsims.items():
-            mean_ln, sigma_ln = _compute_one(gsim, ctx, imt)
-            per_gmpe[tag] = {"mean": np.exp(mean_ln), "std": sigma_ln}
+            mean_ln, sigma_ln, tau_ln, phi_ln = _compute_one(gsim, ctx, imt)
+            per_gmpe[tag] = {"mean": np.exp(mean_ln), "std": sigma_ln,
+                             "tau": tau_ln, "phi": phi_ln}
             means_ln_stack.append(mean_ln)
             sigmas_ln_stack.append(sigma_ln)
+            phis_ln_stack.append(phi_ln)
+            taus_ln_stack.append(tau_ln)
 
-        # Geometric mean of the 4 GMPE means and arithmetic mean of their
-        # ln-sigmas, both in ln-space.
-        nga_avg_g = np.exp(np.mean(np.vstack(means_ln_stack), axis=0))
+        nga_avg_g   = np.exp(np.mean(np.vstack(means_ln_stack), axis=0))
         nga_avg_std = np.mean(np.vstack(sigmas_ln_stack), axis=0)
+        nga_avg_phi = np.mean(np.vstack(phis_ln_stack), axis=0)
+        nga_avg_tau = np.mean(np.vstack(taus_ln_stack), axis=0)
 
         results[period] = {
             "distances": distances_km,
-            "NGA_AVG": {"mean": nga_avg_g, "std": nga_avg_std},
+            "NGA_AVG": {"mean": nga_avg_g, "std": nga_avg_std,
+                        "phi": nga_avg_phi, "tau": nga_avg_tau},
             **per_gmpe,
         }
 
     return results
 
 
-__all__ = ["get_nga_west2_gmpe_predictions"]
+def get_cav_gmm_predictions(distances, magnitude, vs30):
+    """Predict CAV via Campbell-Bozorgnia 2014 (the only NGA-West2 GMPE
+    in this wrapper that defines CAV).
+
+    Parameters mirror :func:`get_nga_west2_gmpe_predictions` for CAV only.
+
+    Returns
+    -------
+    dict
+        ``{"distances": <km>, "CB": {"mean": <CAV in g·s>, "std": <ln-sigma>,
+        "phi": <intra-event ln-sigma>}}``.
+
+        ``mean`` is in linear units of g·s per OpenQuake's imt.CAV docstring
+        ("Units are g-sec"). No unit conversion is applied to the raw OpenQuake
+        output.
+
+        KNOWN ISSUE: At M7.0, Vs30=760, the predicted median is ~11 g·s at
+        1 km and ~7 g·s at 10 km, which is 15-20× above the simulation
+        ensemble (0.3-0.5 g·s). The simulations underpredict because they are
+        low-frequency limited (fmax ≈ 0.5-2 Hz depending on grid spacing) and
+        CAV is dominated by high-frequency broadband energy captured in the
+        empirical records used to calibrate CB14. This discrepancy is physical,
+        not a unit error, per inspection of OpenQuake's CB14 source (no g→m/s²
+        conversion applied to CAV output). The figure retains the CB14 line as
+        a reference; the gap should be noted in the manuscript caption.
+    """
+    from openquake.hazardlib.imt import CAV
+    distances_km = np.asarray(distances, dtype=float)
+    ctx = _build_context(distances_km, magnitude, vs30)
+    gsim = _GMPE_CLASSES["CB"]()
+    mean_ln, sigma_ln, _, sigma_phi = _compute_one(gsim, ctx, CAV())
+    return {
+        "distances": distances_km,
+        "CB": {"mean": np.exp(mean_ln), "std": sigma_ln, "phi": sigma_phi},
+    }
+
+
+__all__ = ["get_nga_west2_gmpe_predictions", "get_cav_gmm_predictions"]
