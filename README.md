@@ -137,6 +137,10 @@ without a reference (e.g. the extra 15 in `--all`) are reported NOREF.
 | default | 5  | ~14 min | 1.5–5 min |
 | `--all` | 20 | ~59 min | 1.5–5 min |
 
+## Manuscript
+
+The draft manuscript is at `paper/P28b_DR4GM_manuscript_v0.docx`.
+
 ## Manuscript figures
 
 After per-scenario figures and `ensemble/` plots have been produced
