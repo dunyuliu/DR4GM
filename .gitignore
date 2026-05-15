@@ -15,6 +15,16 @@ results/
 # Per-script working dirs
 utils/results/
 
+# docs/ managed separately (paper, slides, release notes)
+docs/
+
+# Internal dev/release files — not for public repo
+AUDIT.md
+CLAUDE.md
+PROJECT_RULES.md
+release_notes_v*.md
+demo/
+
 # Heavy media not tracked in git
 *.webm
 
