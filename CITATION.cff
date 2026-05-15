@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+message: "If you use DR4GM, please cite it using the metadata below."
+title: "DR4GM: Data Repository for Ground Motion"
+abstract: >
+  An open-source, community-driven interactive software platform for
+  processing, analyzing, and visualizing high-resolution near-source
+  deterministic ground motion products from earthquake dynamic rupture
+  simulations. Supports seven simulation codes (EQdyna, SeisSol,
+  WaveQLab3D, FD3D_TSN, SPECFEM3D, MAFE, SORD) and computes PGA, PGV,
+  PGD, RSA (0.1–10 s), and CAV using the OpenQuake engine.
+version: "0.0.1-rc4"
+date-released: "2026-05-14"
+license: AGPL-3.0-or-later
+repository-code: "https://github.com/dunyuliu/dr4gm"
+authors:
+  - family-names: Liu
+    given-names: Dunyu
+    email: dliu@ig.utexas.edu
+    affiliation: >
+      University of Texas Institute for Geophysics,
+      The University of Texas at Austin
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # TODO: replace with actual ORCID
+keywords:
+  - dynamic rupture simulation
+  - ground motion intensity measures
+  - near-source ground motion
+  - seismic hazard
+  - physics-based simulation
+  - cyberinfrastructure
+  - earthquake engineering
+preferred-citation:
+  type: article
+  title: >
+    DR4GM: An Open-Source, Community-Driven Interactive Software Platform
+    Bridging Earthquake Dynamic Rupture Simulations and Ground Motion
+    Engineering Applications
+  authors:
+    - family-names: Liu
+      given-names: Dunyu
+    - family-names: Withers
+      given-names: Kyle
+    - family-names: Gabriel
+      given-names: Alice-Agnes
+    - family-names: Wang
+      given-names: Yongfei
+    - family-names: Ulrich
+      given-names: Thomas
+    - family-names: Oral
+      given-names: Elif
+    - family-names: Ma
+      given-names: Shuo
+    - family-names: "Gallovič"
+      given-names: "František"
+    - family-names: "Valentová"
+      given-names: Lubica
+    - family-names: Ampuero
+      given-names: Jean-Paul
+    - family-names: Duan
+      given-names: Benchun
+    - family-names: Goulet
+      given-names: Christine
+  journal: "Seismological Research Letters"
+  year: 2026
+  notes: "submitted"

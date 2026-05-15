@@ -3,8 +3,8 @@
 # gmpe-smtk is vendored in-tree under ./gmpe-smtk (AGPLv3, (C) GEM Foundation).
 # No separate clone or post-install patching is required.
 
-echo "Installing DR4GM Python dependencies (numpy, scipy)..."
-pip3 install numpy scipy
+echo "Installing DR4GM Python dependencies..."
+pip3 install -r requirements.txt
 
 chmod -R 755 utils
 

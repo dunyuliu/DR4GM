@@ -1,0 +1,9 @@
+numpy
+scipy
+matplotlib
+pandas
+netCDF4
+h5py
+openquake.engine
+streamlit
+pillow

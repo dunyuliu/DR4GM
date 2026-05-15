@@ -89,10 +89,11 @@ class SeisSolConverter:
                 assert len(time_array) == n_time_steps, "time array length mismatch"
                 
                 # Calculate time step
-                if n_time_steps > 1:
-                    dt = time_array[1] - time_array[0]
-                else:
-                    dt = 0.01  # Default fallback
+                if n_time_steps < 2:
+                    raise ValueError(
+                        f"Cannot determine dt: SeisSol file has only {n_time_steps} time step(s). "
+                        "Expected at least 2.")
+                dt = time_array[1] - time_array[0]
                 
                 self.logger.info(f"Loaded {n_stations} stations with {n_time_steps} time steps")
                 self.logger.info(f"Time range: {time_array[0]:.3f} to {time_array[-1]:.3f} s (dt={dt:.6f})")

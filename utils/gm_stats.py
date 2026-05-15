@@ -27,7 +27,7 @@ import pandas as pd
 class GMStatistics:
     """Compute ground motion statistics as a function of Rjb distance"""
     
-    def __init__(self, gm_data_file: str, output_dir: str, distance_range: Tuple[float, float] = (0, 30000), distance_bin_size: float = 1000):
+    def __init__(self, gm_data_file: str, output_dir: str, distance_range: Tuple[float, float] = (0, 30000), distance_bin_size: float = 500):
         """
         Initialize GM statistics computation
         
@@ -35,7 +35,7 @@ class GMStatistics:
             gm_data_file: Path to ground motion metrics NPZ file
             output_dir: Directory to save statistics results
             distance_range: Distance range in meters (default: 0-30km)
-            distance_bin_size: Distance bin size in meters (default: 1km)
+            distance_bin_size: Distance bin size in meters (default: 500 m)
         """
         self.gm_data_file = Path(gm_data_file)
         self.output_dir = Path(output_dir)
@@ -204,61 +204,36 @@ class GMStatistics:
         return rjb_distances
     
     
-    def calc_gm_stats_vs_r(self, values: np.ndarray, rjb_distances: np.ndarray, 
+    def calc_gm_stats_vs_r(self, values: np.ndarray, rjb_distances: np.ndarray,
                           r_bins: np.ndarray) -> np.ndarray:
         """
-        Calculate ground motion statistics vs distance bins (adapted from gmGetSimuAndGMPEScaling)
-        
+        Calculate ground motion statistics vs distance bins.
+
         Args:
             values: 1D array of GM values for all stations
             rjb_distances: 1D array of distances for all stations (in meters)
             r_bins: 1D array of distance bin edges (in meters)
-            
+
         Returns:
             stats array (len(r_bins)-1, 6): [geometric_mean, log_std, min, max, count, unused]
         """
         n_bins = len(r_bins) - 1
-        gm_metrics_vs_r = np.zeros((n_bins, 50000))  # Pre-allocate like original
-        log_gm_metrics = np.zeros((n_bins, 50000))
         gm_metrics_stats = np.zeros((n_bins, 6))
-        num_of_gm_metrics_per_r = np.zeros(n_bins, dtype=int)
 
-        # Bin the data (adapted from original nested loop structure)
-        for i_st in range(len(values)):
-            for i_r in range(n_bins):
-                if (rjb_distances[i_st] >= r_bins[i_r] and 
-                    rjb_distances[i_st] < r_bins[i_r + 1] and 
-                    abs(values[i_st]) > 0.):
-                    gm_metrics_vs_r[i_r, num_of_gm_metrics_per_r[i_r]] = values[i_st]
-                    num_of_gm_metrics_per_r[i_r] += 1
+        bin_indices = np.digitize(rjb_distances, r_bins) - 1  # 0-indexed
+        valid = (values > 0) & (bin_indices >= 0) & (bin_indices < n_bins)
 
-        # Calculate statistics (exact copy from original)
         for i_r in range(n_bins):
-            sum_log_x = 0
-            sum_sq_log_x = 0
-            for i_s in range(num_of_gm_metrics_per_r[i_r]):
-                log_gm_metrics[i_r, i_s] = np.log(gm_metrics_vs_r[i_r, i_s])
-                sum_log_x = sum_log_x + log_gm_metrics[i_r, i_s]
-                sum_sq_log_x = sum_sq_log_x + (log_gm_metrics[i_r, i_s])**2
-
-            if num_of_gm_metrics_per_r[i_r] > 1:
-                mean_log_x = sum_log_x / num_of_gm_metrics_per_r[i_r]
-                mean_sq_log_x = sum_sq_log_x / (num_of_gm_metrics_per_r[i_r] - 1)
-                std_log_x = (mean_sq_log_x - mean_log_x**2 * num_of_gm_metrics_per_r[i_r] / 
-                           (num_of_gm_metrics_per_r[i_r] - 1))**0.5
-                min_x = np.min(gm_metrics_vs_r[i_r, :num_of_gm_metrics_per_r[i_r]])
-                max_x = np.max(gm_metrics_vs_r[i_r, :num_of_gm_metrics_per_r[i_r]])
-            else:
-                mean_log_x = 0.
-                std_log_x = 0.
-                min_x = 0.
-                max_x = 0.
-
-            gm_metrics_stats[i_r, 0] = np.exp(mean_log_x)  # Geometric mean
-            gm_metrics_stats[i_r, 1] = std_log_x           # Log standard deviation 
-            gm_metrics_stats[i_r, 2] = min_x               # Minimum
-            gm_metrics_stats[i_r, 3] = max_x               # Maximum
-            gm_metrics_stats[i_r, 4] = num_of_gm_metrics_per_r[i_r]  # Count
+            mask = valid & (bin_indices == i_r)
+            vals = values[mask]
+            n = len(vals)
+            if n > 1:
+                log_vals = np.log(vals)
+                gm_metrics_stats[i_r, 0] = np.exp(np.mean(log_vals))
+                gm_metrics_stats[i_r, 1] = np.std(log_vals, ddof=1)
+                gm_metrics_stats[i_r, 2] = vals.min()
+                gm_metrics_stats[i_r, 3] = vals.max()
+                gm_metrics_stats[i_r, 4] = n
 
         return gm_metrics_stats
     
@@ -337,7 +312,7 @@ class GMStatistics:
         save_dict['PGA_units'] = 'cm/s²'
         save_dict['PGV_units'] = 'cm/s'
         save_dict['PGD_units'] = 'cm'
-        save_dict['CAV_units'] = 'cm·s'
+        save_dict['CAV_units'] = 'cm/s'
         save_dict['RSA_units'] = 'cm/s²'
         
         # Add statistics for each metric
@@ -485,8 +460,8 @@ def main():
                        help='Output directory for statistics results')
     parser.add_argument('--distance_range', nargs=2, type=float, default=[0, 30000],
                        help='Distance range in meters (default: 0 30000)')
-    parser.add_argument('--distance_bin_size', type=float, default=1000,
-                       help='Distance bin size in meters (default: 1000)')
+    parser.add_argument('--distance_bin_size', type=float, default=500,
+                       help='Distance bin size in meters (default: 500)')
     parser.add_argument('--verbose', action='store_true', 
                        help='Enable verbose logging')
     

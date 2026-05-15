@@ -61,18 +61,19 @@ class EQDynaConverter:
         self.logger = logging.getLogger(__name__)
     
     def _get_dt_from_params(self) -> float:
-        """Try to get dt from user_defined_params.py and multiply by 10 for GM sampling"""
+        """Read dt from user_defined_params.py and multiply by 10 for GM sampling."""
+        params_file = self.input_dir / 'user_defined_params.py'
+        if not params_file.exists():
+            raise FileNotFoundError(
+                f"user_defined_params.py not found in {self.input_dir}. "
+                "Pass --dt explicitly.")
+        sys.path.insert(0, str(self.input_dir))
         try:
-            params_file = self.input_dir / 'user_defined_params.py'
-            if params_file.exists():
-                sys.path.insert(0, str(self.input_dir))
-                from user_defined_params import par
-                # Multiply by 10 for GM sampling rate as per eqdyna convention
-                return par.dt * 10
-        except:
-            self.logger.warning("Could not read dt from user_defined_params.py, using default 0.05")
-        
-        return 0.05  # Default dt value (0.005 * 10)
+            from user_defined_params import par
+            return par.dt * 10
+        except (ImportError, AttributeError) as e:
+            raise RuntimeError(
+                f"Could not read par.dt from {params_file}: {e}") from e
     
     def discover_chunks(self) -> List[int]:
         """Discover all available chunk IDs from surface coordinate files"""
@@ -151,46 +152,22 @@ class EQDynaConverter:
         
         # Verify data size
         expected_size = num_stations * components_per_station * num_time_steps
-        if len(all_data) < expected_size:
-            self.logger.warning(f"File size mismatch: got {len(all_data)}, expected {expected_size}")
-            all_data = np.pad(all_data, (0, expected_size - len(all_data)), mode='constant')
-        elif len(all_data) > expected_size:
-            all_data = all_data[:expected_size]
+        if len(all_data) != expected_size:
+            raise ValueError(
+                f"Binary file size mismatch in {gm_filepath}: "
+                f"got {len(all_data)} values, expected {expected_size} "
+                f"({num_stations} stations × 3 components × {num_time_steps} steps)")
         
-        try:
-            # Reshape to [num_time_steps, num_stations, 3] using vectorized operations
-            # Data format: [t0_s0_c0, t0_s0_c1, t0_s0_c2, t0_s1_c0, t0_s1_c1, t0_s1_c2, ...]
-            reshaped_data = all_data.reshape(num_time_steps, num_stations, components_per_station)
-            
-            # Extract components and transpose to [num_stations, num_time_steps]
-            vel_strike = reshaped_data[:, :, 0].T    # Strike component
-            vel_normal = reshaped_data[:, :, 1].T    # Normal component  
-            vel_vertical = reshaped_data[:, :, 2].T  # Vertical component
-            
-            self.logger.info("Completed vectorized time series extraction")
-            
-        except Exception as e:
-            self.logger.error(f"Vectorized reshape failed: {e}, falling back to loop method")
-            
-            # Fallback to loop method if vectorization fails
-            vel_strike = np.zeros((num_stations, num_time_steps))
-            vel_normal = np.zeros((num_stations, num_time_steps))
-            vel_vertical = np.zeros((num_stations, num_time_steps))
-            
-            for station_idx in range(num_stations):
-                if station_idx % 1000 == 0:
-                    self.logger.info(f"  Processing station {station_idx}/{num_stations} ({100*station_idx/num_stations:.1f}%)")
-                
-                # Calculate indices for this station
-                indices_strike = np.arange(num_time_steps) * num_stations * 3 + station_idx * 3
-                
-                for i, index in enumerate(indices_strike):
-                    if index + 2 < len(all_data):
-                        vel_strike[station_idx, i] = all_data[index]
-                        vel_normal[station_idx, i] = all_data[index + 1]
-                        vel_vertical[station_idx, i] = all_data[index + 2]
-            
-            self.logger.info("Completed fallback loop-based extraction")
+        # Reshape to [num_time_steps, num_stations, 3]
+        # Data format: [t0_s0_c0, t0_s0_c1, t0_s0_c2, t0_s1_c0, t0_s1_c1, t0_s1_c2, ...]
+        reshaped_data = all_data.reshape(num_time_steps, num_stations, components_per_station)
+
+        # Extract components and transpose to [num_stations, num_time_steps]
+        vel_strike = reshaped_data[:, :, 0].T
+        vel_normal = reshaped_data[:, :, 1].T
+        vel_vertical = reshaped_data[:, :, 2].T
+
+        self.logger.info("Completed vectorized time series extraction")
         
         return {
             'strike': vel_strike,
@@ -208,44 +185,26 @@ class EQDynaConverter:
         coords = self.load_station_locations(chunk_id)
         num_stations = coords.shape[0]
         
-        # Extract velocity time series for all stations at once using vectorized operations
-        try:
-            velocity_data = self.get_all_velocity_timeseries(chunk_id, coords)
-            
-            # Generate station IDs
-            station_ids = np.arange(self.global_station_id, self.global_station_id + num_stations)
-            self.global_station_id += num_stations
-            
-            # Prepare chunk data
-            chunk_data = {
-                'station_ids': station_ids,
-                'locations': coords,
-                'chunk_ids': np.full(num_stations, chunk_id),
-                'local_ids': np.arange(num_stations),
-                'vel_strike': velocity_data['strike'],
-                'vel_normal': velocity_data['normal'],
-                'vel_vertical': velocity_data['vertical'],
-                'time_steps': velocity_data['time_steps'],
-                'dt': self.dt
-            }
-            
-            self.logger.info(f"Chunk {chunk_id}: Converted {num_stations} stations using vectorized operations")
-            
-        except Exception as e:
-            self.logger.error(f"Error processing chunk {chunk_id}: {e}")
-            # Return empty chunk data on failure
-            chunk_data = {
-                'station_ids': np.array([]),
-                'locations': np.array([]).reshape(0, 3),
-                'chunk_ids': np.array([]),
-                'local_ids': np.array([]),
-                'vel_strike': np.array([]).reshape(0, 0),
-                'vel_normal': np.array([]).reshape(0, 0),
-                'vel_vertical': np.array([]).reshape(0, 0),
-                'time_steps': 0,
-                'dt': self.dt
-            }
-        
+        # Extract velocity time series for all stations at once
+        velocity_data = self.get_all_velocity_timeseries(chunk_id, coords)
+
+        # Generate station IDs
+        station_ids = np.arange(self.global_station_id, self.global_station_id + num_stations)
+        self.global_station_id += num_stations
+
+        chunk_data = {
+            'station_ids': station_ids,
+            'locations': coords,
+            'chunk_ids': np.full(num_stations, chunk_id),
+            'local_ids': np.arange(num_stations),
+            'vel_strike': velocity_data['strike'],
+            'vel_normal': velocity_data['normal'],
+            'vel_vertical': velocity_data['vertical'],
+            'time_steps': velocity_data['time_steps'],
+            'dt': self.dt
+        }
+
+        self.logger.info(f"Chunk {chunk_id}: Converted {num_stations} stations")
         return chunk_data
     
     def create_station_list_npz(self, all_chunks_data: List[Dict]) -> str:
@@ -385,12 +344,8 @@ class EQDynaConverter:
         # Convert each chunk
         all_chunks_data = []
         for chunk_id in chunk_ids:
-            try:
-                chunk_data = self.convert_chunk(chunk_id)
-                all_chunks_data.append(chunk_data)
-            except Exception as e:
-                self.logger.error(f"Failed to convert chunk {chunk_id}: {e}")
-                continue
+            chunk_data = self.convert_chunk(chunk_id)
+            all_chunks_data.append(chunk_data)
         
         if not all_chunks_data:
             raise ValueError("No chunks were successfully converted")
