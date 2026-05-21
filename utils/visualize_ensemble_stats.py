@@ -28,10 +28,17 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+from code_style import CODE_COLORS as _CODE_COLORS, CODE_DISPLAY_NAMES as _CODE_DISPLAY_NAMES
+from code_style import code_of as _code_of, code_color as _code_color
+from code_style import code_display as _code_display, gmm_envelope as _gmm_envelope
+
 # Try to import OpenQuake Engine GMPE functions - requires OpenQuake Engine
 # Install with: pip install openquake.engine
 try:
-    from openquake_engine_gmpe import get_nga_west2_gmpe_predictions, get_cav_gmm_predictions
+    from openquake_engine_gmpe import (
+        get_nga_west2_gmpe_predictions_cached as get_nga_west2_gmpe_predictions,
+        get_cav_gmm_predictions,
+    )
     PLOT_GMPE_AVAILABLE = True
     print("OpenQuake Engine GMPE functions successfully loaded")
 except ImportError as e:
@@ -46,34 +53,6 @@ def load_gm_statistics(gm_file):
     if not gm_file.exists():
         raise FileNotFoundError(f"GM statistics file not found: {gm_file}")
     return np.load(gm_file)
-
-
-_CODE_COLORS = {
-    'eqdyna':     'tab:blue',
-    'fd3d':       'tab:orange',
-    'mafe':       'tab:green',
-    'seissol':    'tab:red',
-    'waveqlab3d': 'tab:purple',
-    'specfem3d':  'tab:brown',
-}
-
-_CODE_AUTHOR_LABELS = {
-    'waveqlab3d': 'Withers',
-    'seissol':    'Ulrich/Gabriel',
-    'sord':       'Wang',
-    'eqdyna':     'Liu/Duan',
-    'mafe':       'Ma',
-    'specfem3d':  'Oral/Ampuero/Asimaki',
-    'fd3d':       'Gallovič/Valentová',
-}
-
-
-def _code_of(label):
-    return label.split('/', 1)[0] if '/' in label else label
-
-
-def _code_color(label):
-    return _CODE_COLORS.get(_code_of(label), 'tab:gray')
 
 
 def _is_acc_metric(metric):
@@ -143,8 +122,13 @@ def _group_arithmean_xlog(curves, x_target):
     return x_target[keep], avg[keep]
 
 
-def _group_logstd(curves, x_target, min_n=2):
-    """Inter-curve sample std in ln(y) units (ddof=1) — used for inter-event tau."""
+def _group_logstd(curves, x_target, min_n=3):
+    """Inter-curve sample std in ln(y) units (ddof=1) — used for inter-event tau.
+
+    Default ``min_n=3``: with N=2 the sample-std estimator has CV ≈ 100 % and
+    a 95 % CI spanning ~2 orders of magnitude, which is operationally
+    meaningless. Callers wanting the looser N=2 behaviour can override.
+    """
     min_n = max(min_n, 2)
     arr = _stack_curves(curves, x_target, log_y=True)
     if arr is None or arr.shape[0] < min_n:
@@ -361,16 +345,26 @@ def plot_gm_metrics_vs_distance(scenarios, output_dir="results", distance_range=
         # Per-code group-mean bold solid line (geometric mean across that code's sims)
         if max_dist_km > 0:
             common_rjb = np.geomspace(1.0, max_dist_km, 60)
+            per_code_std_groupmeans = []  # one curve per code for the across-codes mean
             for code in sorted(per_code_means):
                 color = _CODE_COLORS.get(code, 'tab:gray')
                 avg_x, avg_y = _group_geomean(per_code_means[code], common_rjb)
                 if avg_x is not None and avg_y is not None and len(avg_x) >= 2:
                     ax_mean.plot(avg_x, avg_y, color=color, linewidth=3.0,
-                                 label=f'{code} ({len(per_code_means[code])})')
+                                 label=f'{_code_display(code)} ({len(per_code_means[code])})')
                 std_x, std_y = _group_arithmean_xlog(per_code_stds[code], common_rjb)
                 if std_x is not None and std_y is not None and len(std_x) >= 2:
                     ax_cov.plot(std_x, std_y, color=color, linewidth=3.0,
-                                label=f'{code} ({len(per_code_stds[code])})')
+                                label=f'{_code_display(code)} ({len(per_code_stds[code])})')
+                    per_code_std_groupmeans.append((std_x, std_y))
+
+            # Average of the per-code φ curves (Figs 15/19 — "mean of N standard deviations")
+            if len(per_code_std_groupmeans) >= 2:
+                mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_rjb)
+                if mean_x is not None and len(mean_x) >= 2:
+                    ax_cov.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                                linestyle='-', zorder=5,
+                                label=f'Mean of {len(per_code_std_groupmeans)} codes')
 
         # Add GMPE curves for PGA and RSA metrics only
         if add_gmpe and PLOT_GMPE_AVAILABLE and (metric == 'PGA' or metric.startswith('RSA_T_')):
@@ -402,32 +396,13 @@ def plot_gm_metrics_vs_distance(scenarios, output_dir="results", distance_range=
                     data = gmpe_results[period]
                     gmpe_distances_km = data['distances']
                     ax_mean.loglog(gmpe_distances_km, data['NGA_AVG']['mean'], 'black', linewidth=3, label=f'NGA-West2 Avg (M{magnitude})')
-                    
-                    # Black shaded area: range of 4 GMPE means
-                    all_means = []
-                    for gmpe in ['ASK', 'BSSA', 'CB', 'CY']:
-                        all_means.append(data[gmpe]['mean'])
-                    
-                    means_upper = np.max(all_means, axis=0)
-                    means_lower = np.min(all_means, axis=0)
-                    
-                    ax_mean.fill_between(gmpe_distances_km, means_lower, means_upper, 
+
+                    # Mean range (shaded) and ±1τ envelope (FORMULAS.md §7.1).
+                    _means, envelope_upper, envelope_lower = _gmm_envelope(data, stat_key='tau')
+                    ax_mean.fill_between(gmpe_distances_km, _means.min(axis=0), _means.max(axis=0),
                                        color='black', alpha=0.2, label='GMPE Mean Range')
-                    
-                    # Black dashed lines: ±1σ envelope from all 4 GMPEs
-                    all_upper = []
-                    all_lower = []
-                    for gmpe in ['ASK', 'BSSA', 'CB', 'CY']:
-                        upper = data[gmpe]['mean'] * np.exp(data[gmpe]['std'])
-                        lower = data[gmpe]['mean'] * np.exp(-data[gmpe]['std'])
-                        all_upper.append(upper)
-                        all_lower.append(lower)
-                    
-                    envelope_upper = np.max(all_upper, axis=0)
-                    envelope_lower = np.min(all_lower, axis=0)
-                    
                     ax_mean.loglog(gmpe_distances_km, envelope_upper, '--', color='black',
-                                   linewidth=2, alpha=0.7, label='GMPE ±1σ envelope')
+                                   linewidth=2, alpha=0.7, label='GMM ±1τ (inter-event)')
                     ax_mean.loglog(gmpe_distances_km, envelope_lower, '--', color='black', linewidth=2, alpha=0.7)
 
                     # φ band on std plot (only for acceleration metrics)
@@ -578,16 +553,26 @@ def plot_response_spectra_vs_distance(scenarios, periods=None, output_dir="resul
 
         if max_dist_km > 0:
             common_rjb = np.geomspace(1.0, max_dist_km, 60)
+            per_code_std_groupmeans = []  # one curve per code for the across-codes mean
             for code in sorted(per_code_means):
                 color = _CODE_COLORS.get(code, 'tab:gray')
                 avg_x, avg_y = _group_geomean(per_code_means[code], common_rjb)
                 if avg_x is not None and avg_y is not None and len(avg_x) >= 2:
                     ax_mean.plot(avg_x, avg_y, color=color, linewidth=3.0,
-                                 label=f'{code} ({len(per_code_means[code])})')
+                                 label=f'{_code_display(code)} ({len(per_code_means[code])})')
                 std_x, std_y = _group_arithmean_xlog(per_code_stds[code], common_rjb)
                 if std_x is not None and std_y is not None and len(std_x) >= 2:
                     ax_cov.plot(std_x, std_y, color=color, linewidth=3.0,
-                                label=f'{code} ({len(per_code_stds[code])})')
+                                label=f'{_code_display(code)} ({len(per_code_stds[code])})')
+                    per_code_std_groupmeans.append((std_x, std_y))
+
+            # Average of the per-code φ curves (Figs 15/19 — "mean of N standard deviations")
+            if len(per_code_std_groupmeans) >= 2:
+                mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_rjb)
+                if mean_x is not None and len(mean_x) >= 2:
+                    ax_cov.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                                linestyle='-', zorder=5,
+                                label=f'Mean of {len(per_code_std_groupmeans)} codes')
         
         # Add GMPE curves for RSA periods
         if add_gmpe and PLOT_GMPE_AVAILABLE:
@@ -611,31 +596,13 @@ def plot_response_spectra_vs_distance(scenarios, periods=None, output_dir="resul
                     data = gmpe_results[period_value]
                     gmpe_distances_km = data['distances']
                     ax_mean.loglog(gmpe_distances_km, data['NGA_AVG']['mean'], 'black', linewidth=3, label=f'NGA-West2 Avg (M{magnitude})')
-                    
-                    # Black shaded area: range of 4 GMPE means
-                    all_means = []
-                    for gmpe in ['ASK', 'BSSA', 'CB', 'CY']:
-                        all_means.append(data[gmpe]['mean'])
-                    
-                    means_upper = np.max(all_means, axis=0)
-                    means_lower = np.min(all_means, axis=0)
-                    
-                    ax_mean.fill_between(gmpe_distances_km, means_lower, means_upper, 
+
+                    # Mean range (shaded) and ±1τ envelope (FORMULAS.md §7.1).
+                    _means, envelope_upper, envelope_lower = _gmm_envelope(data, stat_key='tau')
+                    ax_mean.fill_between(gmpe_distances_km, _means.min(axis=0), _means.max(axis=0),
                                        color='black', alpha=0.2, label='GMPE Mean Range')
-                    
-                    # Black dashed lines: ±1σ envelope from all 4 GMPEs
-                    all_upper = []
-                    all_lower = []
-                    for gmpe in ['ASK', 'BSSA', 'CB', 'CY']:
-                        upper = data[gmpe]['mean'] * np.exp(data[gmpe]['std'])
-                        lower = data[gmpe]['mean'] * np.exp(-data[gmpe]['std'])
-                        all_upper.append(upper)
-                        all_lower.append(lower)
-                    
-                    envelope_upper = np.max(all_upper, axis=0)
-                    envelope_lower = np.min(all_lower, axis=0)
-                    
-                    ax_mean.loglog(gmpe_distances_km, envelope_upper, '--', color='black', linewidth=2, alpha=0.7)
+                    ax_mean.loglog(gmpe_distances_km, envelope_upper, '--', color='black',
+                                   linewidth=2, alpha=0.7, label='GMM ±1τ (inter-event)')
                     ax_mean.loglog(gmpe_distances_km, envelope_lower, '--', color='black', linewidth=2, alpha=0.7)
 
                     # φ (intra-event std) band on ax_cov
@@ -770,16 +737,26 @@ def plot_response_spectra_vs_periods(scenarios, target_rjb_km, output_dir="resul
 
     if periods_sorted:
         common_T = np.geomspace(min(periods_sorted), max(periods_sorted), 80)
+        per_code_std_groupmeans = []  # for the across-codes mean overlay
         for code in sorted(per_code_curves):
             color = _CODE_COLORS.get(code, 'tab:gray')
             avg_x, avg_y = _group_geomean(per_code_curves[code], common_T)
             if avg_x is not None and avg_y is not None and len(avg_x) >= 2:
                 ax_mean.loglog(avg_x, avg_y, color=color, linewidth=3.0,
-                               label=f'{code} ({len(per_code_curves[code])})')
+                               label=f'{_code_display(code)} ({len(per_code_curves[code])})')
             std_x, std_y = _group_arithmean_xlog(per_code_stds[code], common_T)
             if std_x is not None and std_y is not None and len(std_x) >= 2:
                 ax_std.plot(std_x, std_y, color=color, linewidth=3.0,
-                            label=f'{code} ({len(per_code_stds[code])})')
+                            label=f'{_code_display(code)} ({len(per_code_stds[code])})')
+                per_code_std_groupmeans.append((std_x, std_y))
+
+        # Mean of per-code φ curves across periods (Fig 16)
+        if len(per_code_std_groupmeans) >= 2:
+            mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_T)
+            if mean_x is not None and len(mean_x) >= 2:
+                ax_std.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                            linestyle='-', zorder=5,
+                            label=f'Mean of {len(per_code_std_groupmeans)} codes')
             
     
     # Add GMPE comparison if requested and available
@@ -984,7 +961,8 @@ def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, 
         gmm_at = np.interp(np.log(sd['periods']),
                            np.log(periods_sorted), np.log(gmm_avg))
         bias = np.log(sd['sa_g']) - gmm_at
-        ax.plot(sd['periods'], bias, '--', color='gray',
+        ax.plot(sd['periods'], bias, '--',
+                color=_CODE_COLORS.get(sd['code'], 'tab:gray'),
                 alpha=0.35, linewidth=1.0, label='_nolegend_')
         per_code_bias.setdefault(sd['code'], []).append((sd['periods'], bias))
 
@@ -993,9 +971,8 @@ def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, 
         x_curve, y_curve = _group_arithmean_xlog(per_code_bias[code], common_T)
         if x_curve is None or len(x_curve) < 2:
             continue
-        author_label = _CODE_AUTHOR_LABELS.get(code, code)
         ax.plot(x_curve, y_curve, color=_CODE_COLORS.get(code, 'tab:gray'),
-                linewidth=3.0, label=author_label)
+                linewidth=3.0, label=f'{_code_display(code)} ({len(per_code_bias[code])})')
 
     ax.set_xscale('log')
     ax.set_xlabel('Period (s)', fontsize=13, fontweight='bold')
@@ -1057,7 +1034,7 @@ def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0,
             x_tau, y_tau = _group_logstd(per_code_curves[code], common_rjb)
             if x_tau is not None and len(x_tau) >= 2:
                 ax.plot(x_tau, y_tau, '--', color=color, linewidth=1.6,
-                        label=f'{code} τ_within ({len(per_code_curves[code])})')
+                        label=f'{_code_display(code)} τ_within ({len(per_code_curves[code])})')
             x_avg, y_avg = _group_geomean(per_code_curves[code], common_rjb)
             if x_avg is not None and len(x_avg) >= 2:
                 # Re-interpolate the group mean back onto common_rjb for the
@@ -1066,7 +1043,7 @@ def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0,
 
         # Epistemic tau: std across group-means
         if len(per_code_groupmean) >= 2:
-            x_ep, y_ep = _group_logstd(per_code_groupmean, common_rjb, min_n=2)
+            x_ep, y_ep = _group_logstd(per_code_groupmean, common_rjb, min_n=3)
             if x_ep is not None and len(x_ep) >= 2:
                 ax.plot(x_ep, y_ep, '-', color='black', linewidth=3.0,
                         label=f'epistemic τ across {len(per_code_groupmean)} groups')
@@ -1120,13 +1097,13 @@ def plot_inter_event_std_vs_periods(scenarios, target_rjb_km, output_dir):
         x_tau, y_tau = _group_logstd(per_code_curves[code], common_T)
         if x_tau is not None and len(x_tau) >= 2:
             ax.plot(x_tau, y_tau, '--', color=color, linewidth=1.6,
-                    label=f'{code} τ_within ({len(per_code_curves[code])})')
+                    label=f'{_code_display(code)} τ_within ({len(per_code_curves[code])})')
         x_avg, y_avg = _group_geomean(per_code_curves[code], common_T)
         if x_avg is not None and len(x_avg) >= 2:
             per_code_groupmean.append((x_avg, y_avg))
 
     if len(per_code_groupmean) >= 2:
-        x_ep, y_ep = _group_logstd(per_code_groupmean, common_T, min_n=2)
+        x_ep, y_ep = _group_logstd(per_code_groupmean, common_T, min_n=3)
         if x_ep is not None and len(x_ep) >= 2:
             ax.plot(x_ep, y_ep, '-', color='black', linewidth=3.0,
                     label=f'epistemic τ across {len(per_code_groupmean)} groups')

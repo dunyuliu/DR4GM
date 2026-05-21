@@ -24,6 +24,39 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import pandas as pd
 
+
+def rjb_distances_m(locations_m: np.ndarray,
+                    fault_start_m,
+                    fault_end_m) -> np.ndarray:
+    """Vectorized Joyner-Boore distance for an arbitrary fault segment.
+
+    Projects each station onto the fault segment (2-D, XY plane) and returns
+    the distance to the closest point on the segment, in meters.  Handles any
+    fault orientation (not just axis-aligned).
+
+    Parameters
+    ----------
+    locations_m : (N, 2+) array — station positions in meters (only [:, :2] used).
+    fault_start_m, fault_end_m : array-like, length >= 2 — fault trace endpoints
+        in meters.
+
+    Returns
+    -------
+    ndarray of shape (N,), distances in meters (always >= 0).
+    """
+    fs = np.asarray(fault_start_m, dtype=float)[:2]
+    fe = np.asarray(fault_end_m, dtype=float)[:2]
+    seg = fe - fs
+    seg_len_sq = float(seg @ seg)
+    pts = np.asarray(locations_m)[:, :2].astype(float)
+    if seg_len_sq == 0.0:
+        return np.linalg.norm(pts - fs, axis=1)
+    rel = pts - fs
+    t = np.clip(rel @ seg / seg_len_sq, 0.0, 1.0)
+    proj = fs + np.outer(t, seg)
+    return np.linalg.norm(pts - proj, axis=1)
+
+
 class GMStatistics:
     """Compute ground motion statistics as a function of Rjb distance"""
     
@@ -133,75 +166,17 @@ class GMStatistics:
         return np.linalg.norm(point - projection)
     
     def _calculate_rjb_distances(self) -> np.ndarray:
-        """
-        Calculate Joyner-Boore (Rjb) distances from fault line segment for each station
-        Following gmFuncLib.py calcRjb logic but adapted to use geometry loaded from geometry.npz
-        """
-        # Load fault geometry
+        """Vectorized Rjb distances in meters, with a 100 m floor to avoid log(0)."""
         fault_info = self._load_fault_geometry()
-        
-        # Extract fault trace endpoints (use only X,Y coordinates for 2D distance)
-        fault_start = fault_info['fault_trace_start'][:2]  # [x, y]
-        fault_end = fault_info['fault_trace_end'][:2]      # [x, y]
-        
-        self.logger.info(f"Computing Rjb distances following gmFuncLib.py logic")
-        self.logger.info(f"Fault line: ({fault_start[0]:.0f}, {fault_start[1]:.0f}) to ({fault_end[0]:.0f}, {fault_end[1]:.0f})")
-        
-        # Determine fault orientation to apply appropriate calcRjb logic
-        # Check if fault is more horizontal (constant Y) or vertical (constant X)
-        dx = abs(fault_end[0] - fault_start[0])
-        dy = abs(fault_end[1] - fault_start[1])
-        
-        # Calculate Rjb for each station following gmFuncLib.py calcRjb logic
-        rjb_distances = np.zeros(len(self.locations))
-        
-        if dx > dy:
-            # Horizontal fault (fault runs along X-axis, like original gmFuncLib with strike-slip)
-            fault_xmin = min(fault_start[0], fault_end[0])
-            fault_xmax = max(fault_start[0], fault_end[0])
-            
-            self.logger.info(f"Horizontal fault detected: X from {fault_xmin:.0f} to {fault_xmax:.0f}")
-            
-            for i, location in enumerate(self.locations):
-                x, y = location[0], location[1]
-                
-                # Follow gmFuncLib.py calcRjb logic exactly
-                if x <= fault_xmin:
-                    # Station is west of fault start - distance to start point
-                    rjb_distances[i] = ((x - fault_xmin)**2 + (y - fault_start[1])**2)**0.5
-                elif x >= fault_xmax:
-                    # Station is east of fault end - distance to end point  
-                    rjb_distances[i] = ((x - fault_xmax)**2 + (y - fault_end[1])**2)**0.5
-                else:
-                    # Station is between fault endpoints - perpendicular distance to fault line
-                    rjb_distances[i] = abs(y - fault_start[1])  # Distance to fault line at constant Y
-        else:
-            # Vertical fault (fault runs along Y-axis)
-            fault_ymin = min(fault_start[1], fault_end[1])
-            fault_ymax = max(fault_start[1], fault_end[1])
-            
-            self.logger.info(f"Vertical fault detected: Y from {fault_ymin:.0f} to {fault_ymax:.0f}")
-            
-            for i, location in enumerate(self.locations):
-                x, y = location[0], location[1]
-                
-                # Adapt gmFuncLib.py logic for vertical fault (Y-direction)
-                if y <= fault_ymin:
-                    # Station is south of fault start - distance to start point
-                    rjb_distances[i] = ((x - fault_start[0])**2 + (y - fault_ymin)**2)**0.5
-                elif y >= fault_ymax:
-                    # Station is north of fault end - distance to end point
-                    rjb_distances[i] = ((x - fault_end[0])**2 + (y - fault_ymax)**2)**0.5
-                else:
-                    # Station is between fault endpoints - perpendicular distance to fault line
-                    rjb_distances[i] = abs(x - fault_start[0])  # Distance to fault line at constant X
-        
-        # Add small minimum distance to avoid zero distances
-        rjb_distances = np.maximum(rjb_distances, 100.0)  # Minimum 100 m
-        
-        self.logger.info(f"Rjb distances calculated: {rjb_distances.min():.0f} to {rjb_distances.max():.0f} m")
-        
-        return rjb_distances
+        self.logger.info("Computing Rjb distances (vectorized)")
+        rjb = rjb_distances_m(
+            self.locations,
+            fault_info['fault_trace_start'],
+            fault_info['fault_trace_end'],
+        )
+        rjb = np.maximum(rjb, 100.0)  # 100 m floor — avoids log(0) in binning
+        self.logger.info(f"Rjb distances: {rjb.min():.0f} – {rjb.max():.0f} m")
+        return rjb
     
     
     def calc_gm_stats_vs_r(self, values: np.ndarray, rjb_distances: np.ndarray,

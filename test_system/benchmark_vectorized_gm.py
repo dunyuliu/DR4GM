@@ -370,8 +370,10 @@ def relerr(ref: np.ndarray, test: np.ndarray) -> float:
 
 
 def main():
+    # Resolve repo root from this file's location so the benchmark is portable.
+    repo_root = Path(__file__).resolve().parent.parent
     candidates = [
-        Path("/Users/dliu/scratch/dr4gm.dev/dr4gm/reference/results/eqdyna/0001.A.2000m_subsampled/grid_2000m.npz"),
+        repo_root / "reference" / "results" / "eqdyna" / "0001.A.2000m_subsampled" / "grid_2000m.npz",
         Path("/tmp/dr4gm_verify/grid_2000m.npz"),
     ]
     npz_path = next((p for p in candidates if p.exists()), None)

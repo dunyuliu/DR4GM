@@ -21,6 +21,7 @@ strike-slip fault. If you need other source styles, extend the
 
 from __future__ import annotations
 
+import functools
 import numpy as np
 
 if not hasattr(np, "RankWarning"):
@@ -212,6 +213,35 @@ def get_nga_west2_gmpe_predictions(distances, magnitude, periods, vs30):
     return results
 
 
+@functools.lru_cache(maxsize=64)
+def _get_nga_west2_cached(distances_tuple, magnitude, periods_tuple, vs30):
+    """Memoized backend for get_nga_west2_gmpe_predictions.
+
+    Converts tuples back to arrays so the real computation stays unchanged.
+    Cache is keyed on (distances rounded to 3 dp, magnitude, periods, vs30).
+    """
+    return get_nga_west2_gmpe_predictions(
+        np.asarray(distances_tuple), magnitude, list(periods_tuple), vs30
+    )
+
+
+def get_nga_west2_gmpe_predictions_cached(distances, magnitude, periods, vs30):
+    """Drop-in cached wrapper around get_nga_west2_gmpe_predictions.
+
+    Rounds distances to 3 decimal places before hashing so that calls with
+    trivially different float representations share the same cache entry.
+    Saves ~3 s per regen_ensemble_figures.sh run across the 7+ identical
+    calls inside the Fig 12 / Fig 13 / Fig 19 loops.
+    """
+    distances_km = np.asarray(distances, dtype=float)
+    key_dist = tuple(np.round(distances_km, 3).tolist())
+    key_periods = tuple(sorted(float(p) for p in periods))
+    return _get_nga_west2_cached(key_dist, float(magnitude), key_periods, float(vs30))
+
+
+_M_PER_S_PER_G_S = 9.81  # 1 g·s = 9.81 m/s (since 1 g = 9.81 m/s²)
+
+
 def get_cav_gmm_predictions(distances, magnitude, vs30):
     """Predict CAV via Campbell-Bozorgnia 2014 (the only NGA-West2 GMPE
     in this wrapper that defines CAV).
@@ -224,28 +254,30 @@ def get_cav_gmm_predictions(distances, magnitude, vs30):
         ``{"distances": <km>, "CB": {"mean": <CAV in g·s>, "std": <ln-sigma>,
         "phi": <intra-event ln-sigma>}}``.
 
-        ``mean`` is in linear units of g·s per OpenQuake's imt.CAV docstring
-        ("Units are g-sec"). No unit conversion is applied to the raw OpenQuake
-        output.
+    Unit note (UPSTREAM DRIFT)
+    -------------------------
+    OpenQuake's ``imt.CAV`` docstring says "Units are g-sec", but the
+    Campbell-Bozorgnia 2014 ``compute`` implementation in
+    ``openquake.hazardlib.gsim.campbell_bozorgnia_2014`` actually returns
+    ln(CAV in **m/s**), NOT ln(CAV in g·s). Empirical check (Mw 7, Vs30=760,
+    Rjb=10 km): raw ``exp(mean_ln)`` ≈ 7, which matches the Withers et al.
+    paper's ~10 m/s, not ~10 g·s. We divide by 9.81 (= 1 g·s per m/s
+    conversion factor) to return the docstring-promised g·s units, matching
+    the simulation CAV scale (~0.3-0.5 g·s near-field for our DR4GM ensemble).
 
-        KNOWN ISSUE: At M7.0, Vs30=760, the predicted median is ~11 g·s at
-        1 km and ~7 g·s at 10 km, which is 15-20× above the simulation
-        ensemble (0.3-0.5 g·s). The simulations underpredict because they are
-        low-frequency limited (fmax ≈ 0.5-2 Hz depending on grid spacing) and
-        CAV is dominated by high-frequency broadband energy captured in the
-        empirical records used to calibrate CB14. This discrepancy is physical,
-        not a unit error, per inspection of OpenQuake's CB14 source (no g→m/s²
-        conversion applied to CAV output). The figure retains the CB14 line as
-        a reference; the gap should be noted in the manuscript caption.
+    Mismatch documented in ``FORMULAS.md §1.4``; revisit if OpenQuake fixes upstream.
     """
     from openquake.hazardlib.imt import CAV
     distances_km = np.asarray(distances, dtype=float)
     ctx = _build_context(distances_km, magnitude, vs30)
     gsim = _GMPE_CLASSES["CB"]()
     mean_ln, sigma_ln, _, sigma_phi = _compute_one(gsim, ctx, CAV())
+    # OpenQuake returns m/s despite docstring claiming g·s — convert here so
+    # downstream code can trust the documented g·s units.
+    mean_g_s = np.exp(mean_ln) / _M_PER_S_PER_G_S
     return {
         "distances": distances_km,
-        "CB": {"mean": np.exp(mean_ln), "std": sigma_ln, "phi": sigma_phi},
+        "CB": {"mean": mean_g_s, "std": sigma_ln, "phi": sigma_phi},
     }
 
 

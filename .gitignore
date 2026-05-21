@@ -18,12 +18,14 @@ utils/results/
 # docs/ managed separately (paper, slides, release notes)
 docs/
 
-# Internal dev/release files — not for public repo
-AUDIT.md
-CLAUDE.md
-PROJECT_RULES.md
+# Internal dev/release files. Only README.md and FORMULAS.md ship publicly.
+# Everything internal lives under local/.
+local/
 release_notes_v*.md
 demo/
+
+# Claude Code agent state — local only.
+.claude/
 
 # Heavy media not tracked in git
 *.webm

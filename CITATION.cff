@@ -8,8 +8,8 @@ abstract: >
   simulations. Supports seven simulation codes (EQdyna, SeisSol,
   WaveQLab3D, FD3D_TSN, SPECFEM3D, MAFE, SORD) and computes PGA, PGV,
   PGD, RSA (0.1–10 s), and CAV using the OpenQuake engine.
-version: "0.0.1-rc5"
-date-released: "2026-05-14"
+version: "0.1.0"
+date-released: "2026-05-21"
 license: AGPL-3.0-or-later
 repository-code: "https://github.com/dunyuliu/dr4gm"
 authors:

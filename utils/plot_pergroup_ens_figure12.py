@@ -40,45 +40,24 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
+from gm_stats import rjb_distances_m
+
 try:
-    from openquake_engine_gmpe import get_nga_west2_gmpe_predictions
+    from openquake_engine_gmpe import get_nga_west2_gmpe_predictions_cached as get_nga_west2_gmpe_predictions
     GMPE_AVAILABLE = True
 except ImportError as exc:
     print(f"WARNING: NGA-West2 GMPE module not available: {exc}", file=sys.stderr)
     GMPE_AVAILABLE = False
 
-CODE_COLORS = {
-    'eqdyna':     'tab:blue',
-    'fd3d':       'tab:orange',
-    'mafe':       'tab:green',
-    'seissol':    'tab:red',
-    'waveqlab3d': 'tab:purple',
-    'specfem3d':  'tab:brown',
-    'sord':       'tab:gray',
-}
+from code_style import CODE_COLORS, CODE_DISPLAY_NAMES, code_of as _code_of, gmm_envelope as _gmm_envelope
 
 CM_S2_PER_G = 981.0
 SCATTER_PER_SIM = 1000
 
 
-def _code_of(label: str) -> str:
-    return label.split('/', 1)[0]
-
-
 def _rjb_km(locations_m: np.ndarray, fault_start_m, fault_end_m) -> np.ndarray:
-    fs = np.asarray(fault_start_m, dtype=float)[:2]
-    fe = np.asarray(fault_end_m, dtype=float)[:2]
-    seg = fe - fs
-    seg_len_sq = float(seg @ seg)
-    pts = locations_m[:, :2].astype(float)
-    if seg_len_sq == 0.0:
-        d = np.linalg.norm(pts - fs, axis=1)
-    else:
-        rel = pts - fs
-        t = np.clip(rel @ seg / seg_len_sq, 0.0, 1.0)
-        proj = fs + np.outer(t, seg)
-        d = np.linalg.norm(pts - proj, axis=1)
-    return d / 1000.0
+    """Thin wrapper: returns Rjb in km (no floor — scatter plot wants true distance)."""
+    return rjb_distances_m(locations_m, fault_start_m, fault_end_m) / 1000.0
 
 
 def _rsa_key_for_period(stats: np.lib.npyio.NpzFile, period_s: float):
@@ -103,49 +82,86 @@ def _rsa_key_for_period(stats: np.lib.npyio.NpzFile, period_s: float):
 
 
 def _load_scenario(input_dir: Path, label: str, period_s: float, rng: np.random.Generator):
+    """Load per-scenario scatter + binned curve for one panel.
+
+    Prefers per-station ``ground_motion_metrics.npz`` (gives the scatter cloud).
+    Falls back to pre-binned ``gm_statistics.npz`` when the per-station file
+    is unavailable (e.g. SORD shipped stats only) — scatter is empty in that
+    case but the binned median curve still plots.
+    """
     sd = input_dir / label
     gm_path = sd / 'ground_motion_metrics.npz'
+    stats_path = sd / 'gm_statistics.npz'
     geom_path = sd / 'geometry.npz'
-    for p in (gm_path, geom_path):
-        if not p.exists():
-            raise FileNotFoundError(f"Missing {p}")
+    if not geom_path.exists():
+        raise FileNotFoundError(f"Missing {geom_path}")
+    if not gm_path.exists() and not stats_path.exists():
+        raise FileNotFoundError(f"Missing both {gm_path} and {stats_path}")
 
-    gm = np.load(gm_path)
     geom = np.load(geom_path, allow_pickle=True)
 
-    periods = gm['periods']
-    period_idx = int(np.argmin(np.abs(periods - period_s)))
-    if abs(periods[period_idx] - period_s) > 1e-3:
-        raise KeyError(f"{label}: period {period_s}s not in metrics (closest {periods[period_idx]})")
-    sa_g = gm['SA'][:, period_idx] / CM_S2_PER_G
-    locations = gm['locations']
-    # Compute binned geomean directly from per-station data at 2 km resolution.
-    # Using gm_statistics.npz (500 m bins) creates aliasing artifacts when the
-    # station grid spacing is 1 km and single-station bins produce outliers.
-    rjb_all_km = _rjb_km(locations, geom['fault_trace_start'], geom['fault_trace_end'])
+    if gm_path.exists():
+        gm = np.load(gm_path)
+        periods = gm['periods']
+        period_idx = int(np.argmin(np.abs(periods - period_s)))
+        if abs(periods[period_idx] - period_s) > 1e-3:
+            raise KeyError(f"{label}: period {period_s}s not in metrics (closest {periods[period_idx]})")
+        sa_g = gm['SA'][:, period_idx] / CM_S2_PER_G
+        locations = gm['locations']
+        # Compute binned geomean directly from per-station data at 2 km resolution.
+        # Using gm_statistics.npz (500 m bins) creates aliasing artifacts when the
+        # station grid spacing is 1 km and single-station bins produce outliers.
+        rjb_all_km = _rjb_km(locations, geom['fault_trace_start'], geom['fault_trace_end'])
 
-    all_valid = (sa_g > 0) & np.isfinite(sa_g) & np.isfinite(rjb_all_km)
-    rjb_v = rjb_all_km[all_valid]
-    sa_v = sa_g[all_valid]
+        all_valid = (sa_g > 0) & np.isfinite(sa_g) & np.isfinite(rjb_all_km)
+        rjb_v = rjb_all_km[all_valid]
+        sa_v = sa_g[all_valid]
 
-    rjb_scatter_km = rjb_v
-    sa_g_scatter = sa_v
-    if len(rjb_scatter_km) > SCATTER_PER_SIM:
-        idx = rng.choice(len(rjb_scatter_km), SCATTER_PER_SIM, replace=False)
-        rjb_scatter_km = rjb_scatter_km[idx]
-        sa_g_scatter = sa_g_scatter[idx]
+        rjb_scatter_km = rjb_v
+        sa_g_scatter = sa_v
+        if len(rjb_scatter_km) > SCATTER_PER_SIM:
+            idx = rng.choice(len(rjb_scatter_km), SCATTER_PER_SIM, replace=False)
+            rjb_scatter_km = rjb_scatter_km[idx]
+            sa_g_scatter = sa_g_scatter[idx]
 
-    bin_size_km = 2.0
-    bin_edges = np.arange(0.0, rjb_v.max() + bin_size_km, bin_size_km)
-    rjb_bin_km, sa_bin_g = [], []
-    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
-        mask = (rjb_v >= lo) & (rjb_v < hi)
-        if mask.sum() < 5:
-            continue
-        rjb_bin_km.append(0.5 * (lo + hi))
-        sa_bin_g.append(np.exp(np.mean(np.log(sa_v[mask]))))
-    rjb_bin_km = np.array(rjb_bin_km)
-    sa_bin_g = np.array(sa_bin_g)
+        bin_size_km = 2.0
+        bin_edges = np.arange(0.0, rjb_v.max() + bin_size_km, bin_size_km)
+        rjb_bin_km, sa_bin_g = [], []
+        for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
+            mask = (rjb_v >= lo) & (rjb_v < hi)
+            if mask.sum() < 5:
+                continue
+            rjb_bin_km.append(0.5 * (lo + hi))
+            sa_bin_g.append(np.exp(np.mean(np.log(sa_v[mask]))))
+        rjb_bin_km = np.array(rjb_bin_km)
+        sa_bin_g = np.array(sa_bin_g)
+    else:
+        # Fallback: stats-only (e.g. SORD). No per-station scatter; just the
+        # binned median line from gm_statistics.npz. ``rjb_distance_bins`` is
+        # already bin-center values in meters; ``RSA_T_*_mean`` is in cm/s².
+        stats = np.load(stats_path)
+        rjb_centers_km = stats['rjb_distance_bins'].astype(float) / 1000.0
+        target = float(period_s)
+        best_key, best_diff = None, np.inf
+        for key in stats.files:
+            if not (key.startswith('RSA_T_') and key.endswith('_mean')):
+                continue
+            try:
+                val = float(key[len('RSA_T_'):-len('_mean')].replace('_', '.'))
+            except ValueError:
+                continue
+            if abs(val - target) < best_diff:
+                best_key, best_diff = key, abs(val - target)
+        if best_key is None or best_diff > 1e-3:
+            raise KeyError(f"{label}: RSA_T_{period_s}s not in {stats_path}")
+        sa_mean_g = stats[best_key].astype(float) / CM_S2_PER_G  # cm/s² → g
+        count_key = best_key.replace('_mean', '_count')
+        counts = stats[count_key] if count_key in stats.files else np.ones_like(sa_mean_g)
+        valid = (sa_mean_g > 0) & np.isfinite(sa_mean_g) & (counts > 0)
+        rjb_bin_km = rjb_centers_km[valid]
+        sa_bin_g = sa_mean_g[valid]
+        rjb_scatter_km = np.array([])
+        sa_g_scatter = np.array([])
 
     return {
         'label': label,
@@ -194,30 +210,19 @@ def _add_gmpe(ax, period_s, rjb_min_km, rjb_max_km, magnitude, vs30):
     per_period = results.get(period_s)
     if per_period is None:
         return
-    means = []
-    upper = []
-    lower = []
-    for tag in ('ASK', 'BSSA', 'CB', 'CY'):
-        if tag not in per_period:
-            continue
-        m = np.asarray(per_period[tag]['mean'])
-        s = np.asarray(per_period[tag]['std'])
-        means.append(m)
-        upper.append(m * np.exp(s))
-        lower.append(m * np.exp(-s))
-    if not means:
+    # ±τ envelope: inter-event std brackets each event's median (FORMULAS.md §7.1).
+    means, upper, lower = _gmm_envelope(per_period, stat_key='tau')
+    if means is None:
         return
-    means = np.vstack(means)
-    upper = np.vstack(upper).max(axis=0)
-    lower = np.vstack(lower).min(axis=0)
     ax.fill_between(dist_km, means.min(axis=0), means.max(axis=0),
                     color='black', alpha=0.20, label='GMM mean range', zorder=0)
     ax.plot(dist_km, upper, '--', color='black', linewidth=1.4, alpha=0.7,
-            label='GMM ±1σ', zorder=0)
+            label='GMM ±1τ (inter-event)', zorder=0)
     ax.plot(dist_km, lower, '--', color='black', linewidth=1.4, alpha=0.7, zorder=0)
 
 
-def plot_one_group(code, scenarios, period_s, magnitude, vs30, output_dir, add_gmpe):
+def plot_one_group(code, scenarios, period_s, magnitude, vs30, output_dir,
+                   add_gmpe, ylim=None, xlim=None):
     color = CODE_COLORS.get(code, 'tab:blue')
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -225,9 +230,9 @@ def plot_one_group(code, scenarios, period_s, magnitude, vs30, output_dir, add_g
     rjb_hi = -np.inf
     for sd in scenarios:
         ax.scatter(sd['rjb_km_scatter'], sd['sa_g_scatter'],
-                   s=2, alpha=0.15, color=color, edgecolors='none', zorder=1)
+                   s=10, alpha=0.15, color=color, edgecolors='none', zorder=1)
         ax.plot(sd['rjb_km_bin'], sd['sa_g_bin'], '--',
-                color=color, alpha=0.6, linewidth=1.3, zorder=2)
+                color=color, alpha=0.75, linewidth=2.0, zorder=2)
         if len(sd['rjb_km_bin']):
             rjb_lo = min(rjb_lo, float(np.min(sd['rjb_km_bin'])))
             rjb_hi = max(rjb_hi, float(np.max(sd['rjb_km_bin'])))
@@ -238,19 +243,27 @@ def plot_one_group(code, scenarios, period_s, magnitude, vs30, output_dir, add_g
 
     common_rjb = np.geomspace(max(rjb_lo, 0.1), rjb_hi, 60)
     avg_x, avg_y = _group_geomean(scenarios, common_rjb)
+    display_name = CODE_DISPLAY_NAMES.get(code, code)
     if avg_x is not None:
         ax.plot(avg_x, avg_y, '-', color=color, linewidth=3.5,
-                label=f'{code} group mean ({len(scenarios)} sims)', zorder=4)
+                label=f'{display_name} group mean ({len(scenarios)} sims)', zorder=4)
 
     if add_gmpe:
-        _add_gmpe(ax, period_s, rjb_lo, rjb_hi, magnitude, vs30)
+        gmpe_lo = xlim[0] if xlim is not None else rjb_lo
+        gmpe_hi = xlim[1] if xlim is not None else rjb_hi
+        _add_gmpe(ax, period_s, gmpe_lo, gmpe_hi, magnitude, vs30)
 
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_xlim(max(rjb_lo, 0.5), 18.0)
+    if xlim is not None:
+        ax.set_xlim(xlim[0], xlim[1])
+    else:
+        ax.set_xlim(max(rjb_lo, 0.5), 18.0)
+    if ylim is not None:
+        ax.set_ylim(ylim[0], ylim[1])
     ax.set_xlabel('Rupture Distance (km)', fontsize=13, fontweight='bold')
     ax.set_ylabel(f'SA(T={period_s:g}s) (g)', fontsize=13, fontweight='bold')
-    ax.set_title(f'Group: {code}', fontsize=14, fontweight='bold')
+    ax.set_title(display_name, fontsize=14, fontweight='bold')
     ax.grid(True, which='both', alpha=0.25)
     ax.tick_params(labelsize=11)
     ax.legend(fontsize=10, loc='lower left', framealpha=0.9)
@@ -294,6 +307,12 @@ def main(argv=None):
                         help='Skip GMM band overlay')
     parser.add_argument('--seed', type=int, default=0,
                         help='RNG seed for station subsampling (default: 0)')
+    parser.add_argument('--ylim', type=float, nargs=2, default=None, metavar=('YMIN', 'YMAX'),
+                        help='Shared y-axis SA(T) limits in g across all panels '
+                             '(e.g. --ylim 0.003 2.0)')
+    parser.add_argument('--xlim', type=float, nargs=2, default=None, metavar=('XMIN', 'XMAX'),
+                        help='Shared x-axis Rjb limits in km across all panels '
+                             '(e.g. --xlim 0.5 40)')
     parser.add_argument('--scenarios-file', action='append', default=[],
                         help='JSON file with scenarios (may repeat)')
     parser.add_argument('scenarios', nargs='*',
@@ -318,9 +337,12 @@ def main(argv=None):
         per_code_scenarios = []
         for label in groups[code]:
             per_code_scenarios.append(_load_scenario(input_dir, label, args.period, rng))
+        ylim = tuple(args.ylim) if args.ylim else None
+        xlim = tuple(args.xlim) if args.xlim else None
         out = plot_one_group(code, per_code_scenarios, args.period,
                              args.magnitude, args.vs30, output_dir,
-                             add_gmpe=not args.no_gmpe)
+                             add_gmpe=not args.no_gmpe,
+                             ylim=ylim, xlim=xlim)
         print(f"wrote {out}")
         written.append(out)
 
