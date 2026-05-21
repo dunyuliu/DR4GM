@@ -1,198 +1,116 @@
 # DR4GM — Data Repository for Ground Motion
 
 Process high-resolution physics-based earthquake simulations into ground-motion
-metrics (PGA, PGV, PGD, CAV, RSA) and distance-binned statistics, then compare
+metrics (PGA, PGV, PGD, CAV, RSA) and distance-binned statistics, and compare
 against NGA-West2 GMPEs.
 
-**Author:** Dunyu Liu (<dliu@ig.utexas.edu>), Institute for Geophysics,
-The University of Texas at Austin.
+**Author**: Dunyu Liu (<dliu@ig.utexas.edu>), Institute for Geophysics, UT Austin.
 
-## Install
+## Reproduce manuscript Figs 11–19 (from Zenodo data, ~5 min)
 
 ```bash
 git clone https://github.com/dunyuliu/dr4gm.git
 cd dr4gm
-source install.sh        # or: docker pull dunyuliu/dr4gm
+source install.sh                                                 # pip + PATH/PYTHONPATH
+
+# Download ~14 MB Zenodo bundle of post-processed NPZs (22 scenarios × 3 NPZ each)
+curl -L -o dr4gm_data.tar.gz \
+  https://zenodo.org/record/XXXXXXX/files/dr4gm_data_v0.0.1.tar.gz   # TODO: real DOI
+mkdir -p results && tar xzf dr4gm_data.tar.gz -C results/
+# After extract: results/production_runs/<code>/<scenario>/{ground_motion_metrics,gm_statistics,geometry}.npz
+
+bash regen_ensemble_figures.sh                                    # Figs 11–19 → figs_to_publish/
 ```
 
-`install.sh` installs Python dependencies and exports `PATH` /
-`PYTHONPATH` for `gmpe-smtk/` and `utils/` in the current shell. Source
-it (don't `bash` it) so the env vars stick.
+That's it — every manuscript figure part lands in
+`results/production_runs/figs_to_publish/Figure<NN><letter>.png`.
 
-`gmpe-smtk/` is vendored in-tree (AGPLv3, © GEM Foundation). No separate clone.
+Code letters in filenames: A=WaveQLab3D, B=SeisSol, C=SORD, D=EQdyna,
+E=MAFE, F=SPECFEM3D, G=FD3D_TSN.
 
-## Run one case
+For the formulas behind each figure (τ vs φ vs σ, GMRotD50, Rjb segment
+distance, etc.), see [`FORMULAS.md`](FORMULAS.md).
+
+## Reproduce from raw simulation data (~200 GB, optional)
+
+If you have access to the raw simulation outputs:
+
+```bash
+ln -s /path/to/raw_simulation_archive reference
+bash run_pipeline.sh                                              # raw → NPZ → figures
+```
+
+Raw inputs are available on request from each modeling group; contact
+authors of the respective simulation codes (EQdyna, SeisSol, SORD, MAFE,
+SPECFEM3D, WaveQLab3D, FD3D_TSN).
+
+## One-scenario pipeline
 
 ```bash
 cd utils
 ./run_all.sh ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
 ```
 
-Outputs land in `./results/eqdyna_A_100m/`:
+Produces per-scenario `ground_motion_metrics.npz` + `gm_statistics.npz` +
+per-metric maps + attenuation plots in the chosen output directory.
 
-| file | from | what it is |
-|---|---|---|
-| `stations.npz`, `velocities.npz`, `geometry.npz` | converter | standardized inputs |
-| `processed_stations.npz` | `station_subset_selector.py` | grid-subset (or all) |
-| `ground_motion_metrics.npz` | `npz_gm_processor.py` | per-station PGA/PGV/PGD/CAV/RSA |
-| `gm_statistics.npz` | `gm_stats.py` | distance-binned mean/std/min/max |
-| `*.png` | `visualize_gm_maps.py`, `visualize_gm_stats.py` | maps + attenuation plots |
+Supported simulation codes & converters (in `utils/`):
 
-For a single command per step, see `utils/run_all.sh`.
-
-## Supported simulation codes
-
-| code | converter |
+| Code | Converter |
 |---|---|
-| EQDyna | `eqdyna_converter_api.py` |
-| FD3D | `fd3d_converter_api.py` |
+| EQdyna | `eqdyna_converter_api.py` |
+| FD3D_TSN | `fd3d_converter_api.py` |
 | SeisSol | `seissol_converter_api.py` |
 | WaveQLab3D | `waveqlab3d_converter_api.py` |
 | SPECFEM3D | `specfem3d_converter_api.py` |
-| MAFE (GMPE comparison) | `mafe_converter_api.py` |
-| SORD (pre-computed SA) | `sord_plot_converter_api.py` |
+| MAFE | `mafe_converter_api.py` |
+| SORD | `sord_plot_converter_api.py` |
 
-MAFE and SORD bypass `npz_gm_processor.py` because they ship pre-computed
-statistics; their converters write `gm_statistics.npz` directly.
-
-## Pipeline
-
-```
-raw → converter → npz_gm_processor → gm_stats → visualize_gm_{maps,stats}
-```
-
-`run_all.sh` chains these. Use it for one scenario; for cross-scenario plots
-(GMPE overlays, response-spectra ensembles) use:
-
-```bash
-python utils/visualize_ensemble_stats.py \
-    --input-dir results/regression --output-dir results/regression/ensemble --add-gmpe \
-    eqdyna/0001.A.100m fd3d/ncent.sd4 mafe/1 seissol/1 waveqlab3d/a24
-```
-
-`visualize_ensemble_stats.py` produces the manuscript-aligned ensemble pool:
-
-| output                                            | corresponds to     |
-|---|---|
-| `RSA_T*s_vs_distance.png` / `*_std_vs_distance.png` | Fig 13 / 15 (per-code bold mean + transparent individuals + on-plot legend + GMM band) |
-| `response_spectra_vs_periods_Rjb_*km.png`         | Fig 14 left  |
-| `response_spectra_bias_vs_periods_Rjb_*km.png`    | Fig 14 right (`ln(SA_sim / SA_GMM_avg)` per period) |
-| `response_spectra_std_vs_periods_Rjb_*km.png`     | Fig 16       |
-| `tau_T*s_vs_distance.png`                         | Fig 17 (inter-event τ; per-code dashed within-group + black solid epistemic τ) |
-| `tau_vs_periods_Rjb_*km.png`                      | Fig 18       |
-| `CAV_vs_distance.png` / `CAV_std_vs_distance.png` | Fig 19 (no GMM band — see note in source) |
-| `SA_T*s_per_group_<code>.png`                     | Fig 12 (per-code ensemble: scatter + dashed sims + bold group mean + GMM band) |
-
-Per-group Fig 12 panels can also be produced standalone via
-`python utils/plot_pergroup_ens_figure12.py`.
-
-## Reference baseline (`reference/`)
-
-Time-frozen, read-only inputs and outputs of the per-station `gmpe-smtk`
-pipeline.
-
-```
-reference/
-├── datasets/                       (~109 GB) raw simulation data — 7 codes
-└── results_original_resolution/    ( ~92 GB) per-station outputs at native
-                                              resolution (21 scenarios, 5 codes)
-```
-
-Frozen 2026-04-27 (`chmod -R a-w`). The repo root keeps a symlink
-`datasets/ → reference/datasets/`. Use as ground-truth when validating
-refactors of `utils/npz_gm_processor.py`. Direct fresh runs to a path
-under `results/`; never modify `reference/` in place. See
-`reference/README.md`.
-
-The lightweight regression baseline used by the test suite (1 km grid,
-five canonical scenarios) lives separately at
-`test_system/reference_results/` and is shipped with the repo.
+MAFE/SORD bypass `npz_gm_processor.py` (they ship pre-computed statistics;
+converters write `gm_statistics.npz` directly).
 
 ## Regression test
 
 ```bash
-bash test_system/run_tests.sh           # 5 canonical scenarios → results/regression
-bash test_system/run_tests.sh --all     # all 20 scenarios   → results/production_runs
+bash test_system/run_tests.sh           # 5 canonical scenarios (~14 min on M3)
+bash test_system/run_tests.sh --all     # all 22 scenarios     (~59 min)
 ```
 
-**The test verifies the pipeline at a uniform 1 km station grid.** Each
-scenario runs:
+Diffs fresh `ground_motion_metrics.npz` against the bundled 1 km baseline
+(`test_system/reference_results/`, ~3 MB). Pass = float32-aware bit
+equivalence (1e-6 rel for float32 inputs, 1e-12 otherwise).
 
-1. raw → standardized NPZ (per-code converter)
-2. `station_subset_selector.py --grid_resolution 1000` (downsample to 1 km grid)
-3. `npz_gm_processor.py` (per-station PGA/PGV/PGD/CAV/RSA)
-4. diff fresh `ground_motion_metrics.npz` against the bundled 1 km
-   baseline at `test_system/reference_results/<code>/<scenario>/`
+## Optional interfaces
 
-The reference set is shipped with the repo (~3 MB total — five
-`ground_motion_metrics.npz` files, one per canonical scenario). Pass =
-float32-aware bit equivalence (`1e-6` rel for float32 input velocities,
-`1e-12` rel otherwise; see `test_system/diff_gm_metrics.py`). Scenarios
-without a reference (e.g. the extra 15 in `--all`) are reported NOREF.
-
-**Wall-clock on Apple M3 / 8 cores / 24 GB RAM:**
-
-| mode | scenarios | total | per-scenario range |
-|---|---|---|---|
-| default | 5  | ~14 min | 1.5–5 min |
-| `--all` | 20 | ~59 min | 1.5–5 min |
-
-## Manuscript
-
-The draft manuscript is at `paper/P28b_DR4GM_manuscript_v0.docx`.
-
-## Manuscript figures
-
-After per-scenario figures and `ensemble/` plots have been produced
-(`utils/run_all.sh` per scenario plus `utils/visualize_ensemble_stats.py`
-for the ensemble), collect manuscript-numbered parts with:
-
-```bash
-bash fetch_figures_for_publication.sh results/production_runs
-# → results/production_runs/figs_to_publish/Figure{11,12}<L><n>.png
-#   results/production_runs/figs_to_publish/Figure{13A,13B,13C,14,15A,15B,15C,16,19A,19B}.png
-```
-
-Code letters: `A=eqdyna`, `B=fd3d`, `C=mafe`, `D=seissol`, `E=waveqlab3d`,
-`F=specfem3d`, `G=sord` (realization-number suffix per scenario).
-Pure cp; assumes the upstream figures already exist.
-
-## Other interfaces
-
-| dir | what | entry point |
+| Dir | What | Entry point |
 |---|---|---|
-| `gui/` | Tkinter desktop GUI for the 6-phase processing workflow | `python gui/tkGUI_dr4gm_new.py` |
-| `web/` | Streamlit interactive explorer (cloud-deployable) | `streamlit run web/dr4gm_interactive_explorer.py` |
-| `demo/` | One-shot scripts that generate the capability/business diagrams in `docs/` | `python demo/generate_capability_diagram.py` |
-
-The core pipeline (converters + `npz_gm_processor` + ensemble stats)
-runs entirely from `utils/`; the dirs above are optional.
+| `gui/` | Tkinter desktop GUI for the 6-phase workflow | `python gui/tkGUI_dr4gm_new.py` |
+| `web/` | Streamlit interactive explorer | `streamlit run web/dr4gm_interactive_explorer.py` |
 
 ## Dependencies
 
-`numpy`, `scipy`, `matplotlib`, `pandas`, `netCDF4`, `h5py`, `openquake.engine`
-(for GMPE overlays). `streamlit`, `pillow` for the optional GUI / web app.
+`numpy`, `scipy`, `matplotlib`, `pandas`, `netCDF4`, `h5py`,
+`openquake.engine` (GMPE overlays). `streamlit`, `pillow` for the optional
+GUI/web app.
 
 ## Citation
 
 ```
 Liu, D. DR4GM: Data Repository for Ground Motion — a platform for processing
 physics-based earthquake simulation data. Institute for Geophysics, The
-University of Texas at Austin.
+University of Texas at Austin. (Manuscript in prep.)
 ```
 
 ## Acknowledgments
 
 Bundles the **GMPE Strong Motion Modeller's Toolkit** (`gmpe-smtk/`) by the
 **GEM Foundation** (© 2014–2018, AGPLv3,
-<https://github.com/GEMScienceTools/gmpe-smtk>) — provides the response-spectrum
-and intensity-measure routines. See `gmpe-smtk/LICENSE` and
-`gmpe-smtk/LOCAL_MODIFICATIONS.md`.
+<https://github.com/GEMScienceTools/gmpe-smtk>). See `gmpe-smtk/LICENSE`
+and `gmpe-smtk/LOCAL_MODIFICATIONS.md`.
 
-Built with assistance from **[Claude Code](https://github.com/anthropics/claude-code)**, Anthropic's agentic coding CLI.
+Built with assistance from **[Claude Code](https://github.com/anthropics/claude-code)**.
 
 ## License
 
 AGPLv3, © 2024–2026 Dunyu Liu, Institute for Geophysics, The University of
-Texas at Austin. See [`LICENSE`](LICENSE). AGPLv3 §13 applies to network
-service deployment.
+Texas at Austin. See [`LICENSE`](LICENSE).

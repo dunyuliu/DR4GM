@@ -26,6 +26,9 @@ import logging
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
+from gm_stats import rjb_distances_m
+
+
 class GroundMotionVisualizer:
     """Create ground motion maps from NPZ files"""
     
@@ -199,17 +202,34 @@ class GroundMotionVisualizer:
         self._fault_trace_km_cache = trace
         return trace
 
-    def _overlay_fault_trace(self, ax) -> None:
+    def _overlay_fault_trace(self, ax, y_shift_km: float = 0.0, x_shift_km: float = 0.0) -> None:
         """Overlay the fault trace as a thick black line, if geometry is available."""
         trace = self._load_fault_trace_km()
         if trace is None:
             return
         start_km, end_km = trace
-        ax.plot([start_km[0], end_km[0]], [start_km[1], end_km[1]],
+        ax.plot([start_km[0] + x_shift_km, end_km[0] + x_shift_km],
+                [start_km[1] + y_shift_km, end_km[1] + y_shift_km],
                 color='black', linewidth=3.0, solid_capstyle='round',
                 zorder=5)
+
+    def _get_fault_center_km(self) -> Optional[Tuple[float, float]]:
+        """Return (x_center, y_center) midpoint of the fault trace in km, or None.
+
+        Most codes place the fault at x=0; WaveQLab3D's converter writes x=20 km, so
+        a non-zero x-center triggers an x-shift to keep the fault centered at x=0 in
+        the plot."""
+        trace = self._load_fault_trace_km()
+        if trace is None:
+            return None
+        start_km, end_km = trace
+        return ((start_km[0] + end_km[0]) / 2.0,
+                (start_km[1] + end_km[1]) / 2.0)
     
-    def create_map(self, metric_key: str, save_path: Optional[str] = None) -> str:
+    def create_map(self, metric_key: str, save_path: Optional[str] = None,
+                   vmin: Optional[float] = None, vmax: Optional[float] = None,
+                   xlim: Optional[Tuple[float, float]] = None,
+                   ylim: Optional[Tuple[float, float]] = None) -> str:
         """Create a single ground motion map"""
         # Get metric data and properties
         values = self.get_metric_data(metric_key)
@@ -228,6 +248,14 @@ class GroundMotionVisualizer:
 
         valid_x, valid_y, valid_values = self._maybe_mirror_for_half_domain(
             valid_x, valid_y, valid_values)
+
+        x_shift_km = 0.0
+        y_shift_km = 0.0
+        if xlim is not None or ylim is not None:
+            fault_center = self._get_fault_center_km()
+            if fault_center is not None:
+                if xlim is not None: x_shift_km = -fault_center[0]
+                if ylim is not None: y_shift_km = -fault_center[1]
 
         local_extent = {
             'x_min': float(np.min(valid_x)),
@@ -280,36 +308,28 @@ class GroundMotionVisualizer:
         
         # Determine color scale and create discrete levels
         if props['log_scale'] and np.all(valid_values > 0):
-            # Log scale with explicit level calculation
-            vmin = np.percentile(valid_values, 1)
-            vmax = np.percentile(valid_values, 99)
-            
-            # Create logarithmically spaced levels
+            vmin = vmin if vmin is not None else np.percentile(valid_values, 1)
+            vmax = vmax if vmax is not None else np.percentile(valid_values, 99)
             levels = np.logspace(np.log10(vmin), np.log10(vmax), self.contour_levels + 1)
             norm = colors.LogNorm(vmin=vmin, vmax=vmax)
-            zi_plot = np.maximum(zi, vmin)  # Clip to avoid log(0)
+            zi_plot = np.maximum(zi, vmin)
         else:
-            # Linear scale with explicit level calculation
-            vmin = np.percentile(valid_values, 1)
-            vmax = np.percentile(valid_values, 99)
-            
-            # Create linearly spaced levels
+            vmin = vmin if vmin is not None else np.percentile(valid_values, 1)
+            vmax = vmax if vmax is not None else np.percentile(valid_values, 99)
             levels = np.linspace(vmin, vmax, self.contour_levels + 1)
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             zi_plot = zi
         
         # Create contour plot with explicit discrete levels
         if self.coordinate_units == 'km':
-            # Coordinates already in km
-            im = ax.contourf(xi, yi, zi_plot, levels=levels, cmap=self.colormap, extend='both')
+            im = ax.contourf(xi + x_shift_km, yi + y_shift_km, zi_plot, levels=levels, cmap=self.colormap, extend='both')
             if len(valid_x) < 10000:
-                scatter = ax.scatter(valid_x, valid_y, c=valid_values, 
+                scatter = ax.scatter(valid_x + x_shift_km, valid_y + y_shift_km, c=valid_values,
                                    s=1, cmap=self.colormap, norm=norm, alpha=0.7, edgecolors='none')
         else:
-            # Convert from meters to km for display
-            im = ax.contourf(xi/1000, yi/1000, zi_plot, levels=levels, cmap=self.colormap, extend='both')
+            im = ax.contourf(xi/1000 + x_shift_km, yi/1000 + y_shift_km, zi_plot, levels=levels, cmap=self.colormap, extend='both')
             if len(valid_x) < 10000:
-                scatter = ax.scatter(valid_x/1000, valid_y/1000, c=valid_values, 
+                scatter = ax.scatter(valid_x/1000 + x_shift_km, valid_y/1000 + y_shift_km, c=valid_values,
                                    s=1, cmap=self.colormap, norm=norm, alpha=0.7, edgecolors='none')
         
         # Colorbar - vertical on the right to take advantage of tall map shapes
@@ -325,16 +345,20 @@ class GroundMotionVisualizer:
         ax.grid(True, alpha=0.3, linewidth=1.2)
         ax.tick_params(labelsize=14, width=1.5, length=6)
 
-        self._overlay_fault_trace(ax)
+        self._overlay_fault_trace(ax, y_shift_km, x_shift_km)
 
         if self.coordinate_units == 'km':
-            disp_x, disp_y = valid_x, valid_y
+            disp_x = valid_x + x_shift_km
+            disp_y = valid_y + y_shift_km
         else:
-            disp_x, disp_y = valid_x / 1000.0, valid_y / 1000.0
-        xlim_min, xlim_max, ylim_min, ylim_max = self._aspect_padded_extent(
-            disp_x, disp_y, target_ratio=2.0)
-        ax.set_xlim(xlim_min, xlim_max)
-        ax.set_ylim(ylim_min, ylim_max)
+            disp_x = valid_x / 1000.0 + x_shift_km
+            disp_y = valid_y / 1000.0 + y_shift_km
+
+        x0, x1, y0, y1 = self._aspect_padded_extent(disp_x, disp_y, target_ratio=2.0)
+        if xlim is not None: x0, x1 = xlim
+        if ylim is not None: y0, y1 = ylim
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
 
         # Add statistics text box
         stats_text = (f"Min: {np.min(valid_values):.2e} {props['unit']}\n"
@@ -443,50 +467,11 @@ class GroundMotionVisualizer:
         self.logger.info(f"Saved RJB distance map: {save_path}")
         return str(save_path)
     
-    def _calculate_rjb_distances(self, locations: np.ndarray, fault_start: np.ndarray, fault_end: np.ndarray) -> np.ndarray:
-        """Calculate RJB distances using same logic as gm_stats.py"""
-        # Extract fault trace endpoints (use only X,Y coordinates for 2D distance)
-        fault_start_2d = fault_start[:2]  # [x, y]
-        fault_end_2d = fault_end[:2]      # [x, y]
-        
-        # Determine fault orientation
-        dx = abs(fault_end_2d[0] - fault_start_2d[0])
-        dy = abs(fault_end_2d[1] - fault_start_2d[1])
-        
-        rjb_distances = np.zeros(len(locations))
-        
-        if dx > dy:
-            # Horizontal fault (fault runs along X-axis)
-            fault_xmin = min(fault_start_2d[0], fault_end_2d[0])
-            fault_xmax = max(fault_start_2d[0], fault_end_2d[0])
-            fault_y = (fault_start_2d[1] + fault_end_2d[1]) / 2  # Average Y
-            
-            for i, location in enumerate(locations):
-                station_x, station_y = location[0], location[1]
-                if station_x < fault_xmin:
-                    rjb = np.sqrt((station_x - fault_xmin)**2 + (station_y - fault_y)**2)
-                elif station_x > fault_xmax:
-                    rjb = np.sqrt((station_x - fault_xmax)**2 + (station_y - fault_y)**2)
-                else:
-                    rjb = abs(station_y - fault_y)
-                rjb_distances[i] = rjb
-        else:
-            # Vertical fault (fault runs along Y-axis)
-            fault_ymin = min(fault_start_2d[1], fault_end_2d[1])
-            fault_ymax = max(fault_start_2d[1], fault_end_2d[1])
-            fault_x = (fault_start_2d[0] + fault_end_2d[0]) / 2  # Average X
-            
-            for i, location in enumerate(locations):
-                station_x, station_y = location[0], location[1]
-                if station_y < fault_ymin:
-                    rjb = np.sqrt((station_x - fault_x)**2 + (station_y - fault_ymin)**2)
-                elif station_y > fault_ymax:
-                    rjb = np.sqrt((station_x - fault_x)**2 + (station_y - fault_ymax)**2)
-                else:
-                    rjb = abs(station_x - fault_x)
-                rjb_distances[i] = rjb
-        
-        return rjb_distances
+    def _calculate_rjb_distances(self, locations: np.ndarray,
+                                 fault_start: np.ndarray,
+                                 fault_end: np.ndarray) -> np.ndarray:
+        """Vectorized Rjb distances in meters (no floor — visualizer wants true distance)."""
+        return rjb_distances_m(locations, fault_start, fault_end)
     
     # Codes that exploit fault symmetry and only simulate one side of the
     # fault. The plot mirrors their station data across the fault line (x=0)
@@ -808,7 +793,17 @@ def main():
     parser.add_argument('--metric', help='Create map for specific metric only')
     parser.add_argument('--summary_only', action='store_true', help='Create only summary figure')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
-    
+    parser.add_argument('--vmin', type=float, default=None,
+                        help='Color-axis lower bound in display units (locks caxis across panels). '
+                             'For RSA/PGA: in g. For PGV/CAV: in cm/s. For PGD: in cm.')
+    parser.add_argument('--vmax', type=float, default=None,
+                        help='Color-axis upper bound (see --vmin for units).')
+    parser.add_argument('--xlim', type=float, nargs=2, default=None, metavar=('XMIN', 'XMAX'),
+                        help='Fault-normal axis limits in km (e.g. --xlim -10 10).')
+    parser.add_argument('--ylim', type=float, nargs=2, default=None, metavar=('YMIN', 'YMAX'),
+                        help='Along-strike axis limits in km (e.g. --ylim -22 22). '
+                             'When set, panel is auto-centered on fault midpoint from geometry.npz.')
+
     args = parser.parse_args()
     
     if args.verbose:
@@ -823,9 +818,13 @@ def main():
             colormap=args.colormap
         )
         
+        xlim = tuple(args.xlim) if args.xlim else None
+        ylim = tuple(args.ylim) if args.ylim else None
+
         if args.metric:
             # Create single metric map
-            map_path = visualizer.create_map(args.metric)
+            map_path = visualizer.create_map(args.metric, vmin=args.vmin, vmax=args.vmax,
+                                             xlim=xlim, ylim=ylim)
             print(f"Created map: {map_path}")
             
         elif args.summary_only:
