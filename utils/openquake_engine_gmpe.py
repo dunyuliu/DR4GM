@@ -271,13 +271,13 @@ def get_cav_gmm_predictions(distances, magnitude, vs30):
     distances_km = np.asarray(distances, dtype=float)
     ctx = _build_context(distances_km, magnitude, vs30)
     gsim = _GMPE_CLASSES["CB"]()
-    mean_ln, sigma_ln, _, sigma_phi = _compute_one(gsim, ctx, CAV())
+    mean_ln, sigma_ln, tau_ln, sigma_phi = _compute_one(gsim, ctx, CAV())
     # OpenQuake returns m/s despite docstring claiming g·s — convert here so
     # downstream code can trust the documented g·s units.
     mean_g_s = np.exp(mean_ln) / _M_PER_S_PER_G_S
     return {
         "distances": distances_km,
-        "CB": {"mean": mean_g_s, "std": sigma_ln, "phi": sigma_phi},
+        "CB": {"mean": mean_g_s, "std": sigma_ln, "tau": tau_ln, "phi": sigma_phi},
     }
 
 

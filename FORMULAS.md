@@ -186,7 +186,7 @@ Code: `utils/visualize_ensemble_stats.py:_group_geomean`.
 
 ---
 
-## 6. Mean of N codes' φ (bold solid black, Figs 15, 16, 19B)
+## 6. Mean of N codes' φ (bold solid magenta, Figs 15, 16, 19B)
 
 Unweighted arithmetic mean in log-x of per-code φ curves:
 ```
@@ -219,11 +219,13 @@ Code: `utils/openquake_engine_gmpe.py:get_nga_west2_gmpe_predictions`.
 | 14A (SA vs period) | ±1σ env over 4 GMMs | `std` |
 | 14B (bias) | — | — |
 | 15, 16 (φ panels) | φ range over 4 GMMs | `phi` |
-| 17, 18 (τ panels) | — | — |
+| 17, 18 (τ panels) | grey band: τ range over 4 GMMs (reference only) | `tau` |
 | 19A (CAV) | ±1τ over CB14 only | `tau` |
 | 19B (CAV std) | φ from CB14 only | `phi` |
 
 Gray shaded band on Figs 12/13/14A is the **range of 4 GMM medians** (not σ), labeled `GMM mean range`.
+
+Grey shaded band on Figs 17/18 is the **NGA-West2 inter-event τ range** (min/max across ASK14/BSSA14/CB14/CY14) — a GMM reference band, not a simulation-derived quantity. Controlled by `add_gmpe` (default `True`).
 
 ---
 
@@ -232,10 +234,15 @@ Gray shaded band on Figs 12/13/14A is the **range of 4 GMM medians** (not σ), l
 For each simulation, at the bin closest to Rjb = 10 km:
 
 ```
-bias(T) = ln( SA_sim(T) ) - ln( NGA-West2-Avg(T, Mw=7, Rjb=10 km, Vs30=760) )
+bias(T) = ln( NGA-West2-Avg(T, Mw=7, Rjb=10 km, Vs30=760) ) - ln( SA_sim(T) )
 NGA-West2-Avg = exp( mean( ln(SA_ASK), ln(SA_BSSA), ln(SA_CB), ln(SA_CY) ) )
               = (SA_ASK · SA_BSSA · SA_CB · SA_CY)^(1/4)     (geometric mean)
 ```
+
+Sign convention (flipped in v0.1.1): **positive bias = simulation below the
+GMM average**. Per-simulation dashed (colored by code), per-code group-mean
+bold colored, and an overall "Mean of N codes" bold magenta curve (mean of
+the per-code group means, only when ≥2 codes are present).
 
 Code: `utils/visualize_ensemble_stats.py:plot_response_spectra_bias_vs_periods`.
 
