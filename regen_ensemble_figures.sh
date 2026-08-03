@@ -83,7 +83,7 @@ PYTHONPATH="$UTILS" python plot_pergroup_ens_figure12.py \
     --input-dir "$PROD" \
     --output-dir "$ENS" \
     --period 1.0 --magnitude 7.0 --vs30 760 \
-    --ylim 0.003 2.0 --xlim 0.5 40 \
+    --ylim 0.003 2.0 --xlim 0.5 20 \
     "${FIG12_SCENARIOS[@]}"
 
 echo ""

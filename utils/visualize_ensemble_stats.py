@@ -362,7 +362,7 @@ def plot_gm_metrics_vs_distance(scenarios, output_dir="results", distance_range=
             if len(per_code_std_groupmeans) >= 2:
                 mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_rjb)
                 if mean_x is not None and len(mean_x) >= 2:
-                    ax_cov.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                    ax_cov.plot(mean_x, mean_y, color='magenta', linewidth=3.5,
                                 linestyle='-', zorder=5,
                                 label=f'Mean of {len(per_code_std_groupmeans)} codes')
 
@@ -429,14 +429,14 @@ def plot_gm_metrics_vs_distance(scenarios, output_dir="results", distance_range=
                 gmpe_distances_km = np.logspace(np.log10(dist_min), np.log10(dist_max), 50)
                 cav_pred = get_cav_gmm_predictions(gmpe_distances_km, magnitude, vs30)
                 cb_mean_g_s = cav_pred['CB']['mean']
-                cb_std_ln = cav_pred['CB']['std']
+                cb_tau_ln = cav_pred['CB']['tau']
                 cb_phi = cav_pred['CB']['phi']
                 ax_mean.loglog(gmpe_distances_km, cb_mean_g_s, color='black',
                                linewidth=2.5, label=f'CB14 CAV (M{magnitude})')
-                ax_mean.loglog(gmpe_distances_km, cb_mean_g_s * np.exp(cb_std_ln),
+                ax_mean.loglog(gmpe_distances_km, cb_mean_g_s * np.exp(cb_tau_ln),
                                '--', color='black', linewidth=1.5, alpha=0.7,
-                               label='CB14 ±1σ')
-                ax_mean.loglog(gmpe_distances_km, cb_mean_g_s * np.exp(-cb_std_ln),
+                               label='CB14 ±1τ (inter-event)')
+                ax_mean.loglog(gmpe_distances_km, cb_mean_g_s * np.exp(-cb_tau_ln),
                                '--', color='black', linewidth=1.5, alpha=0.7)
                 ax_cov.plot(gmpe_distances_km, cb_phi, color='black',
                             linewidth=2.5, label='CB14 φ')
@@ -570,7 +570,7 @@ def plot_response_spectra_vs_distance(scenarios, periods=None, output_dir="resul
             if len(per_code_std_groupmeans) >= 2:
                 mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_rjb)
                 if mean_x is not None and len(mean_x) >= 2:
-                    ax_cov.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                    ax_cov.plot(mean_x, mean_y, color='magenta', linewidth=3.5,
                                 linestyle='-', zorder=5,
                                 label=f'Mean of {len(per_code_std_groupmeans)} codes')
         
@@ -754,7 +754,7 @@ def plot_response_spectra_vs_periods(scenarios, target_rjb_km, output_dir="resul
         if len(per_code_std_groupmeans) >= 2:
             mean_x, mean_y = _group_arithmean_xlog(per_code_std_groupmeans, common_T)
             if mean_x is not None and len(mean_x) >= 2:
-                ax_std.plot(mean_x, mean_y, color='black', linewidth=3.5,
+                ax_std.plot(mean_x, mean_y, color='magenta', linewidth=3.5,
                             linestyle='-', zorder=5,
                             label=f'Mean of {len(per_code_std_groupmeans)} codes')
             
@@ -842,11 +842,8 @@ def plot_response_spectra_vs_periods(scenarios, target_rjb_km, output_dir="resul
             gmpe_phi_plot = np.array(gmpe_phi_plot)
             all_gmpe_phis = np.array(all_gmpe_phis)
 
-            # Plot NGA-West2 average phi (solid black line) on std plot
-            ax_std.loglog(gmpe_periods_plot, gmpe_phi_plot, 'black', linewidth=3,
-                         label=f'NGA-West2 Avg φ (M{magnitude})')
-
-            # Black shaded area: range of 4 GMPE phis on std plot
+            # GMM φ range band only (NGA-West2 average φ line removed — the
+            # bold curve on this panel is the mean of our simulations).
             phi_upper = np.max(all_gmpe_phis, axis=1)
             phi_lower = np.min(all_gmpe_phis, axis=1)
             ax_std.fill_between(gmpe_periods_plot, phi_lower, phi_upper,
@@ -867,10 +864,13 @@ def plot_response_spectra_vs_periods(scenarios, target_rjb_km, output_dir="resul
     ax_std.grid(True, which='both', alpha=0.25)
     ax_std.legend(fontsize=9, loc='upper left', framealpha=0.9, ncol=1)
     
-    # Set reasonable axis limits
+    # Set reasonable axis limits. Fig 16 (std panel) only shows periods the
+    # simulations resolve accurately — the ensemble is band-limited to ~3 Hz
+    # (T >= 0.333 s), so shorter periods are clipped from the std panel.
+    ACCURATE_MIN_PERIOD_S = 0.333
     if periods_sorted:
-        ax_mean.set_xlim(min(periods_sorted) * 0.8, max(periods_sorted) * 1.2)
-        ax_std.set_xlim(min(periods_sorted) * 0.8, max(periods_sorted) * 1.2)
+        ax_mean.set_xlim(ACCURATE_MIN_PERIOD_S * 0.95, max(periods_sorted) * 1.2)
+        ax_std.set_xlim(ACCURATE_MIN_PERIOD_S * 0.95, max(periods_sorted) * 1.2)
     
     # Save plots
     output_file_mean = os.path.join(output_dir, f'response_spectra_vs_periods_Rjb_{target_rjb_km}km.png')
@@ -905,8 +905,9 @@ def plot_response_spectra_vs_periods(scenarios, target_rjb_km, output_dir="resul
 
 
 def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, magnitude=7.0, vs30=760.0):
-    """Manuscript Fig 14 right panel: ln(simulated SA / NGA-West2 avg) vs period
-    at a fixed Rjb. Per-simulation dashed, group-mean bold."""
+    """Manuscript Fig 14 right panel: ln(NGA-West2 avg / simulated SA) vs period
+    at a fixed Rjb. Sign convention: positive bias = simulation BELOW the GMMs.
+    Per-simulation dashed, per-code group-mean bold, overall mean bias magenta."""
     if not PLOT_GMPE_AVAILABLE:
         print("WARNING: NGA-West2 GMPE unavailable; cannot compute bias.")
         return
@@ -960,23 +961,34 @@ def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, 
         gmm_avg = np.array([gmpe_nga_avg[sd['actual_rjb_km']][T] for T in periods_sorted])
         gmm_at = np.interp(np.log(sd['periods']),
                            np.log(periods_sorted), np.log(gmm_avg))
-        bias = np.log(sd['sa_g']) - gmm_at
+        # Sign flipped: positive bias = simulation below the GMM average.
+        bias = gmm_at - np.log(sd['sa_g'])
         ax.plot(sd['periods'], bias, '--',
                 color=_CODE_COLORS.get(sd['code'], 'tab:gray'),
                 alpha=0.35, linewidth=1.0, label='_nolegend_')
         per_code_bias.setdefault(sd['code'], []).append((sd['periods'], bias))
 
     common_T = np.geomspace(periods_sorted.min(), periods_sorted.max(), 80)
+    per_code_bias_means = []
     for code in sorted(per_code_bias):
         x_curve, y_curve = _group_arithmean_xlog(per_code_bias[code], common_T)
         if x_curve is None or len(x_curve) < 2:
             continue
         ax.plot(x_curve, y_curve, color=_CODE_COLORS.get(code, 'tab:gray'),
                 linewidth=3.0, label=f'{_code_display(code)} ({len(per_code_bias[code])})')
+        per_code_bias_means.append((x_curve, y_curve))
+
+    # Overall mean bias across codes (mean of the per-code group means)
+    if len(per_code_bias_means) >= 2:
+        mx, my = _group_arithmean_xlog(per_code_bias_means, common_T)
+        if mx is not None and len(mx) >= 2:
+            ax.plot(mx, my, color='magenta', linewidth=3.5, zorder=5,
+                    label=f'Mean of {len(per_code_bias_means)} codes')
 
     ax.set_xscale('log')
+    ax.set_xlim(0.333 * 0.95, periods_sorted.max() * 1.2)
     ax.set_xlabel('Period (s)', fontsize=13, fontweight='bold')
-    ax.set_ylabel('Bias (ln)', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Bias (ln): +ve = simulation below GMM', fontsize=13, fontweight='bold')
     ax.set_title('Spectral Acceleration Bias vs Period', fontsize=13)
     ax.grid(True, which='both', alpha=0.25)
     ax.legend(fontsize=9, loc='upper right', framealpha=0.9)
@@ -989,11 +1001,13 @@ def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, 
     print(f"Bias plot saved: {out_path}")
 
 
-def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0, 1.0, 0.333)):
+def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0, 1.0, 0.333),
+                                     add_gmpe=True, magnitude=7.0, vs30=760.0):
     """Manuscript Fig 17: inter-event tau vs Rjb at three periods.
     For each period: per-code dashed tau (std across that code's per-sim
     binned medians) plus solid 'epistemic' tau (std across the per-code
-    group-means). Output: one PNG per period."""
+    group-means), and the NGA-West2 GMM inter-event τ range for reference.
+    Output: one PNG per period."""
     os.makedirs(output_dir, exist_ok=True)
 
     for T in periods_target:
@@ -1048,6 +1062,17 @@ def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0,
                 ax.plot(x_ep, y_ep, '-', color='black', linewidth=3.0,
                         label=f'epistemic τ across {len(per_code_groupmean)} groups')
 
+        # NGA-West2 GMM inter-event τ range (reference band across the 4 GMMs)
+        if add_gmpe and PLOT_GMPE_AVAILABLE:
+            try:
+                gmm = get_nga_west2_gmpe_predictions(common_rjb, magnitude, [T], vs30)[T]
+                taus = np.vstack([gmm[g]['tau'] for g in ('ASK', 'BSSA', 'CB', 'CY')])
+                ax.fill_between(common_rjb, taus.min(axis=0), taus.max(axis=0),
+                                color='grey', alpha=0.35, zorder=0,
+                                label='NGA-West2 τ range')
+            except Exception as e:
+                print(f"Warning: could not add GMM τ band at T={T}s: {e}")
+
         ax.set_xlabel('Distance (km)', fontsize=13, fontweight='bold')
         ax.set_ylabel(f'Inter-event τ (ln units), T={T:g}s',
                       fontsize=13, fontweight='bold')
@@ -1065,10 +1090,11 @@ def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0,
         print(f"Tau vs distance saved: {out_path}")
 
 
-def plot_inter_event_std_vs_periods(scenarios, target_rjb_km, output_dir):
+def plot_inter_event_std_vs_periods(scenarios, target_rjb_km, output_dir,
+                                    add_gmpe=True, magnitude=7.0, vs30=760.0):
     """Manuscript Fig 18: inter-event tau vs period at fixed Rjb. Per-code
     dashed tau (std across that code's sims) + solid epistemic tau (std
-    across the per-code group-means)."""
+    across the per-code group-means) + NGA-West2 GMM τ range for reference."""
     os.makedirs(output_dir, exist_ok=True)
 
     per_code_curves = {}
@@ -1107,6 +1133,23 @@ def plot_inter_event_std_vs_periods(scenarios, target_rjb_km, output_dir):
         if x_ep is not None and len(x_ep) >= 2:
             ax.plot(x_ep, y_ep, '-', color='black', linewidth=3.0,
                     label=f'epistemic τ across {len(per_code_groupmean)} groups')
+
+    # NGA-West2 GMM inter-event τ range (reference band across the 4 GMMs)
+    if add_gmpe and PLOT_GMPE_AVAILABLE:
+        try:
+            periods_list = sorted(set(float(p) for p in common_T))
+            gmm = get_nga_west2_gmpe_predictions(
+                np.array([target_rjb_km]), magnitude, periods_list, vs30)
+            tau_lo = np.array([np.min([gmm[p][g]['tau'][0]
+                                       for g in ('ASK', 'BSSA', 'CB', 'CY')])
+                               for p in periods_list])
+            tau_hi = np.array([np.max([gmm[p][g]['tau'][0]
+                                       for g in ('ASK', 'BSSA', 'CB', 'CY')])
+                               for p in periods_list])
+            ax.fill_between(periods_list, tau_lo, tau_hi, color='grey',
+                            alpha=0.35, zorder=0, label='NGA-West2 τ range')
+        except Exception as e:
+            print(f"Warning: could not add GMM τ band vs period: {e}")
 
     ax.set_xscale('log')
     ax.set_xlabel('Period (s)', fontsize=13, fontweight='bold')
@@ -1242,12 +1285,14 @@ def main():
         print(f"Generating Fig 17 inter-event tau vs distance for periods: {args.tau_periods}")
         plot_inter_event_std_vs_distance(valid_scenarios,
                                          output_dir=args.output_dir,
-                                         periods_target=tuple(args.tau_periods))
+                                         periods_target=tuple(args.tau_periods),
+                                         add_gmpe=args.add_gmpe)
         if args.plot_spectra_vs_periods:
             print(f"Generating Fig 18 inter-event tau vs period at Rjb = {args.plot_spectra_vs_periods} km")
             plot_inter_event_std_vs_periods(valid_scenarios,
                                             target_rjb_km=args.plot_spectra_vs_periods,
-                                            output_dir=args.output_dir)
+                                            output_dir=args.output_dir,
+                                            add_gmpe=args.add_gmpe)
 
     if not args.no_pergroup_fig12:
         try:
