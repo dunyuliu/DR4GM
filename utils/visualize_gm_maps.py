@@ -288,7 +288,7 @@ class GroundMotionVisualizer:
             station_points = np.column_stack([valid_x, valid_y])
 
             if len(station_points) > 10000:
-                sample_idx = np.random.choice(len(station_points), 10000, replace=False)
+                sample_idx = np.random.default_rng(0).choice(len(station_points), 10000, replace=False)
                 sample_stations = station_points[sample_idx]
             else:
                 sample_stations = station_points
@@ -658,7 +658,7 @@ class GroundMotionVisualizer:
                 station_points = np.column_stack([valid_x, valid_y])
 
                 if len(station_points) > 10000:
-                    sample_idx = np.random.choice(len(station_points), 10000, replace=False)
+                    sample_idx = np.random.default_rng(0).choice(len(station_points), 10000, replace=False)
                     sample_stations = station_points[sample_idx]
                 else:
                     sample_stations = station_points
