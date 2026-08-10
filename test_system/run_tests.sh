@@ -17,6 +17,10 @@
 # All output streams to stdout so progress is visible live.
 #
 # To capture: bash test_system/run_tests.sh 2>&1 | tee run.log
+#   NOTE: piping through `tee` masks this script's exit code. To preserve
+#   pass/fail status in CI, use one of:
+#     set -o pipefail; bash test_system/run_tests.sh 2>&1 | tee run.log
+#     bash test_system/run_tests.sh > run.log 2>&1        # exit code intact
 #
 # Usage:
 #   bash test_system/run_tests.sh           # 5 canonical scenarios
