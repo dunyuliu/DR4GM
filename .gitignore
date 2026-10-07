@@ -15,8 +15,9 @@ results/
 # Per-script working dirs
 utils/results/
 
-# docs/ managed separately (paper, slides, release notes)
-docs/
+# docs/dev/ managed separately (paper, slides, release notes); docs/user/
+# ships publicly (e.g. FORMULAS.md) and stays tracked.
+docs/dev/
 
 # Internal dev/release files. Only README.md and FORMULAS.md ship publicly.
 # Everything internal lives under local/.
