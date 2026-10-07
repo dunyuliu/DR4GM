@@ -15,7 +15,7 @@ source install.sh                                                 # pip + PATH/P
 
 # Download ~14 MB Zenodo bundle of post-processed NPZs (22 scenarios × 3 NPZ each)
 curl -L -o dr4gm_data.tar.gz \
-  https://zenodo.org/record/XXXXXXX/files/dr4gm_data_v0.0.1.tar.gz   # TODO: real DOI
+  https://zenodo.org/record/XXXXXXX/files/dr4gm_data_v0.1.1.tar.gz   # TODO: real DOI
 mkdir -p results && tar xzf dr4gm_data.tar.gz -C results/
 # After extract: results/production_runs/<code>/<scenario>/{ground_motion_metrics,gm_statistics,geometry}.npz
 
