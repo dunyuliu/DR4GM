@@ -25,6 +25,14 @@
 # Usage:
 #   bash test_system/run_tests.sh           # 5 canonical scenarios
 #   bash test_system/run_tests.sh --all     # all 20 scenarios
+#
+# End-to-end (from the Zenodo bundle): this script needs the ~199 GB raw
+# datasets/ tree. If you only have the ~14 MB public Zenodo bundle (the
+# README "Reproduce manuscript Figs 11-19" path), use instead:
+#   bash test_system/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
+# It runs regen_ensemble_figures.sh in a scratch copy of the repo and checks
+# the 40 Figure*.png parts plus a small numeric summary of the Figs 13/17
+# binned curves against test_system/e2e_reference/. ~90 s, no raw data needed.
 
 set -u
 
