@@ -1,0 +1,18 @@
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  layout-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repo layout gate
+        run: bash test_system/check_layout.sh
+      # TODO(row 4, PATHWAY_FORWARD.md): add
+      #   python3 -m pytest -q test_system/unit
+      # here once test_system/unit/ exists. Until then this job covers only
+      # the layout half of the declared smoke tier.
