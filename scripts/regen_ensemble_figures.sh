@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Resolve repo root from this script's location so the pipeline is portable.
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROD="$REPO_ROOT/results/production_runs"
 UTILS="$REPO_ROOT/utils"
 ENS="$PROD/ensemble"
@@ -88,4 +88,4 @@ PYTHONPATH="$UTILS" python plot_pergroup_ens_figure12.py \
 
 echo ""
 echo "=== Collecting manuscript figures ==="
-bash "$REPO_ROOT/fetch_figures_for_publication.sh" "$PROD"
+bash "$REPO_ROOT/scripts/fetch_figures_for_publication.sh" "$PROD"

@@ -6,7 +6,7 @@
 # Pure cp; assumes per-scenario figures and ensemble figures already exist.
 #
 # Usage:
-#   bash fetch_figures_for_publication.sh <results_dir>
+#   bash scripts/fetch_figures_for_publication.sh <results_dir>
 #
 # Layout assumed:
 #   <results_dir>/<code>/<scenario>/RSA_T_1.000_map.png        (visualize_gm_maps.py)
@@ -42,7 +42,7 @@
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-    echo "Usage: bash fetch_figures_for_publication.sh <results_dir>"
+    echo "Usage: bash scripts/fetch_figures_for_publication.sh <results_dir>"
     exit 2
 fi
 

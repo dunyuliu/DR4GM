@@ -11,7 +11,7 @@ against NGA-West2 GMPEs.
 ```bash
 git clone https://github.com/dunyuliu/dr4gm.git
 cd dr4gm
-source install.sh                                                 # pip + PATH/PYTHONPATH
+source scripts/install.sh                                         # pip + PATH/PYTHONPATH
 
 # Download ~14 MB Zenodo bundle of post-processed NPZs (22 scenarios × 3 NPZ each)
 curl -L -o dr4gm_data.tar.gz \
@@ -19,7 +19,7 @@ curl -L -o dr4gm_data.tar.gz \
 mkdir -p results && tar xzf dr4gm_data.tar.gz -C results/
 # After extract: results/production_runs/<code>/<scenario>/{ground_motion_metrics,gm_statistics,geometry}.npz
 
-bash regen_ensemble_figures.sh                                    # Figs 11–19 → figs_to_publish/
+bash scripts/regen_ensemble_figures.sh                            # Figs 11–19 → figs_to_publish/
 ```
 
 That's it — every manuscript figure part lands in
@@ -29,7 +29,7 @@ Code letters in filenames: A=WaveQLab3D, B=SeisSol, C=SORD, D=EQdyna,
 E=MAFE, F=SPECFEM3D, G=FD3D_TSN.
 
 For the formulas behind each figure (τ vs φ vs σ, GMRotD50, Rjb segment
-distance, etc.), see [`FORMULAS.md`](FORMULAS.md).
+distance, etc.), see [`FORMULAS.md`](docs/user/FORMULAS.md).
 
 ## Reproduce from raw simulation data (~200 GB, optional)
 
@@ -37,7 +37,7 @@ If you have access to the raw simulation outputs:
 
 ```bash
 ln -s /path/to/raw_simulation_archive reference
-bash run_pipeline.sh                                              # raw → NPZ → figures
+bash scripts/run_pipeline.sh                                      # raw → NPZ → figures
 ```
 
 Raw inputs are available on request from each modeling group; contact
