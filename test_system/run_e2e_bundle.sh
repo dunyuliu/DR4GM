@@ -15,8 +15,18 @@
 #
 # Asserts:
 #   (a) regen_ensemble_figures.sh exits 0
-#   (b) figs_to_publish/ contains exactly the committed manifest of
-#       Figure<NN><letter>.png parts, each a non-empty, valid PNG
+#   (b) figs_to_publish/ contains exactly the committed FULL manifest
+#       (test_system/e2e_reference/figure_manifest_full.txt, 41 parts) of
+#       Figure<NN><letter>.png parts, each a non-empty, valid PNG --
+#       UNLESS `openquake` is not importable in this Python, in which case
+#       Figure14B.png (SA bias vs period; needs the NGA-West2 GMPE from
+#       openquake.hazardlib via utils/openquake_engine_gmpe.py) is known to
+#       be produced by the pipeline's own optional-dependency guard
+#       (visualize_ensemble_stats.py: PLOT_GMPE_AVAILABLE). In that case the
+#       test prints a loud, unmissable SKIP banner naming the missing
+#       dependency and the blocked figure, and asserts the manifest matches
+#       the full list MINUS exactly Figure14B.png -- any other figure going
+#       missing still fails the test.
 #   (c) a small numeric summary of the Figs 13/17 binned curves (per-code
 #       group-mean PGA/CAV/RSA_T_1.000 vs distance, epistemic tau at T=1s)
 #       matches test_system/e2e_reference/ensemble_summary_reference.npz
@@ -26,17 +36,20 @@
 # Regenerating the reference (after an intentional, explained pipeline
 # change):
 #   bash test_system/run_e2e_bundle.sh --bless <bundle>
-# writes a fresh manifest + reference npz. Only do this when the change is
-# understood and explained in the commit message, per the golden-file policy
-# in local/CLAUDE.md.
+# writes a fresh manifest + reference npz. Requires `openquake` to be
+# importable (bless always blesses against the FULL 41-figure run -- never
+# bless a degraded manifest). Only do this when the change is understood and
+# explained in the commit message, per the golden-file policy in
+# local/CLAUDE.md.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_SRC="$(cd "$SCRIPT_DIR/.." && pwd)"
 REF_DIR="$SCRIPT_DIR/e2e_reference"
-MANIFEST="$REF_DIR/figure_manifest.txt"
+FULL_MANIFEST="$REF_DIR/figure_manifest_full.txt"
 SUMMARY_REF="$REF_DIR/ensemble_summary_reference.npz"
+GMPE_SKIP_FIGURE="Figure14B.png"
 
 BLESS=0
 if [ "${1:-}" = "--bless" ]; then
@@ -79,6 +92,27 @@ if [ ! -d "$WORK/results/production_runs" ]; then
     exit 1
 fi
 
+HAVE_OPENQUAKE=0
+if python3 -c "import openquake" >/dev/null 2>&1; then
+    HAVE_OPENQUAKE=1
+fi
+
+if [ "$HAVE_OPENQUAKE" -eq 0 ]; then
+    cat >&2 <<'BANNER'
+################################################################################
+# SKIP WARNING: `openquake` is NOT importable in this Python environment.
+# The NGA-West2 GMPE comparison (utils/openquake_engine_gmpe.py) is disabled
+# by the pipeline's own optional-dependency guard (PLOT_GMPE_AVAILABLE in
+# utils/visualize_ensemble_stats.py), so Figure14B.png (SA bias vs period)
+# will NOT be produced this run.
+#
+# This test will assert the full manifest MINUS Figure14B.png only. It will
+# still FAIL if any other figure is missing. Install `openquake.engine`
+# (pip install openquake.engine) to exercise the complete 41-figure path.
+################################################################################
+BANNER
+fi
+
 echo "=== Running regen_ensemble_figures.sh ==="
 set +e
 ( cd "$WORK" && bash regen_ensemble_figures.sh ) > "$TMPDIR/regen.log" 2>&1
@@ -117,19 +151,34 @@ done < "$TMPDIR/got_manifest.txt"
 echo "All $GOT_COUNT parts are non-empty, valid PNGs"
 
 if [ "$BLESS" -eq 1 ]; then
+    if [ "$HAVE_OPENQUAKE" -eq 0 ]; then
+        echo "FAIL: --bless requires \`openquake\` importable (bless always blesses the FULL 41-figure run, never a degraded manifest)." >&2
+        exit 1
+    fi
     mkdir -p "$REF_DIR"
-    cp "$TMPDIR/got_manifest.txt" "$MANIFEST"
-    echo "Blessed manifest -> $MANIFEST ($GOT_COUNT parts)"
+    cp "$TMPDIR/got_manifest.txt" "$FULL_MANIFEST"
+    echo "Blessed full manifest -> $FULL_MANIFEST ($GOT_COUNT parts)"
 else
-    if [ ! -f "$MANIFEST" ]; then
-        echo "FAIL: no committed manifest at $MANIFEST (run with --bless first)" >&2
+    if [ ! -f "$FULL_MANIFEST" ]; then
+        echo "FAIL: no committed manifest at $FULL_MANIFEST (run with --bless first, with openquake installed)" >&2
         exit 1
     fi
-    if ! diff -u "$MANIFEST" "$TMPDIR/got_manifest.txt"; then
-        echo "FAIL: figure manifest differs from $MANIFEST" >&2
+    if [ "$HAVE_OPENQUAKE" -eq 1 ]; then
+        EXPECTED="$FULL_MANIFEST"
+        EXPECTED_DESC="full manifest ($FULL_MANIFEST)"
+    else
+        EXPECTED="$TMPDIR/expected_degraded_manifest.txt"
+        grep -vFx "$GMPE_SKIP_FIGURE" "$FULL_MANIFEST" > "$EXPECTED"
+        EXPECTED_DESC="full manifest minus $GMPE_SKIP_FIGURE (openquake unavailable)"
+    fi
+    if ! diff -u "$EXPECTED" "$TMPDIR/got_manifest.txt"; then
+        echo "FAIL: figure manifest differs from $EXPECTED_DESC" >&2
+        echo "      (a diff here that is NOT exactly $GMPE_SKIP_FIGURE means something" >&2
+        echo "       besides the known openquake-gated figure broke -- investigate it,"  >&2
+        echo "       do not add it to the skip list)" >&2
         exit 1
     fi
-    echo "Figure manifest matches $MANIFEST exactly ($GOT_COUNT parts)"
+    echo "Figure manifest matches $EXPECTED_DESC exactly ($GOT_COUNT parts)"
 fi
 
 echo "=== Extracting ensemble numeric summary ==="

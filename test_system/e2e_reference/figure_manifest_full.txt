@@ -28,6 +28,7 @@ Figure13A.png
 Figure13B.png
 Figure13C.png
 Figure14A.png
+Figure14B.png
 Figure15A.png
 Figure15B.png
 Figure15C.png
