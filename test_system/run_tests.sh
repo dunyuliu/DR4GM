@@ -38,6 +38,9 @@ elif [ -n "${1:-}" ]; then
 fi
 
 cd "$(dirname "$0")/.."
+
+# Gate: repository layout must pass before any scenario runs.
+bash test_system/check_layout.sh || { echo "Layout check failed; fix it before running tests."; exit 1; }
 REPO="$(pwd)"
 TEST_DIR="$REPO/test_system"
 UTILS="$REPO/utils"
