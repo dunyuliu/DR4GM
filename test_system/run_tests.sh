@@ -25,6 +25,18 @@
 # Usage:
 #   bash test_system/run_tests.sh           # 5 canonical scenarios
 #   bash test_system/run_tests.sh --all     # all 20 scenarios
+#
+# End-to-end (from the Zenodo bundle): this script needs the ~199 GB raw
+# datasets/ tree. If you only have the ~14 MB public Zenodo bundle (the
+# README "Reproduce manuscript Figs 11-19" path), use instead:
+#   bash test_system/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
+# It runs regen_ensemble_figures.sh in a scratch copy of the repo and checks
+# the 41 Figure*.png parts (test_system/e2e_reference/figure_manifest_full.txt)
+# plus a small numeric summary of the Figs 13/17 binned curves against
+# test_system/e2e_reference/. ~90 s, no raw data needed. If `openquake` is not
+# importable, Figure14B.png (SA bias vs period, gated on the optional
+# NGA-West2 GMPE) is expected to be absent and the test prints a loud SKIP
+# banner and checks 40 parts instead -- any OTHER missing figure still fails.
 
 set -u
 
