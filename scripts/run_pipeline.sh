@@ -2,8 +2,8 @@
 # run_pipeline.sh — single entry point to reproduce all DR4GM results.
 #
 # Usage:
-#   source install.sh            # once, to set up PATH/PYTHONPATH
-#   bash run_pipeline.sh         # reproduce everything
+#   source scripts/install.sh    # once, to set up PATH/PYTHONPATH
+#   bash scripts/run_pipeline.sh # reproduce everything
 #
 # What this does:
 #   1. Runs all 20 scenarios (5 codes) into results/production_runs/
@@ -24,9 +24,9 @@ mkdir -p "$RESULTS"
 bash test_system/run_tests.sh --all 2>&1 | tee "$RESULTS/run_tests.log"
 
 # Step 2: ensemble + per-group figures
-bash regen_ensemble_figures.sh "$RESULTS" 2>&1 | tee "$RESULTS/regen_ensemble.log"
+bash scripts/regen_ensemble_figures.sh "$RESULTS" 2>&1 | tee "$RESULTS/regen_ensemble.log"
 
 # Step 3: collect manuscript figures
-bash fetch_figures_for_publication.sh "$RESULTS" 2>&1 | tee "$RESULTS/fetch_figures.log"
+bash scripts/fetch_figures_for_publication.sh "$RESULTS" 2>&1 | tee "$RESULTS/fetch_figures.log"
 
 echo "=== Done. Figures in $RESULTS/figs_to_publish/ ==="

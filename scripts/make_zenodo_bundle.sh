@@ -7,13 +7,13 @@
 # the rupture-summary images contributed by each group are NOT included.
 #
 # Usage:
-#   bash make_zenodo_bundle.sh [output_dir]     # default: one level above repo
+#   bash scripts/make_zenodo_bundle.sh [output_dir]     # default: one level above repo
 #
 # Output: dr4gm_data_v<VERSION>.tar.gz + printed SHA-256.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROD="$REPO_ROOT/results/production_runs"
 OUTDIR="${1:-$(dirname "$REPO_ROOT")}"
 VERSION="$(grep '^version:' "$REPO_ROOT/CITATION.cff" | tr -d '"' | awk '{print $2}')"
@@ -81,9 +81,9 @@ statistics only and therefore have no \`ground_motion_metrics.npz\`.
 
 \`\`\`bash
 git clone https://github.com/dunyuliu/DR4GM.git && cd DR4GM
-source install.sh
+source scripts/install.sh
 mkdir -p results && tar xzf ${NAME}.tar.gz -C results/
-bash regen_ensemble_figures.sh
+bash scripts/regen_ensemble_figures.sh
 \`\`\`
 
 Output lands in \`results/production_runs/figs_to_publish/\`.

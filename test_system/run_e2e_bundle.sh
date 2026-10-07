@@ -115,7 +115,7 @@ fi
 
 echo "=== Running regen_ensemble_figures.sh ==="
 set +e
-( cd "$WORK" && bash regen_ensemble_figures.sh ) > "$TMPDIR/regen.log" 2>&1
+( cd "$WORK" && bash scripts/regen_ensemble_figures.sh ) > "$TMPDIR/regen.log" 2>&1
 REGEN_RC=$?
 set -e
 if [ "$REGEN_RC" -ne 0 ]; then
