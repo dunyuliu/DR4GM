@@ -15,14 +15,11 @@ results/
 # Per-script working dirs
 utils/results/
 
-# docs/dev/ managed separately (paper, slides, release notes); docs/user/
-# ships publicly (e.g. FORMULAS.md) and stays tracked.
-docs/dev/
+# docs/dev/ holds tracked internal dev docs (audits, release notes, plans);
+# docs/user/ ships publicly (e.g. FORMULAS.md) and also stays tracked.
 
-# Internal dev/release files. Only README.md and FORMULAS.md ship publicly.
-# Everything internal lives under local/.
+# Scratch/working area for drafts not yet dissolved into tracked docs above.
 local/
-release_notes_v*.md
 demo/
 
 # Claude Code agent state — local only.
@@ -31,11 +28,11 @@ demo/
 # Heavy media not tracked in git
 *.webm
 
-# web/ local-only state — Streamlit secrets, runtime telemetry, caches
-web/.streamlit/
-web/usage_analytics.log
-web/__pycache__/
-web/.DS_Store
+# src/web/ local-only state — Streamlit secrets, runtime telemetry, caches
+src/web/.streamlit/
+src/web/usage_analytics.log
+src/web/__pycache__/
+src/web/.DS_Store
 
 # Editor/OS noise
 *.swp
