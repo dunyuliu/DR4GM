@@ -186,6 +186,12 @@ earlier roster table. Not chasing further; logged here for anyone auditing.
   CI config change; the whole point of the change is what a stranger
   runner does.
 
+- Dispatched **iris-vermeulen** (agentId `afcb30975741e28cc`) for board row 5
+  (integration tier, `run_all.sh` on the existing SeisSol fixture from row
+  13) — in progress. kai's worktree (`agent-ae64b2e66863c9036`) still shows
+  live `zsh`/`sleep` processes via `lsof` at time of this dispatch —
+  untouched, disjoint files (iris edits `test_system/` only).
+
 ## Pending owner items (relay only, unchanged this session)
 
 - Row 14: `gm_stats.py --distance_bin_size` 2000 vs 500 default — options
