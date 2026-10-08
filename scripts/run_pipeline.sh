@@ -11,7 +11,7 @@
 #   3. Collects manuscript figures into results/production_runs/figs_to_publish/
 #
 # For a quick single-scenario test instead:
-#   bash src/utils/run_all.sh datasets/eqdyna/eqdyna.0001.A.100m eqdyna results/test
+#   bash src/utils/run_all.sh data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna results/test
 
 set -euo pipefail
 

@@ -48,7 +48,7 @@ SPECFEM3D, WaveQLab3D, FD3D_TSN).
 
 ```bash
 cd src/utils
-./run_all.sh ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
+./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
 ```
 
 Produces per-scenario `ground_motion_metrics.npz` + `gm_statistics.npz` +

@@ -9,8 +9,14 @@ __pycache__/
 
 # Frozen baseline and large data — collaborators download from figshare links in README
 reference/
-datasets
 results/
+
+# New-run convention (PATHWAY_FORWARD.md row 10): ad hoc / exploratory runs
+# write to git-ignored runs/<YYYYMMDD>_<slug>/, never results/. results/
+# itself (production_runs, regression) stays in place as the frozen,
+# paper-backing data this README/Zenodo recipe reproduces — never moved or
+# renamed by this convention.
+runs/
 
 # Per-script working dirs
 src/utils/results/
