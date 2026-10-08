@@ -23,7 +23,10 @@ Authoritative checklist used by the release workflow's audit step
    (`install.sh`, `run_pipeline.sh`, `regen_ensemble_figures.sh`,
    `fetch_figures_for_publication.sh`, `make_zenodo_bundle.sh`) →
    `scripts/`; `reference/` stays in place on disk and is linked under
-   `data/reference` (never copied); `results/` output moves to
+   `data/reference` (never copied); `data/` also holds small vendored
+   assets (each < 5 MB, with an md5 + source URL recorded in
+   `data/MANIFEST.md`) that production code loads directly, such as the
+   Streamlit explorer's demo NPZs; `results/` output moves to
    git-ignored `runs/<YYYYMMDD>_<slug>/`. `local/` is dissolved —
    nothing ships from an untracked shadow copy. No other new file or
    directory lands at the root — see `CLAUDE.md`: "never create a new

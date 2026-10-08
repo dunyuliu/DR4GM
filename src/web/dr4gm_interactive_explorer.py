@@ -851,16 +851,35 @@ class GroundMotionExplorer:
         
         return gm_data
     
+    # Local-first demo assets (owner decision, relay 2026-10-08, verbatim:
+    # "put them as asset here?" / "then you can easily operate?") — vendored
+    # under data/, see data/MANIFEST.md for md5 + source URL per file. These
+    # take priority over any remote hosting_method so the default path needs
+    # no network access; remote URLs below remain the fallback for a dataset
+    # not vendored locally (currently only "EQDyna C" has no local copy).
+    _LOCAL_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+    _LOCAL_ASSETS = {
+        "EQDyna A Coarse Simulation": "eqdyna.0001.A.coarse.npz",
+        "EQDyna B Coarse Simulation": "eqdyna.0001.B.coarse.npz",
+        "FD3D A Coarse Simulation": "fd3d.0001.A.coarse.npz",
+        "Waveqlab3D A Coarse Simulation": "waveqlab3d.0001.A.coarse.npz",
+    }
+
     @st.cache_data(ttl=300)  # Cache for 5 minutes
     def get_dataset_files(_self, hosting_method: str) -> Dict[str, str]:
-        """Get NPZ files from DR4GM Data Archive based on hosting method"""
-        
+        """Get NPZ files from DR4GM Data Archive based on hosting method.
+
+        Vendored local copies (data/) are preferred when present; only a
+        dataset with no local copy falls back to the remote URL for the
+        requested hosting_method.
+        """
+
         # GitHub repository direct file URLs
         github_base = "https://github.com/dunyuliu/DR4GM-Data-Archive/raw/main"
-        
+
         if hosting_method == "Google Drive (Faster)":
             # All files now work reliably at ~8MB each - updated file IDs
-            files = {
+            remote_files = {
                 "EQDyna A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1ajgZrclIxlWBy94LZvEHlPMwpDNa2e9i",
                 "EQDyna B Coarse Simulation": "https://drive.google.com/uc?export=download&id=1QoxU1t8jXbEkDhjxSSUzugv9KDgUjIVb",
                 "FD3D A Coarse Simulation": "https://drive.google.com/uc?export=download&id=1bni54dY47ZeCIpRNL9dvpTGruHlSe72Q",
@@ -868,14 +887,20 @@ class GroundMotionExplorer:
             }
         else:
             # Reliable GitHub URLs (slower but no restrictions)
-            files = {
+            remote_files = {
                 "EQDyna A Coarse Simulation": f"{github_base}/eqdyna.0001.A.coarse.npz",
                 "EQDyna B Coarse Simulation": f"{github_base}/eqdyna.0001.B.coarse.npz",
                 "EQDyna C Coarse Simulation": f"{github_base}/eqdyna.0001.C.coarse.npz",
                 "FD3D A Coarse Simulation": f"{github_base}/fd3d.0001.A.npz",
                 "Waveqlab3D A Coarse Simulation": f"{github_base}/waveqlab3d.0001.A.coarse.npz"
             }
-        
+
+        files = dict(remote_files)
+        for label, fname in _self._LOCAL_ASSETS.items():
+            local_path = _self._LOCAL_DATA_DIR / fname
+            if local_path.exists():
+                files[label] = str(local_path)
+
         return files
     
     def find_npz_files(self, directory: str) -> List[str]:
