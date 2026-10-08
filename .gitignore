@@ -34,6 +34,11 @@ src/web/usage_analytics.log
 src/web/__pycache__/
 src/web/.DS_Store
 
+# Pre-move web/ dir (now src/web/) — old location still holds the owner's
+# Streamlit secrets; a plain `git add -A` would otherwise publish it.
+**/.streamlit/secrets.toml
+web/
+
 # Editor/OS noise
 *.swp
 .vscode/
