@@ -123,6 +123,31 @@ two missions were swapped relative to the dispatch-time ids logged in Turn
 each report, only the id-to-description mapping was confused in my own
 earlier roster table. Not chasing further; logged here for anyone auditing.
 
+## Turn 3 — landing
+
+- **iris-vermeulen** (AppTest + boot-smoke, agentId `a15d7f07ca3d6b645`)
+  completed. Conductor re-verification: branch one commit behind main
+  (docs-only, no overlap), three-dot diff clean. Re-ran both suites fresh
+  myself in an independent worktree using the venv she used
+  (`REDACTED_PATH`, streamlit 1.65.0, not installed
+  in the base env) — `pytest -q test_system/unit` 6/6 PASS, boot-smoke
+  health check PASS, clean process teardown via `ps -ef`. Also moved her
+  CI-only `plotly` pin into `requirements.txt` itself (mechanical fix,
+  root-caused the gap rather than leaving it CI-only) and re-verified after.
+  Squash-merged `3d10806`, pushed. Worktree/branch reaped.
+- Dispatched **iris-vermeulen** again (agentId `ac4381dbc4df23493`) for the
+  rest of board row 4 (rjb_distances_m incl. y-offset geometries, count<2
+  pinning, vectorized_gmrotd50 vs gmpe-smtk, one converter fixture per
+  code, code_style registry regression test) — in progress.
+- **kai-fischer's worktree is confirmed genuinely still alive**, not a
+  stale lock: `lsof +D` on `.claude/worktrees/agent-ae64b2e66863c9036`
+  shows a live `zsh` (pid 1617412) and `sleep` (pid 1795000) with cwd
+  there. Left untouched per isolation rules (never kill/inspect a live
+  child's process beyond confirming liveness); its assigned mission
+  (gmpe-smtk relocation) is already merged (`6d028f0`), so this is
+  unexplained residual activity from that same agent, not a new mission —
+  will reap once liveness clears.
+
 ## Pending owner items (relay only, unchanged this session)
 
 - Row 14: `gm_stats.py --distance_bin_size` 2000 vs 500 default — options
