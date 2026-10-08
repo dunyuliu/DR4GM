@@ -11,9 +11,9 @@
 #                   Use "all" to process all stations without subsetting
 #
 # Examples:
-#   ./run_all.sh ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
-#   ./run_all.sh ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 500
-#   ./run_all.sh ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m all
+#   ./run_all.sh ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
+#   ./run_all.sh ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 500
+#   ./run_all.sh ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m all
 
 set -e  # Exit on any error
 
@@ -29,9 +29,9 @@ if [ $# -lt 3 ] || [ $# -gt 4 ]; then
     echo "                  Use 'all' to process all stations without subsetting"
     echo ""
     echo "Examples:"
-    echo "  $0 ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m"
-    echo "  $0 ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 500"
-    echo "  $0 ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m all"
+    echo "  $0 ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m"
+    echo "  $0 ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 500"
+    echo "  $0 ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m all"
     exit 1
 fi
 

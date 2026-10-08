@@ -14,8 +14,8 @@ Math + code locations behind manuscript figures. Update on any formula change.
 
 ## 1. Per-station ground motion metrics
 
-Per-station velocity → metrics → GMRotD50. Code: `utils/npz_gm_processor.py`,
-production GMRotD50 in `utils/vectorized_gmrotd50.py`.
+Per-station velocity → metrics → GMRotD50. Code: `src/utils/npz_gm_processor.py`,
+production GMRotD50 in `src/utils/vectorized_gmrotd50.py`.
 
 ### 1.1 PGA, PGV, PGD
 
@@ -52,7 +52,7 @@ For θ ∈ [0, 90°):
 GMRotD50 = percentile_50( {IM(θ)} )                (median over rotations)
 ```
 
-Code: `utils/vectorized_gmrotd50.py` (production); `gmpe-smtk/smtk/intensity_measures.py:gmrotdpp` (reference).
+Code: `src/utils/vectorized_gmrotd50.py` (production); `gmpe-smtk/smtk/intensity_measures.py:gmrotdpp` (reference).
 
 ### 1.4 CAV
 
@@ -88,7 +88,7 @@ at (−10, 60) has Rjb = √(10² + 40²) = 41 km, not 10 km. This is why MAFE
 41 km in Figs 12–19.
 
 Three near-duplicate Rjb implementations (audit-flagged for refactor):
-`utils/gm_stats.py`, `utils/visualize_gm_maps.py`, `utils/plot_pergroup_ens_figure12.py:_rjb_km`. All agree for axis-aligned faults.
+`src/utils/gm_stats.py`, `src/utils/visualize_gm_maps.py`, `src/utils/plot_pergroup_ens_figure12.py:_rjb_km`. All agree for axis-aligned faults.
 
 ---
 
@@ -104,7 +104,7 @@ Y_std[i]  = std( ln(Y_j), ddof=1 )                            (Bessel-corrected 
 Used in figures: `_mean` keys → group geomeans + medians;
 `_std` keys → intra-event φ proxy (Figs 14B std, 15, 16).
 
-Code: `utils/gm_stats.py:calc_gm_stats_vs_r`.
+Code: `src/utils/gm_stats.py:calc_gm_stats_vs_r`.
 
 > Note: bins with `count < 2` are dropped (no std defined). At `count = 2`
 > the 95 % CI for σ̂ spans factor 71 — treat as uninformative.
@@ -149,7 +149,7 @@ def _group_logstd(curves, x_target, min_n=3):
     return x_target[keep], std[keep]
 ```
 
-Code: `utils/visualize_ensemble_stats.py:_group_logstd`. Called from
+Code: `src/utils/visualize_ensemble_stats.py:_group_logstd`. Called from
 `plot_inter_event_std_vs_distance` (Fig 17) and `_vs_periods` (Fig 18).
 
 ### 4.3 Small-N caveat
@@ -182,7 +182,7 @@ the estimator variance further (unbiased mean but wider spread).
 g_c(x) = exp( mean( ln(median_s(x))  for s ∈ sims of code c ) )
 ```
 
-Code: `utils/visualize_ensemble_stats.py:_group_geomean`.
+Code: `src/utils/visualize_ensemble_stats.py:_group_geomean`.
 
 ---
 
@@ -208,7 +208,7 @@ Per-GMM ln-space output: `mean_ln, sigma_ln, tau_ln, phi_ln` with
 `σ² = τ² + φ²` (exact for ASK14/BSSA14/CB14; CY14 has a small Vs30-dependent
 nonlinear-site correction, < 1.4 % at our regime).
 
-Code: `utils/openquake_engine_gmpe.py:get_nga_west2_gmpe_predictions`.
+Code: `src/utils/openquake_engine_gmpe.py:get_nga_west2_gmpe_predictions`.
 
 ### 7.1 Bands plotted per figure
 
@@ -244,7 +244,7 @@ GMM average**. Per-simulation dashed (colored by code), per-code group-mean
 bold colored, and an overall "Mean of N codes" bold magenta curve (mean of
 the per-code group means, only when ≥2 codes are present).
 
-Code: `utils/visualize_ensemble_stats.py:plot_response_spectra_bias_vs_periods`.
+Code: `src/utils/visualize_ensemble_stats.py:plot_response_spectra_bias_vs_periods`.
 
 ---
 

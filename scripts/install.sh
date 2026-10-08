@@ -6,12 +6,12 @@
 echo "Installing DR4GM Python dependencies..."
 pip3 install -r requirements.txt
 
-chmod -R 755 utils
+chmod -R 755 src/utils
 
 # Set up environment variables for the current shell
 DR4GM=$(pwd)
 SMTK=$DR4GM/gmpe-smtk
-UTILS=$DR4GM/utils
+UTILS=$DR4GM/src/utils
 echo "DR4GM=$DR4GM"
 echo "SMTK=$SMTK"
 echo "UTILS=$UTILS"

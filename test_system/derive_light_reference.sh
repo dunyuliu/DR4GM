@@ -43,7 +43,7 @@ set -o pipefail
 
 cd "$(dirname "$0")/.."
 REPO="$(pwd)"
-UTILS="$REPO/utils"
+UTILS="$REPO/src/utils"
 TEST_DIR="$REPO/test_system"
 FIXTURE="$TEST_DIR/fixture_reference/seissol_sim1_fixture"
 RAW_FIXTURE="$FIXTURE/raw"

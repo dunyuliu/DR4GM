@@ -21,7 +21,7 @@ from pathlib import Path
 # Removed multiprocessing imports - sequential processing is faster for GM calculations
 
 _THIS_DIR = Path(__file__).resolve().parent
-_UTILS_DIR = _THIS_DIR.parent / "utils"
+_UTILS_DIR = _THIS_DIR.parent / "src" / "utils"
 _GMPE_SMTK_DIR = _THIS_DIR.parent / "gmpe-smtk"
 for _p in (_UTILS_DIR, _THIS_DIR, _GMPE_SMTK_DIR):
     if _p.exists():

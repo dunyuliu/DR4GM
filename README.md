@@ -47,14 +47,14 @@ SPECFEM3D, WaveQLab3D, FD3D_TSN).
 ## One-scenario pipeline
 
 ```bash
-cd utils
-./run_all.sh ../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
+cd src/utils
+./run_all.sh ../../datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
 ```
 
 Produces per-scenario `ground_motion_metrics.npz` + `gm_statistics.npz` +
 per-metric maps + attenuation plots in the chosen output directory.
 
-Supported simulation codes & converters (in `utils/`):
+Supported simulation codes & converters (in `src/utils/`):
 
 | Code | Converter |
 |---|---|
