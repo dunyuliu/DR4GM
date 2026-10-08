@@ -22,7 +22,7 @@ from pathlib import Path
 
 _THIS_DIR = Path(__file__).resolve().parent
 _UTILS_DIR = _THIS_DIR.parent / "src" / "utils"
-_GMPE_SMTK_DIR = _THIS_DIR.parent / "gmpe-smtk"
+_GMPE_SMTK_DIR = _THIS_DIR.parent / "src" / "gmpe-smtk"
 for _p in (_UTILS_DIR, _THIS_DIR, _GMPE_SMTK_DIR):
     if _p.exists():
         sys.path.insert(0, str(_p))

@@ -15,7 +15,7 @@ Two pieces are benchmarked:
           Rotation / GMRotD50 percentile selection is NOT included here
           — that's a follow-up.
 
-Reference: gmpe-smtk (vendored under ../gmpe-smtk/) and the SeisSol-origin
+Reference: gmpe-smtk (vendored under ../src/gmpe-smtk/) and the SeisSol-origin
 ComputeGroundMotionParametersFromSurfaceOutput_Hybrid_Lite.py kept beside
 this file as the ground-truth oracle for `gmrotdpp_withPG`.
 
@@ -31,7 +31,7 @@ from scipy.integrate import cumulative_trapezoid
 
 TEST_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TEST_DIR.parent
-GMPE_SMTK_DIR = REPO_ROOT / "gmpe-smtk"
+GMPE_SMTK_DIR = REPO_ROOT / "src" / "gmpe-smtk"
 if GMPE_SMTK_DIR.exists():
     sys.path.insert(0, str(GMPE_SMTK_DIR))
 
