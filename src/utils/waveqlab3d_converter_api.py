@@ -29,29 +29,33 @@ from npz_format_standard import DR4GM_NPZ_Standard
 class Waveqlab3dConverter:
     """Convert Waveqlab3d datasets to DR4GM NPZ format"""
     
-    def __init__(self, input_dir: str, output_dir: str, dt: float = None):
+    def __init__(self, input_dir: str, output_dir: str, dt: float = None,
+                 lsl: int = 401, rsl: int = 401, stl: int = 1601):
         """
         Initialize converter
-        
+
         Args:
             input_dir: Directory containing waveqlab3d data files
             output_dir: Directory to save converted NPZ files
             dt: Time step (default: 0.314775373058478677E-02*16 from extract_new_saway.py)
+            lsl: Left side grid length (default: 401)
+            rsl: Right side grid length (default: 401)
+            stl: Strike (fault-parallel) grid length (default: 1601)
         """
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Data type for binary files (float32 as per extract_new_saway.py)
         self.dtype = np.float32
-        
+
         # Time step from extract_new_saway.py
         self.dt = dt if dt is not None else 0.314775373058478677E-02 * 16
-        
+
         # Grid parameters from extract_new_saway.py (lines 55-58)
-        self.lsl = 401  # left side length
-        self.rsl = 401  # right side length  
-        self.stl = 1601  # strike length
+        self.lsl = lsl  # left side length
+        self.rsl = rsl  # right side length
+        self.stl = stl  # strike length
         
         # Station data
         self.global_station_id = 0
@@ -490,15 +494,19 @@ def main():
     parser.add_argument('--input_dir', required=True, help='Input directory containing waveqlab3d Hslice files')
     parser.add_argument('--output_dir', required=True, help='Output directory for NPZ files')
     parser.add_argument('--dt', type=float, help='Time step (default: 0.314775373058478677E-02*16)')
+    parser.add_argument('--lsl', type=int, default=401, help='Left side grid length (default: 401)')
+    parser.add_argument('--rsl', type=int, default=401, help='Right side grid length (default: 401)')
+    parser.add_argument('--stl', type=int, default=1601, help='Strike (fault-parallel) grid length (default: 1601)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
-    
+
     args = parser.parse_args()
-    
+
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     try:
-        converter = Waveqlab3dConverter(args.input_dir, args.output_dir, args.dt)
+        converter = Waveqlab3dConverter(args.input_dir, args.output_dir, args.dt,
+                                         args.lsl, args.rsl, args.stl)
         results = converter.convert_all_datasets()
         
         print("\n=== Conversion Results ===")
