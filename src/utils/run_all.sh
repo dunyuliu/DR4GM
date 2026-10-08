@@ -69,25 +69,25 @@ echo "Step 1: Converting raw data to NPZ format..."
 echo "----------------------------------------"
 case $CODE_TYPE in
     "eqdyna")
-        python eqdyna_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 eqdyna_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "fd3d")
-        python fd3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 fd3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "mafe")
-        python mafe_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 mafe_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "waveqlab3d")
-        python waveqlab3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 waveqlab3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "seissol")
-        python seissol_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 seissol_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "sord")
-        python sord_plot_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 sord_plot_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
     "specfem3d")
-        python specfem3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
+        python3 specfem3d_converter_api.py --input_dir "$INPUT_DIR" --output_dir "$OUTPUT_DIR" --verbose
         ;;
 esac
 
@@ -117,7 +117,7 @@ if [ "$GRID_RESOLUTION" = "all" ]; then
 else
     echo "Step 2: Creating ${GRID_RESOLUTION}m grid subset..."
     echo "---------------------------------------------------"
-    python station_subset_selector.py \
+    python3 station_subset_selector.py \
         --input_npz "$TIMESERIES_FILE" \
         --output_npz "$OUTPUT_DIR/grid_${GRID_RESOLUTION}m.npz" \
         --grid_resolution "$GRID_RESOLUTION"
@@ -134,7 +134,7 @@ fi
 echo ""
 echo "Step 3: Processing ground motion metrics..."
 echo "-----------------------------------------"
-python npz_gm_processor.py \
+python3 npz_gm_processor.py \
     --velocity_npz "$PROCESSED_STATIONS_FILE" \
     --output_dir "$OUTPUT_DIR"
 
@@ -148,7 +148,7 @@ fi
 echo ""
 echo "Step 4: Creating ground motion maps..."
 echo "------------------------------------"
-python visualize_gm_maps.py \
+python3 visualize_gm_maps.py \
     --gm_npz "$OUTPUT_DIR/ground_motion_metrics.npz" \
     --output_dir "$OUTPUT_DIR"
 
@@ -156,7 +156,7 @@ python visualize_gm_maps.py \
 echo ""
 echo "Step 5: Computing GM statistics vs distance..."
 echo "---------------------------------------------"
-python gm_stats.py \
+python3 gm_stats.py \
     --gm_data "$OUTPUT_DIR/ground_motion_metrics.npz" \
     --output_dir "$OUTPUT_DIR" \
     --distance_range 0 30000 \
@@ -172,7 +172,7 @@ fi
 echo ""
 echo "Step 6: Creating GM statistics plots..."
 echo "-------------------------------------"
-python visualize_gm_stats.py \
+python3 visualize_gm_stats.py \
     --stats_data "$OUTPUT_DIR/gm_statistics.npz" \
     --output_dir "$OUTPUT_DIR"
 
