@@ -74,3 +74,30 @@ Authoritative checklist used by the release workflow's audit step
    genuinely needs GMPE comparison installs `openquake` separately in an
    environment with GDAL available (see `docs/dev/` release workflow),
    never via CI's smoke-tier step.
+
+5. **Production code never commits to its own running repo.** No code
+   path under `src/` may invoke `git add`, `git commit`, or `git push`
+   against the working tree it executes inside, on a timer, a callback,
+   or any other autonomous trigger. A human- or CI-triggered commit
+   (the release workflow, a developer running it by hand) is fine; a
+   long-running app committing its own output while serving users is
+   not — removal, not relocation, is the fix when found.
+
+   **Rationale**: an app that commits to whatever repo it happens to be
+   checked out in writes to a target it does not control — a
+   contributor's fork, a CI checkout, a clone with uncommitted local
+   work — silently, outside any review or CI gate. A trailing `git
+   push` compounds it by publishing without a human in the loop.
+
+   **Incident (2026-10-08)**: `_commit_to_git()` in
+   `src/web/dr4gm_interactive_explorer.py:495-530` runs `git add` +
+   `git commit` + `git push` on the usage-analytics log on a timer,
+   wrapped in a bare `except Exception: pass` — found during a
+   board/rules scoping pass (board row 15), not from an incident report.
+
+   **How to apply**: `grep -rn "subprocess.run(\['git'" src/` — any hit
+   outside the release/CI tooling that is meant to commit (none exist
+   under `src/` today; release commits are run by a human or CI, not by
+   `src/` code) is a violation. Tier: mechanical via that grep; the
+   check itself is not yet wired into `check_layout.sh` — board row 15
+   tracks wiring it in alongside the removal.
