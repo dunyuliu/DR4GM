@@ -148,6 +148,44 @@ earlier roster table. Not chasing further; logged here for anyone auditing.
   unexplained residual activity from that same agent, not a new mission —
   will reap once liveness clears.
 
+## Turn 4 — row 4 landed, then a self-inflicted CI red + revert-class fix
+
+- **iris-vermeulen** (row 4 completion, agentId `ac4381dbc4df23493`)
+  completed: 5 new test files, 32 new tests (38 total), rjb geometry incl.
+  y-offset faults, count<2 binning pinned as-is, GMRotD50 vs oracle,
+  per-code converter fixtures (SORD excluded with reason — no real
+  file-reading schema to test), code_style registry regression guard, all
+  with live mutation-and-revert evidence. Conductor re-verification: branch
+  one commit behind main (docs-only, no overlap), purely additive diff,
+  fresh `pytest -q test_system/unit` -> 38 passed in an independent
+  worktree. Squash-merged `80d383d`, pushed. Worktree/branch reaped.
+- **Caught before it compounded, not after**: went to update board rows 4/9
+  to DONE and, per this project's own rule 3 ("never claim DONE without
+  checking CI, not just a local run"), ran `gh run list --branch main`
+  first — found CI had been **FAILING on main for 3 consecutive pushes**
+  (`37712597109`, `37712697030`, `37713635530`), starting exactly at the
+  AppTest/boot-smoke landing (`3d10806`, turn 3) that added
+  `pip install -r requirements.txt` to CI for the first time. Root cause:
+  `openquake.engine` (in `requirements.txt`) pulls GDAL as a transitive
+  build dep; the runner has no `gdal-config`, so the wheel build fails
+  before pytest ever runs. This was a **red on the default branch** —
+  per the rules, goes to the head of the queue unasked, repair-only until
+  green. Fixed immediately: CI now excludes `openquake` from its install
+  (it's already optional/guarded everywhere else in the codebase — grep
+  confirmed no `test_system/unit` test needs it). Pushed `11191ab`, watched
+  the resulting run (`37713775742`) to completion via
+  `gh run watch --exit-status`: **success**, all 7 steps green including
+  the new unit tests and boot-smoke. Board rows 4 and 9 updated to DONE
+  only after this confirmation, with the run id as evidence — not before.
+  **Codified as PROJECT_RULES.md rule 4** so this isn't re-paid for.
+- Lesson for consilium inbox (generalizes beyond this project): a
+  dependency-pulling-native-library failure (GDAL via a geospatial package)
+  is invisible to a local dev environment that already has it installed or
+  never exercises that install path — only a clean-runner CI install
+  catches it. Treat "my local run is green" as insufficient evidence for a
+  CI config change; the whole point of the change is what a stranger
+  runner does.
+
 ## Pending owner items (relay only, unchanged this session)
 
 - Row 14: `gm_stats.py --distance_bin_size` 2000 vs 500 default — options
