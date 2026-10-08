@@ -151,15 +151,28 @@ Carried on the board, not release-blockers for this GitHub tag:
 ## 6. Stranger-clone gate
 
 Tested after the tag was created — see the release report for the exact
-commands run, pass/fail per step, and SHA. Summary: `scripts/install.sh`'s
-unconditional `pip3 install -r requirements.txt` (including
-`openquake.engine`) is not what CI runs (CI installs
-`requirements.txt` minus `openquake`, per `PROJECT_RULES.md` rule 4, because
-`openquake.engine` needs system GDAL headers CI's runner doesn't have); a
-stranger clone following `README.md`'s literal `source scripts/install.sh`
-on a host without `libgdal-dev`/`gdal-config` hits the same failure CI was
-fixed to avoid, and the README does not document the workaround. See the
-release report for whether this reproduced on the gate host.
+commands run, pass/fail per step, and SHA. Summary (as originally written,
+before verification): `scripts/install.sh`'s unconditional
+`pip3 install -r requirements.txt` (including `openquake.engine`) is not what
+CI runs (CI installs `requirements.txt` minus `openquake`, per
+`PROJECT_RULES.md` rule 4, because `openquake.engine` needs system GDAL
+headers CI's runner doesn't have); a stranger clone following `README.md`'s
+literal `source scripts/install.sh` on a host without
+`libgdal-dev`/`gdal-config` hits the same failure CI was fixed to avoid, and
+the README does not document the workaround.
+
+**Correction (v0.1.3 release note, conductor):** on the actual gate host, the
+`pip3 install -r requirements.txt` step (including `openquake.engine`)
+**succeeded** — prebuilt wheels were available, so the GDAL-build concern
+above did not reproduce there. The gate's real, reproduced failure was
+unrelated: `src/utils/run_all.sh` (and `test_system/run_tests.sh`,
+`scripts/regen_ensemble_figures.sh`) invoked bare `python` rather than
+`python3` at every converter/processing call site, which crashes with
+`SyntaxError` on any host where `/usr/bin/python` is Python 2 — a common
+stranger-machine default. Fixed in v0.1.3 (PR #20, `409ea7d`). The GDAL
+install-path risk described above is still real and undocumented but did not
+block this gate; it remains an open issue (§5 lists the general class of
+`openquake`/GDAL friction via rule 4).
 
 ## 7. Assumptions used
 
