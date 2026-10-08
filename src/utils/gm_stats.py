@@ -60,7 +60,7 @@ def rjb_distances_m(locations_m: np.ndarray,
 class GMStatistics:
     """Compute ground motion statistics as a function of Rjb distance"""
     
-    def __init__(self, gm_data_file: str, output_dir: str, distance_range: Tuple[float, float] = (0, 30000), distance_bin_size: float = 500):
+    def __init__(self, gm_data_file: str, output_dir: str, distance_range: Tuple[float, float] = (0, 30000), distance_bin_size: float = 2000):
         """
         Initialize GM statistics computation
         
@@ -68,7 +68,7 @@ class GMStatistics:
             gm_data_file: Path to ground motion metrics NPZ file
             output_dir: Directory to save statistics results
             distance_range: Distance range in meters (default: 0-30km)
-            distance_bin_size: Distance bin size in meters (default: 500 m)
+            distance_bin_size: Distance bin size in meters (default: 2000 m)
         """
         self.gm_data_file = Path(gm_data_file)
         self.output_dir = Path(output_dir)
@@ -435,8 +435,8 @@ def main():
                        help='Output directory for statistics results')
     parser.add_argument('--distance_range', nargs=2, type=float, default=[0, 30000],
                        help='Distance range in meters (default: 0 30000)')
-    parser.add_argument('--distance_bin_size', type=float, default=500,
-                       help='Distance bin size in meters (default: 500)')
+    parser.add_argument('--distance_bin_size', type=float, default=2000,
+                       help='Distance bin size in meters (default: 2000)')
     parser.add_argument('--verbose', action='store_true', 
                        help='Enable verbose logging')
     
