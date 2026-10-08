@@ -41,7 +41,7 @@ src/web/__pycache__/
 src/web/.DS_Store
 
 # UsageTracker writes usage_analytics.log relative to CWD, so running the
-# app (incl. test_system/run_streamlit_boot_smoke.sh and the AppTest suite)
+# app (incl. tests/run_streamlit_boot_smoke.sh and the AppTest suite)
 # from the repo root lands it at root too — same known debt as
 # src/web/usage_analytics.log above (PATHWAY_FORWARD.md 2026-10-08 entry),
 # just gitignored from the other CWD. Not a layout-gate violation since it
