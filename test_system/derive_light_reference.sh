@@ -27,13 +27,17 @@
 #      light reference is always derived FROM the full reference, never from
 #      the fixture's own run, even though step 1 and step 3 agree numerically).
 #
-# Re-run this (and re-commit the result) whenever
-# test_system/reference_results/seissol/1/ is re-blessed. Never derive the
+# Re-run this (and re-commit the result) whenever the corresponding
+# test_system/reference_results/<code>/... is re-blessed. Never derive the
 # light reference the other way around (never hand-edit it to match a
 # fixture run).
 #
 # Usage:
-#   bash test_system/derive_light_reference.sh [REFERENCE_DIR]
+#   bash test_system/derive_light_reference.sh [CODE] [REFERENCE_DIR]
+#   CODE defaults to "seissol" (unchanged behavior/output from before this
+#   script took a CODE parameter). Other supported CODE values add their own
+#   fixture dir + converter + full-oracle raw subdir below; see the
+#   FIXTURE_DIR/CONVERTER/RAW_FULL case statement.
 #   REFERENCE_DIR defaults to <repo_root>/reference (a normal checkout, not
 #   this worktree, since reference/ is gitignored and not copied into
 #   worktrees).
@@ -45,16 +49,36 @@ cd "$(dirname "$0")/.."
 REPO="$(pwd)"
 UTILS="$REPO/src/utils"
 TEST_DIR="$REPO/test_system"
-FIXTURE="$TEST_DIR/fixture_reference/seissol_sim1_fixture"
+
+CODE="${1:-seissol}"
+REFERENCE_DIR="${2:-$REPO/reference}"
+
+case "$CODE" in
+    seissol)
+        FIXTURE_DIR="seissol_sim1_fixture"
+        CONVERTER="seissol_converter_api.py"
+        RAW_FULL_SUB="seissol/sim1_big_0123"
+        ;;
+    eqdyna)
+        FIXTURE_DIR="eqdyna_0001A_fixture"
+        CONVERTER="eqdyna_converter_api.py"
+        RAW_FULL_SUB="eqdyna/eqdyna.0001.A.100m"
+        ;;
+    *)
+        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna)"
+        exit 2
+        ;;
+esac
+
+FIXTURE="$TEST_DIR/fixture_reference/$FIXTURE_DIR"
 RAW_FIXTURE="$FIXTURE/raw"
 LIGHT_REF="$FIXTURE/light_reference"
-REFERENCE_DIR="${1:-$REPO/reference}"
-RAW_FULL="$REFERENCE_DIR/datasets/seissol/sim1_big_0123"
+RAW_FULL="$REFERENCE_DIR/datasets/$RAW_FULL_SUB"
 
 if [ ! -d "$RAW_FULL" ]; then
     echo "FAIL: full reference raw dir not found at $RAW_FULL"
-    echo "Pass the path to a checkout with reference/ as \$1, e.g.:"
-    echo "  bash test_system/derive_light_reference.sh REDACTED_PATH/reference"
+    echo "Pass the path to a checkout with reference/ as \$2, e.g.:"
+    echo "  bash test_system/derive_light_reference.sh $CODE REDACTED_PATH/reference"
     exit 1
 fi
 
@@ -66,7 +90,7 @@ mkdir -p "$WORK/fixture_run" "$WORK/full_run"
 echo "work dir: $WORK"
 
 echo "=== Step 1: fixture-computed (raw fixture -> metrics -> stats) ==="
-python3 "$UTILS/seissol_converter_api.py" --input_dir "$RAW_FIXTURE" --output_dir "$WORK/fixture_run" || exit 1
+python3 "$UTILS/$CONVERTER" --input_dir "$RAW_FIXTURE" --output_dir "$WORK/fixture_run" || exit 1
 python3 "$UTILS/station_subset_selector.py" \
     --input_npz "$WORK/fixture_run/velocities.npz" \
     --output_npz "$WORK/fixture_run/processed_stations.npz" \
@@ -83,7 +107,7 @@ FIXTURE_N=$(python3 -c "import numpy as np; print(len(np.load('$WORK/fixture_run
 echo "fixture station count: $FIXTURE_N"
 
 echo "=== Step 2: full-oracle (full reference/ raw -> metrics), ~30-40 min ==="
-python3 "$UTILS/seissol_converter_api.py" --input_dir "$RAW_FULL" --output_dir "$WORK/full_run" || exit 1
+python3 "$UTILS/$CONVERTER" --input_dir "$RAW_FULL" --output_dir "$WORK/full_run" || exit 1
 python3 "$UTILS/station_subset_selector.py" \
     --input_npz "$WORK/full_run/velocities.npz" \
     --output_npz "$WORK/full_run/processed_stations.npz" \
@@ -92,27 +116,62 @@ python3 "$UTILS/npz_gm_processor.py" \
     --velocity_npz "$WORK/full_run/processed_stations.npz" \
     --output_dir "$WORK/full_run" || exit 1
 
-echo "=== Step 3: slice full-oracle metrics to fixture's station IDs, sort, run gm_stats ==="
-python3 - "$WORK/full_run/ground_motion_metrics.npz" "$FIXTURE_N" "$WORK/full_oracle_subset.npz" << 'PYEOF'
+echo "=== Step 3: slice full-oracle metrics to fixture's ACTUAL (post-subset) stations, sort, run gm_stats ==="
+# Matches by PHYSICAL LOCATION (exact (x,y,z) equality), not by station_id.
+# station_subset_selector's grid-cell "closest to grid center" selection is
+# anchored to the bounding box of whichever candidate set it is given, so a
+# raw fixture containing a different (smaller) candidate pool than the full
+# dataset can legitimately pick a DIFFERENT representative station inside
+# the same 1 km cell even though both point sets cover the same ground --
+# station_id intersection is not a reliable key across different-sized
+# candidate pools. Location equality is exact here because both runs derive
+# `locations` from the same raw floats via the same fixed rotation, with no
+# resampling in between. Output is ordered by the fixture run's OWN
+# station_id ascending order (0..n-1 by construction below), matching
+# run_fixture_e2e.sh's "sort fresh run by station_id" convention.
+python3 - "$WORK/full_run/ground_motion_metrics.npz" "$WORK/fixture_run/ground_motion_metrics.npz" "$WORK/full_oracle_subset.npz" << 'PYEOF'
 import sys
 import numpy as np
-full_path, n_str, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
-n = int(n_str)
+full_path, fixture_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 full = np.load(full_path)
-ids = full["station_ids"]
-mask = np.isin(ids, np.arange(n))
-order = np.argsort(ids[mask])
+fixture = np.load(fixture_path)
+fixture_ids = fixture["station_ids"]
+fixture_locs = fixture["locations"]
+n = len(fixture_ids)
+id_order = np.argsort(fixture_ids)  # ascending fixture station_id order
+
+full_locs = full["locations"]
+# Map each full-run row's location to its row index (exact float key).
+loc_to_idx = {tuple(row): i for i, row in enumerate(full_locs)}
+
+match_idx = []
+for k in id_order:
+    key = tuple(fixture_locs[k])
+    if key not in loc_to_idx:
+        raise SystemExit(f"FAIL: fixture station_id={fixture_ids[k]} location {key} not found in full-oracle run")
+    match_idx.append(loc_to_idx[key])
+match_idx = np.array(match_idx)
+
 out = {}
 for k in full.files:
     arr = full[k]
-    if hasattr(arr, "shape") and arr.ndim >= 1 and arr.shape[0] == len(ids):
-        out[k] = arr[mask][order]
+    if hasattr(arr, "shape") and arr.ndim >= 1 and arr.shape[0] == full_locs.shape[0]:
+        out[k] = arr[match_idx]
     else:
         out[k] = arr
+# Relabel with the fixture's OWN station_ids (not the full-oracle's raw
+# numbering scheme, e.g. per-chunk ids): run_fixture_e2e.sh always diffs a
+# freshly-converted fixture run (ids assigned by the committed fixture's own
+# chunk layout) against this frozen reference, so the ids must match that
+# scheme, not the full dataset's. Physical identity was already verified by
+# the location-equality match above.
+out["station_ids"] = fixture_ids[id_order]
 if out["station_ids"].shape[0] != n:
     raise SystemExit(
         f"FAIL: expected {n} stations in full-oracle slice, got {out['station_ids'].shape[0]}"
     )
+if not np.array_equal(out["locations"], fixture_locs[id_order]):
+    raise SystemExit("FAIL: full-oracle slice locations do not match fixture locations exactly")
 np.savez(out_path, **out)
 PYEOF
 [ $? -eq 0 ] || exit 1
