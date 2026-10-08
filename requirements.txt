@@ -6,4 +6,5 @@ netCDF4
 h5py
 openquake.engine
 streamlit
+plotly
 pillow

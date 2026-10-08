@@ -34,6 +34,14 @@ src/web/usage_analytics.log
 src/web/__pycache__/
 src/web/.DS_Store
 
+# UsageTracker writes usage_analytics.log relative to CWD, so running the
+# app (incl. test_system/run_streamlit_boot_smoke.sh and the AppTest suite)
+# from the repo root lands it at root too — same known debt as
+# src/web/usage_analytics.log above (PATHWAY_FORWARD.md 2026-10-08 entry),
+# just gitignored from the other CWD. Not a layout-gate violation since it
+# is untracked, but keep it out of `git status` noise.
+/usage_analytics.log
+
 # Pre-move web/ dir (now src/web/) — old location still holds the owner's
 # Streamlit secrets; a plain `git add -A` would otherwise publish it.
 **/.streamlit/secrets.toml
