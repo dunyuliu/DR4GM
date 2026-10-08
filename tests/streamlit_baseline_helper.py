@@ -4,10 +4,10 @@ Computes expected display values directly from the vendored NPZ asset
 (`data/eqdyna.0001.A.coarse.npz`) using plain numpy -- independent of
 Streamlit entirely. Used by:
 
-  - test_system/unit/test_streamlit_app.py    (asserts the live AppTest run
+  - tests/unit/test_streamlit_app.py    (asserts the live AppTest run
     against values freshly computed here, every CI run)
-  - test_system/capture_streamlit_baseline.py (regenerates the frozen JSON
-    in test_system/e2e_reference/streamlit_apptest_baseline.json)
+  - tests/capture_streamlit_baseline.py (regenerates the frozen JSON
+    in tests/e2e_reference/streamlit_apptest_baseline.json)
 
 Keeping one function as the source of truth means the AppTest assertions
 and the frozen baseline can never silently drift apart: both call
@@ -22,7 +22,7 @@ import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EQDYNA_A_NPZ = REPO_ROOT / "data" / "eqdyna.0001.A.coarse.npz"
-BASELINE_PATH = REPO_ROOT / "test_system" / "e2e_reference" / "streamlit_apptest_baseline.json"
+BASELINE_PATH = REPO_ROOT / "tests" / "e2e_reference" / "streamlit_apptest_baseline.json"
 
 
 def _default_station_idx(num_stations: int) -> int:

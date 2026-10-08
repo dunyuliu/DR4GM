@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Repo layout gate
-        run: bash test_system/check_layout.sh
+        run: bash tests/check_layout.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -21,10 +21,10 @@ jobs:
         # runner. openquake is already an optional, guarded import
         # throughout this codebase (PLOT_GMPE_AVAILABLE in
         # visualize_ensemble_stats.py; the e2e suite's own documented
-        # Figure14B skip banner) -- nothing in test_system/unit needs it,
+        # Figure14B skip banner) -- nothing in tests/unit needs it,
         # so the smoke tier installs everything else and leaves it out.
         run: grep -v '^openquake' requirements.txt > /tmp/requirements-smoke.txt && pip install -r /tmp/requirements-smoke.txt pytest
       - name: Unit tests (incl. Streamlit AppTest, offline)
-        run: python3 -m pytest -q test_system/unit
+        run: python3 -m pytest -q tests/unit
       - name: Streamlit boot smoke (/_stcore/health)
-        run: bash test_system/run_streamlit_boot_smoke.sh
+        run: bash tests/run_streamlit_boot_smoke.sh

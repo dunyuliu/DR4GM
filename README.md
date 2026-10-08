@@ -72,12 +72,12 @@ converters write `gm_statistics.npz` directly).
 ## Regression test
 
 ```bash
-bash test_system/run_tests.sh           # 5 canonical scenarios (~14 min on M3)
-bash test_system/run_tests.sh --all     # all 22 scenarios     (~59 min)
+bash tests/run_tests.sh           # 5 canonical scenarios (~14 min on M3)
+bash tests/run_tests.sh --all     # all 22 scenarios     (~59 min)
 ```
 
 Diffs fresh `ground_motion_metrics.npz` against the bundled 1 km baseline
-(`test_system/reference_results/`, ~3 MB). Pass = float32-aware bit
+(`tests/reference_results/`, ~3 MB). Pass = float32-aware bit
 equivalence (1e-6 rel for float32 inputs, 1e-12 otherwise).
 
 ## Optional interfaces

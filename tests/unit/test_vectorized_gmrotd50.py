@@ -3,8 +3,8 @@ vendored gmpe-smtk reference oracle on a synthetic 3-component record.
 
 Per CLAUDE.md: "The vendored src/gmpe-smtk/ is the *reference* implementation
 used for validation and unit tests, **not** the production path." The oracle
-used here is `gmrotdpp_withPG` (test_system/ComputeGroundMotionParametersFromSurfaceOutput_Hybrid_Lite.py),
-the same per-station ground-truth function test_system/benchmark_vectorized_gm.py
+used here is `gmrotdpp_withPG` (tests/ComputeGroundMotionParametersFromSurfaceOutput_Hybrid_Lite.py),
+the same per-station ground-truth function tests/benchmark_vectorized_gm.py
 already benchmarks against -- not a second copy of the production code.
 
 The record is entirely synthetic (two decaying sinusoids as pseudo horizontal
@@ -20,7 +20,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src" / "utils"))
 sys.path.insert(0, str(REPO_ROOT / "src" / "gmpe-smtk"))
-sys.path.insert(0, str(REPO_ROOT / "test_system"))
+sys.path.insert(0, str(REPO_ROOT / "tests"))
 
 from vectorized_gmrotd50 import gmrotd50_vectorized  # noqa: E402
 

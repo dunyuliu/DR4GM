@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 compare_e2e_summary.py -- diff two ensemble-summary npz files produced by
-extract_ensemble_summary.py, for test_system/run_e2e_bundle.sh.
+extract_ensemble_summary.py, for tests/run_e2e_bundle.sh.
 
 Same precision convention as diff_gm_metrics.py: rel 1e-6 (the summary is
 derived from float32 station velocities, so float64 bit-identity is not

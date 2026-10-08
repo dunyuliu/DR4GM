@@ -19,7 +19,7 @@ Authoritative checklist used by the release workflow's audit step
    `docs/dev/`; `utils/` → `src/utils/`; `gui/` → `src/gui/`; `web/` →
    `src/web/`; the vendored `gmpe-smtk/` (attribution files protected,
    see `CLAUDE.md`) → `src/gmpe-smtk/`; `test_system/` and any other
-   test directory consolidate to one `tests/`; the entry-point scripts
+   test directory consolidated to one `tests/` (done, board row 10); the entry-point scripts
    (`install.sh`, `run_pipeline.sh`, `regen_ensemble_figures.sh`,
    `fetch_figures_for_publication.sh`, `make_zenodo_bundle.sh`) →
    `scripts/`; `reference/` stays in place on disk and is linked under
@@ -37,19 +37,21 @@ Authoritative checklist used by the release workflow's audit step
    by eye before a public release, and a large binary committed by
    accident bloats every future clone.
 
-   **How to apply**: run `test_system/check_layout.sh` before a release
+   **How to apply**: run `tests/check_layout.sh` before a release
    (also wired into the release-workflow audit, step 4); it exits non-zero on any violation and is run first by
-   `test_system/run_tests.sh`; it never moves or deletes anything. Any new root entry needing to ship publicly is proposed
+   `tests/run_tests.sh`; it never moves or deletes anything. Any new root entry needing to ship publicly is proposed
    here as a rule update, not added silently.
 
    **2a. The enforcement script, not this prose, is the gate.** As of
-   this version, `test_system/check_layout.sh` enforces only the
+   this version, `tests/check_layout.sh` enforces the
    board/rules-at-root part of the set above (`PATHWAY_FORWARD.md`,
    `PROJECT_RULES.md` added to its whitelist in the same PR as this
-   rule text). The `tests/`/`src/`/`docs/`/`scripts/` consolidation
-   (board row 10) is a path map, not yet an enforced layout — until
-   `check_layout.sh` is updated to assert it, treat that part of this
-   rule as a stated target, not a passing gate.
+   rule text), and now also the `tests/` part of the
+   `tests/`/`src/`/`docs/`/`scripts/` consolidation (board row 10):
+   its `ALLOWED` whitelist regex lists `tests`, not `test_system`, so a
+   stray `test_system/` reappearing at root would fail the gate. The
+   `src/`/`docs/`/`scripts/` parts of the same consolidation remain a
+   stated target only, not yet asserted by `check_layout.sh`.
 
 3. **The board is `PATHWAY_FORWARD.md` (tracked repo root).** Every open
    work item is a row with a status and an evidence command; /autopilot
@@ -65,7 +67,7 @@ Authoritative checklist used by the release workflow's audit step
    the codebase already treating `openquake` as optional and guarded
    (`PLOT_GMPE_AVAILABLE` in `src/utils/visualize_ensemble_stats.py`; the
    e2e suite's own documented Figure14B skip banner) — nothing in
-   `test_system/unit` or the smoke tier needs it. CI's install step must
+   `tests/unit` or the smoke tier needs it. CI's install step must
    stay `grep -v '^openquake' requirements.txt | pip install -r /dev/stdin
    pytest` (or equivalent) — adding `pip install -r requirements.txt`
    verbatim to CI broke the smoke tier for 3 consecutive pushes on

@@ -21,7 +21,7 @@ echo "=== DR4GM full pipeline run → $RESULTS ==="
 mkdir -p "$RESULTS"
 
 # Step 1: per-scenario processing (all scenarios)
-bash test_system/run_tests.sh --all 2>&1 | tee "$RESULTS/run_tests.log"
+bash tests/run_tests.sh --all 2>&1 | tee "$RESULTS/run_tests.log"
 
 # Step 2: ensemble + per-group figures
 bash scripts/regen_ensemble_figures.sh "$RESULTS" 2>&1 | tee "$RESULTS/regen_ensemble.log"
