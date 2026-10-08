@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-UTILS = Path(__file__).resolve().parent.parent / "utils"
+UTILS = Path(__file__).resolve().parent.parent / "src" / "utils"
 sys.path.insert(0, str(UTILS))
 import visualize_ensemble_stats as ves  # noqa: E402
 

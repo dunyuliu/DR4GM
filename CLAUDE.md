@@ -32,13 +32,13 @@ raw sim output → <code>_converter_api.py → npz_gm_processor.py → gm_stats.
                   geometry .npz)           PGD/RSA/CAV)          std vs Rjb)
 ```
 
-`utils/run_all.sh <raw_dir> <code> <out_dir>` chains this for one scenario.
+`src/utils/run_all.sh <raw_dir> <code> <out_dir>` chains this for one scenario.
 
-**GM metric computation** goes through `utils/vectorized_gmrotd50.py`
+**GM metric computation** goes through `src/utils/vectorized_gmrotd50.py`
 (station-vectorized GMRotD50). The vendored `gmpe-smtk/` is the *reference*
 implementation used for validation and unit tests, **not** the production path.
 
-**Shared style/registry:** `utils/code_style.py` holds `CODE_COLORS`,
+**Shared style/registry:** `src/utils/code_style.py` holds `CODE_COLORS`,
 `CODE_DISPLAY_NAMES`, `code_of/code_color/code_display`, and `gmm_envelope`.
 Both `visualize_ensemble_stats.py` and `plot_pergroup_ens_figure12.py` import
 from it — do not re-declare these tables locally (they drifted twice before).
@@ -179,7 +179,7 @@ file at the repo root unless it ships publicly.
 | `create_rjb_distance_map` skips mirror/y-shift (C4) | deferred — affects only the Rjb map, not Figs 11–19 |
 | SPECFEM3D CAV nearly flat with distance (Fig 19A) | physics question for the modelers, not a bug |
 | Fig 11 excludes `seissol/2` partly by absence of its map PNG | a manual `run_all.sh seissol/2` would resurrect it; consider a hard exclude in `fetch_figures_for_publication.sh` |
-| Root layout per zofia template: `test_system/`→`tests/` rename, `utils/`→`src/utils/`, `gmpe-smtk/`→`src/gmpe-smtk/`, and 2 vendored `gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — evidence: `bash test_system/check_layout.sh` (gate, also run first by `run_tests.sh`) |
+| Root layout per zofia template: `test_system/`→`tests/` rename, `gmpe-smtk/`→`src/gmpe-smtk/`, and 2 vendored `gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — `utils/`→`src/utils/` DONE (row 10 slice) — evidence: `bash test_system/check_layout.sh` (gate, also run first by `run_tests.sh`) |
 
 Full detail in `docs/dev/AUDIT.md`, `docs/dev/AUDIT_MATH.md`, `docs/dev/AUDIT_PHYSICS.md`,
 `docs/dev/AUDIT_FORMULAS.md`.

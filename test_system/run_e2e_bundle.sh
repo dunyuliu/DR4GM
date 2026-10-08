@@ -20,7 +20,7 @@
 #       Figure<NN><letter>.png parts, each a non-empty, valid PNG --
 #       UNLESS `openquake` is not importable in this Python, in which case
 #       Figure14B.png (SA bias vs period; needs the NGA-West2 GMPE from
-#       openquake.hazardlib via utils/openquake_engine_gmpe.py) is known to
+#       openquake.hazardlib via src/utils/openquake_engine_gmpe.py) is known to
 #       be produced by the pipeline's own optional-dependency guard
 #       (visualize_ensemble_stats.py: PLOT_GMPE_AVAILABLE). In that case the
 #       test prints a loud, unmissable SKIP banner naming the missing
@@ -101,9 +101,9 @@ if [ "$HAVE_OPENQUAKE" -eq 0 ]; then
     cat >&2 <<'BANNER'
 ################################################################################
 # SKIP WARNING: `openquake` is NOT importable in this Python environment.
-# The NGA-West2 GMPE comparison (utils/openquake_engine_gmpe.py) is disabled
+# The NGA-West2 GMPE comparison (src/utils/openquake_engine_gmpe.py) is disabled
 # by the pipeline's own optional-dependency guard (PLOT_GMPE_AVAILABLE in
-# utils/visualize_ensemble_stats.py), so Figure14B.png (SA bias vs period)
+# src/utils/visualize_ensemble_stats.py), so Figure14B.png (SA bias vs period)
 # will NOT be produced this run.
 #
 # This test will assert the full manifest MINUS Figure14B.png only. It will
@@ -183,7 +183,7 @@ fi
 
 echo "=== Extracting ensemble numeric summary ==="
 SUMMARY="$TMPDIR/ensemble_summary.npz"
-PYTHONPATH="$WORK/utils" python3 "$SCRIPT_DIR/extract_ensemble_summary.py" \
+PYTHONPATH="$WORK/src/utils" python3 "$SCRIPT_DIR/extract_ensemble_summary.py" \
     "$WORK/results/production_runs" "$SUMMARY"
 
 if [ "$BLESS" -eq 1 ]; then
