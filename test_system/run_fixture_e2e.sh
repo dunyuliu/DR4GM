@@ -3,10 +3,8 @@
 # run_fixture_e2e.sh — CI-facing whole-workflow e2e on a tiny raw fixture.
 #
 # Runs the real pipeline (convert -> subset -> GM metrics -> stats) on a
-# cropped raw SeisSol fixture (170 stations, test_system/fixture_reference/
-# seissol_sim1_fixture/raw/, ~4.1 MB) and diffs the output against a FROZEN
-# "light reference" (test_system/fixture_reference/seissol_sim1_fixture/
-# light_reference/). Uses the same float32-aware tolerance convention as
+# cropped raw fixture and diffs the output against a FROZEN "light reference"
+# committed alongside it. Uses the same float32-aware tolerance convention as
 # test_system/diff_gm_metrics.py / run_tests.sh (1e-6 rel for float32 input,
 # 1e-12 otherwise).
 #
@@ -20,7 +18,10 @@
 # test_system/reference_results/ is re-blessed. Never the reverse: this
 # script must never be used to regenerate the light reference.
 #
-# Usage: bash test_system/run_fixture_e2e.sh
+# Usage: bash test_system/run_fixture_e2e.sh [CODE]
+#   CODE defaults to "seissol" (170-station seissol_sim1_fixture, unchanged
+#   behavior). Other supported CODE values add their own fixture dir +
+#   converter below; see the FIXTURE_DIR/CONVERTER case statement.
 
 set -u
 set -o pipefail
@@ -29,7 +30,24 @@ cd "$(dirname "$0")/.."
 REPO="$(pwd)"
 UTILS="$REPO/src/utils"
 TEST_DIR="$REPO/test_system"
-FIXTURE="$TEST_DIR/fixture_reference/seissol_sim1_fixture"
+
+CODE="${1:-seissol}"
+case "$CODE" in
+    seissol)
+        FIXTURE_DIR="seissol_sim1_fixture"
+        CONVERTER="seissol_converter_api.py"
+        ;;
+    eqdyna)
+        FIXTURE_DIR="eqdyna_0001A_fixture"
+        CONVERTER="eqdyna_converter_api.py"
+        ;;
+    *)
+        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna)"
+        exit 2
+        ;;
+esac
+
+FIXTURE="$TEST_DIR/fixture_reference/$FIXTURE_DIR"
 RAW="$FIXTURE/raw"
 LIGHT_REF="$FIXTURE/light_reference"
 
@@ -46,12 +64,12 @@ WORK="$(mktemp -d -t dr4gm_fixture_e2e.XXXXXX)"
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
-echo "=== Fixture e2e: raw -> convert -> subset -> GM metrics -> stats ==="
+echo "=== Fixture e2e ($CODE): raw -> convert -> subset -> GM metrics -> stats ==="
 echo "fixture raw: $RAW"
 echo "work dir:    $WORK"
 
-echo "--- Step 1/4 convert (seissol) ---"
-python3 "$UTILS/seissol_converter_api.py" --input_dir "$RAW" --output_dir "$WORK" || { echo "FAIL: convert step"; exit 1; }
+echo "--- Step 1/4 convert ($CODE) ---"
+python3 "$UTILS/$CONVERTER" --input_dir "$RAW" --output_dir "$WORK" || { echo "FAIL: convert step"; exit 1; }
 
 echo "--- Step 2/4 subset to 1 km grid ---"
 python3 "$UTILS/station_subset_selector.py" \
