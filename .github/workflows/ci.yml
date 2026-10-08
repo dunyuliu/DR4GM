@@ -12,7 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Repo layout gate
         run: bash test_system/check_layout.sh
-      # TODO(row 4, PATHWAY_FORWARD.md): add
-      #   python3 -m pytest -q test_system/unit
-      # here once test_system/unit/ exists. Until then this job covers only
-      # the layout half of the declared smoke tier.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install smoke-tier dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Unit tests (incl. Streamlit AppTest, offline)
+        run: python3 -m pytest -q test_system/unit
+      - name: Streamlit boot smoke (/_stcore/health)
+        run: bash test_system/run_streamlit_boot_smoke.sh

@@ -1,0 +1,13 @@
+{
+  "dataset_label": "EQDyna A Coarse Simulation",
+  "location_x_km": 0.03,
+  "location_y_km": 0.1,
+  "npz_path": "data/eqdyna.0001.A.coarse.npz",
+  "pga_formatted": "7.061e+02",
+  "pga_raw": 706.1021643398977,
+  "pgv_formatted": "1.278e+02",
+  "pgv_raw": 127.7636041570758,
+  "selected_station_id": 208031,
+  "selected_station_idx": 1865,
+  "station_count": 3731
+}
