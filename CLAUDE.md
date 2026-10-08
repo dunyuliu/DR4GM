@@ -117,16 +117,16 @@ reproduce Figs 11–19 without the 109 GB raw data. README documents the recipe.
 ## Tests
 
 ```bash
-bash test_system/run_tests.sh            # 5 canonical scenarios, ~13 min
-bash test_system/run_tests.sh --all      # all 20, ~60 min
+bash tests/run_tests.sh            # 5 canonical scenarios, ~13 min
+bash tests/run_tests.sh --all      # all 20, ~60 min
 ```
 
-Diffs fresh `ground_motion_metrics.npz` against `test_system/reference_results/`
+Diffs fresh `ground_motion_metrics.npz` against `tests/reference_results/`
 (3.5 MB in-tree, **15 RSA periods**). Pass = float32-aware bit equivalence
 (1e-6 rel for float32 inputs, 1e-12 otherwise).
 
 ⚠️ **Piping through `tee` masks the exit code** (no `pipefail`). For CI use
-`bash test_system/run_tests.sh > run.log 2>&1` or set `pipefail` first.
+`bash tests/run_tests.sh > run.log 2>&1` or set `pipefail` first.
 
 ⚠️ **Stale-oracle lesson (2026-08):** the baselines sat at 13 periods while the
 code produced 15 for ~3 months; every run failed on shape mismatch and nobody
@@ -149,7 +149,7 @@ this end to end.
    sort). Cross-check `CITATION.cff`.
 3. **Keep history.** Never delete a release note; superseded ones move to
    `docs/dev/`.
-4. **Gate:** `bash test_system/check_layout.sh` must exit 0 (no release otherwise).
+4. **Gate:** `bash tests/check_layout.sh` must exit 0 (no release otherwise).
    **Audit against `PROJECT_RULES.md`.** If missing, stop and ask rather
    than improvising. Check: unprocessed files, naming violations, duplicates,
    cross-file consistency, master docs needing updates.
@@ -179,7 +179,7 @@ file at the repo root unless it ships publicly.
 | `create_rjb_distance_map` skips mirror/y-shift (C4) | deferred — affects only the Rjb map, not Figs 11–19 |
 | SPECFEM3D CAV nearly flat with distance (Fig 19A) | physics question for the modelers, not a bug |
 | Fig 11 excludes `seissol/2` partly by absence of its map PNG | a manual `run_all.sh seissol/2` would resurrect it; consider a hard exclude in `fetch_figures_for_publication.sh` |
-| Root layout per zofia template: `test_system/`→`tests/` rename, and 2 vendored `src/gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — `utils/`→`src/utils/` and `gmpe-smtk/`→`src/gmpe-smtk/` DONE (row 10 slice) — evidence: `bash test_system/check_layout.sh` (gate, also run first by `run_tests.sh`) |
+| 2 vendored `src/gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — rest of root layout per zofia template DONE, incl. `utils/`→`src/utils/`, `gmpe-smtk/`→`src/gmpe-smtk/`, and `test_system/`→`tests/` (row 10 slice) — evidence: `bash tests/check_layout.sh` (gate, also run first by `run_tests.sh`) |
 
 Full detail in `docs/dev/AUDIT.md`, `docs/dev/AUDIT_MATH.md`, `docs/dev/AUDIT_PHYSICS.md`,
 `docs/dev/AUDIT_FORMULAS.md`.

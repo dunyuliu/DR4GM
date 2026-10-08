@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 extract_ensemble_summary.py — test-only harness for the bundle-based e2e test
-(test_system/run_e2e_bundle.sh).
+(tests/run_e2e_bundle.sh).
 
 Figs 13-19 are PNGs; visualize_ensemble_stats.py never writes an npz of the
 binned curves it plots. To get a small, diffable numeric oracle for those

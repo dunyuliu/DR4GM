@@ -9,9 +9,9 @@ Runs fully offline:
     so no network access occurs on `at.run()`.
 
 Displayed-value assertions are checked against values computed independently
-from the NPZ by test_system/streamlit_baseline_helper.py (plain numpy, no
+from the NPZ by tests/streamlit_baseline_helper.py (plain numpy, no
 Streamlit), and cross-checked against the frozen baseline JSON in
-test_system/e2e_reference/ -- see that module's docstring for why both.
+tests/e2e_reference/ -- see that module's docstring for why both.
 """
 
 import json
@@ -23,7 +23,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 APP_PATH = REPO_ROOT / "src" / "web" / "dr4gm_interactive_explorer.py"
 
-sys.path.insert(0, str(REPO_ROOT / "test_system"))
+sys.path.insert(0, str(REPO_ROOT / "tests"))
 from streamlit_baseline_helper import BASELINE_PATH, compute_eqdyna_a_expected  # noqa: E402
 
 pytest.importorskip("streamlit", reason="streamlit not installed in this environment")
@@ -111,7 +111,7 @@ def test_displayed_pga_value_matches_npz():
 def test_baseline_json_matches_fresh_computation():
     """Guards against the frozen baseline silently drifting from the NPZ it
     claims to describe. If this fails after an intentional data change,
-    regenerate via `python3 test_system/capture_streamlit_baseline.py`."""
+    regenerate via `python3 tests/capture_streamlit_baseline.py`."""
     assert BASELINE_PATH.is_file(), f"Baseline missing: {BASELINE_PATH}"
     with open(BASELINE_PATH) as f:
         frozen = json.load(f)
