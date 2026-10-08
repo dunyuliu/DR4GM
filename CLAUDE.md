@@ -6,7 +6,7 @@ For the science (formulas, units, τ vs φ, figure→script map) read **`docs/us
 which is the accurate reference and ships with the repo.
 
 **Author:** Dunyu Liu — <dliu@ig.utexas.edu>, Institute for Geophysics, UT Austin.
-**Current version:** 0.1.2 (`CITATION.cff`).
+**Current version:** 0.1.3 (`CITATION.cff`).
 
 ---
 
