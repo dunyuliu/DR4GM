@@ -373,3 +373,58 @@ a 4th dispatch cycle that couldn't land cleanly in the remaining ~1h.
   "Local Files" switch path to confirm host-load vs. real hang.
 - GitHub fallback-repo content discrepancy for vendored web assets
   (`data/MANIFEST.md`) — still open, unchanged.
+
+## 2026-10-08 — milestone close (conductor: Wei Lin, resumed)
+
+Owner directive: `/autopilot reorg until done`, budget until row 10 DONE +
+its milestone (strict cycle + patch tag v0.1.4). Row 10 and row 23 were
+already DONE on main (`12aeafc`) when this instance picked the campaign up —
+inherited from the prior conductor instance within the same wall-clock day.
+
+**Found in-flight, not re-dispatched (rule: see before you spawn).** A
+haruto-nakamura release agent (`ae1df379fd2cefeb3`) dispatched by the prior
+instance was already running a full-tier background regression
+(`bo43dgwk6`, PID 2990037, `bash tests/run_tests.sh > full_tier_run2.log`).
+Confirmed live via `ps -o pid,lstart,args` + growing log before adopting it,
+per rule 3 — did not start a second full-tier run or a second release.
+
+**Conductor-independent verification (never trusted the relay alone):**
+- Full-tier gate: re-read the log myself — `Summary: pass=5 noref=0 fail=0
+  total 33m3s`, `RESULT: PASS`, `EXIT=0`; process exited; HEAD unmoved at
+  `12aeafc` throughout the 33 min run (gate valid for that exact SHA).
+- Smoke CI on `12aeafc`: `gh run view` → conclusion `success`, run
+  `37808914536`.
+- Tag/release: `git log`/`gh release view v0.1.4` → tag `v0.1.4` at `6c7efec`
+  (one release commit past `12aeafc`: CITATION.cff/CLAUDE.md version bump +
+  release notes, no code change). CI run on the exact tagged SHA:
+  `37816773750`, conclusion `success` (re-checked myself, not relay-only).
+- Stranger-clone gate (release agent's own work, reviewed not re-run): fresh
+  clone, `env -i`, `scripts/install.sh` PASS; README's first documented
+  command (Zenodo bundle `curl`) fails — downloads Zenodo's 404 HTML page,
+  not a tarball, because `CITATION.cff`'s ORCID and the README's DOI are
+  still the literal placeholder (`0000-0000-0000-0000` / `XXXXXXX`). This is
+  the same pending-owner item already open before this session (asked,
+  unanswered) — not a new regression, correctly named as a release blocker
+  for Zenodo specifically rather than silently passed or silently deferred.
+- Doc nit found, not fixed: `release_notes_v0.1.4.md` §9 cites `12aeafc`/
+  `37808914536` as "the CI run this release was gated on" and says tag and
+  CI "share the same SHA" — false; the actual tag commit is `6c7efec` with
+  its own run `37816773750`. Left as-is (release notes are historical
+  record, not live-edited after publish) and flagged here + on the board.
+
+**Worktrees/processes**: none to reap — single checkout (`git worktree
+list` shows only the main tree), tree clean (`git status --porcelain
+--ignored` shows only expected gitignored dirs), remote level with HEAD
+after the board-only commit below.
+
+**This instance's only write**: one board-only commit, `2a913d0`,
+mechanically recording the milestone close (full-tier + stranger-clone
+verification, the doc-nit note) under row 10's existing owner-decision log
+entry — no row content re-scoped, no new row opened (that stays
+zofia-kaminska's call).
+
+**Milestone verdict: CLOSED.** Row 10 DONE, v0.1.4 tagged (`6c7efec`),
+CI green on that SHA, full-tier green, stranger-clone gate run with one
+named, pre-existing, owner-blocked exception (Zenodo DOI). Budget for this
+`/autopilot reorg until done` invocation is satisfied; no further dispatch
+made this turn.
