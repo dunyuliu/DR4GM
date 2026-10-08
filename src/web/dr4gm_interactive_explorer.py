@@ -879,7 +879,8 @@ class GroundMotionExplorer:
 
         return files
     
-    def find_npz_files(self, directory: str) -> List[str]:
+    @st.cache_data(ttl=300)  # Cache for 5 minutes
+    def find_npz_files(_self, directory: str) -> List[str]:
         """Find all NPZ files in directory"""
         npz_files = []
         if os.path.exists(directory):
@@ -1408,7 +1409,13 @@ def main():
             st.sidebar.error("Could not discover files in archive")
             
     elif data_source == "Local Files":
-        data_dir = st.sidebar.text_input("Data Directory", value="./")
+        # Default to the small vendored data/ dir, not the repo root -- the
+        # latter's os.walk would also traverse reference/ (frozen, ~199 GB)
+        # and results/ (production run outputs, tens of GB) on any checkout
+        # that has them, which is slow/can hang regardless of host load
+        # (board row 23 finding, 2026-10-08). A user can still type any
+        # other directory, including the repo root, to browse it.
+        data_dir = st.sidebar.text_input("Data Directory", value=str(GroundMotionExplorer._LOCAL_DATA_DIR))
         npz_files = explorer.find_npz_files(data_dir)
         if npz_files:
             selected_file = st.sidebar.selectbox("Choose Dataset", npz_files, 
