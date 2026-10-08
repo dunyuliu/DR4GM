@@ -55,7 +55,7 @@ cd "$(dirname "$0")/.."
 bash test_system/check_layout.sh || { echo "Layout check failed; fix it before running tests."; exit 1; }
 REPO="$(pwd)"
 TEST_DIR="$REPO/test_system"
-UTILS="$REPO/utils"
+UTILS="$REPO/src/utils"
 DATASETS="$REPO/datasets"
 REF="$REPO/test_system/reference_results"
 

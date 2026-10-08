@@ -4,7 +4,7 @@ set -euo pipefail
 # Resolve repo root from this script's location so the pipeline is portable.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROD="$REPO_ROOT/results/production_runs"
-UTILS="$REPO_ROOT/utils"
+UTILS="$REPO_ROOT/src/utils"
 ENS="$PROD/ensemble"
 
 cd "$UTILS"

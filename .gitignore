@@ -13,7 +13,7 @@ datasets
 results/
 
 # Per-script working dirs
-utils/results/
+src/utils/results/
 
 # docs/dev/ holds tracked internal dev docs (audits, release notes, plans);
 # docs/user/ ships publicly (e.g. FORMULAS.md) and also stays tracked.

@@ -119,9 +119,9 @@ class FastNPZGroundMotionProcessor:
         """
         Process a chunk using the station-vectorized GMRotD50 core.
 
-        Uses `utils/vectorized_gmrotd50.py`, which is bit-exact
+        Uses `src/utils/vectorized_gmrotd50.py`, which is bit-exact
         equivalent to per-station `gmrotdpp_withPG` and verified by
-        `utils/benchmark_vectorized_gm.py` (rel max error 0.00e+00 on
+        `src/utils/benchmark_vectorized_gm.py` (rel max error 0.00e+00 on
         EQDyna A 2000m, all of PGA/PGV/PGD/CAV/SA).
         """
         sys.path.insert(0, str(Path(__file__).parent))
