@@ -192,6 +192,66 @@ earlier roster table. Not chasing further; logged here for anyone auditing.
   live `zsh`/`sleep` processes via `lsof` at time of this dispatch —
   untouched, disjoint files (iris edits `test_system/` only).
 
+## Turn 5 — row 5 landed; checkpoint
+
+- **iris-vermeulen** (row 5, agentId `afcb30975741e28cc`) completed:
+  `test_system/integration/test_run_all_integration.py` (reuses row 13's
+  `seissol_sim1_fixture`, diffs against its existing blessed reference, no
+  new oracle derived) + `test_system/unit/test_run_all_pointer.py` (thin
+  pointer so the board's exact evidence command resolves). Flagged, not
+  resolved: fixture is 4.2-4.3 MB, exceeding row 5's own stated 2 MB cap
+  (matches row 13's 5 MB cap instead) — the two caps need reconciling.
+  Conductor re-verification: branch one commit behind main (docs-only, no
+  overlap), purely additive. Fresh independent re-run:
+  `pytest -q test_system/unit -k run_all` -> 1 passed (~57s); full
+  `pytest -q test_system/unit` -> 39 passed (~89s); `check_layout.sh` PASS.
+  Squash-merged `a47569d`, pushed; fixed a SHA-placeholder typo in the
+  board text in a follow-up commit (`f40da1b`); CI confirmed green on both
+  via `gh run watch --exit-status`. Worktree/branch reaped.
+
+### Checkpoint — stopping dispatch here this session
+
+Per tool-economy guidance (checkpoint past ~120 tool calls even mid-queue,
+since a fresh conductor continues cheaper), stopping new dispatches now
+rather than continuing to the module-split refactor or further row 13
+fixtures. State for the next instance to pick up cleanly:
+
+- **HEAD**: `f40da1b`, CI green (confirmed via `gh run watch`).
+- **Board rows closed this campaign-so-far**: 1, 2, 3, 4, 5, 6, 7, 8, 9 all
+  DONE. Row 10 (reorg) DOING — `gmpe-smtk` and `utils` slices landed;
+  remaining slices per `CLAUDE.md`'s "Known open issues" table:
+  `test_system/`→`tests/` consolidation (still deliberately deferred —
+  row 13's other-4-codes follow-up should land in the same directory
+  first, per the original row 10 note), `results/`→`runs/<date>_<slug>/`
+  convention, legacy `datasets` symlink retirement. Row 13 DONE for SeisSol
+  only — EQdyna, FD3D, SPECFEM3D, WaveQLab3D fixtures still TODO. Rows 11,
+  12, 14 BLOCKED(owner), unchanged, relay only.
+- **Not started**: the "enhance the streamlit workflow" module-split
+  refactor (owner decision 2026-10-08, second relay) — baseline now exists
+  (`test_system/e2e_reference/streamlit_apptest_baseline.json`) so this is
+  unblocked and ready for a kai-fischer dispatch sequenced after this
+  baseline, scoped to: break `src/web/dr4gm_interactive_explorer.py` into
+  data-loading/metrics+plots/UI modules without changing displayed output
+  (gate: the AppTest baseline must still match), add `st.cache_data` on
+  loads/derived metrics, remove `_commit_to_git()`'s autonomous git
+  add+commit entirely (not just relocate the log), one documented local
+  launch command.
+- **kai-fischer's worktree** (`.claude/worktrees/agent-ae64b2e66863c9036`,
+  branch `worktree-agent-ae64b2e66863c9036`) still shows a live `zsh`
+  (pid 1617412) at last check — its assigned mission (gmpe-smtk
+  relocation) is merged (`6d028f0`); this is unexplained residual shell
+  activity, not new work. Do not force-remove; re-check liveness first.
+- **Pending owner answers**: row 14 (`gm_stats.py --distance_bin_size`),
+  rows 11/12 (vendored test-data size, Rjb/count<2 math), the GitHub
+  fallback-repo content discrepancy for vendored web assets
+  (`data/MANIFEST.md`), and confirmation on the row 5 vs row 13 fixture-
+  size-cap discrepancy.
+- **Lesson paid for and codified**: `PROJECT_RULES.md` rule 4 (CI must
+  exclude `openquake` from its install — GDAL build dep, no `gdal-config`
+  on the runner). Caught via `gh run list` before closing a board row, not
+  after a user complaint — keep checking actual CI status before claiming
+  DONE on any row touching `.github/workflows/ci.yml`.
+
 ## Pending owner items (relay only, unchanged this session)
 
 - Row 14: `gm_stats.py --distance_bin_size` 2000 vs 500 default — options
