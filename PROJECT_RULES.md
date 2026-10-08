@@ -57,3 +57,20 @@ Authoritative checklist used by the release workflow's audit step
    Dev cycle: feature branch → PR → CI green → merge to `main`; release
    tag only on green CI for that exact SHA plus a full-tier run and a
    stranger clone.
+
+4. **CI installs `requirements.txt` minus `openquake`.** `openquake.engine`
+   pulls GDAL as a transitive build dependency; the hosted CI runner has no
+   system `libgdal-dev`/`gdal-config`, so `pip install -r requirements.txt`
+   fails outright before any test runs. This is consistent with the rest of
+   the codebase already treating `openquake` as optional and guarded
+   (`PLOT_GMPE_AVAILABLE` in `src/utils/visualize_ensemble_stats.py`; the
+   e2e suite's own documented Figure14B skip banner) — nothing in
+   `test_system/unit` or the smoke tier needs it. CI's install step must
+   stay `grep -v '^openquake' requirements.txt | pip install -r /dev/stdin
+   pytest` (or equivalent) — adding `pip install -r requirements.txt`
+   verbatim to CI broke the smoke tier for 3 consecutive pushes on
+   2026-10-08 (runs `37712597109`, `37712697030`, `37713635530`) before
+   this was caught and fixed in `11191ab`. A full-tier/release run that
+   genuinely needs GMPE comparison installs `openquake` separately in an
+   environment with GDAL available (see `docs/dev/` release workflow),
+   never via CI's smoke-tier step.
