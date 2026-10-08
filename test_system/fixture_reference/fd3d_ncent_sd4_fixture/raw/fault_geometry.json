@@ -1,0 +1,19 @@
+{
+  "fault_type": "strike-slip",
+  "fault_trace_start": [0.0, 25100.0, 0.0],
+  "fault_trace_end": [0.0, 65100.0, 0.0],
+  "fault_dip": 90.0,
+  "fault_strike": 0.0,
+  "coordinate_units": "m",
+  "fault_length": 40000.0,
+  "rotation": "no",
+  "description": "FD3D Ncenter fault geometry - N-S strike, 40km length, Y=25.1km to 65.1km",
+  "_metadata": {
+    "description": "DR4GM standardized fault geometry for FD3D Ncenter",
+    "coordinate_system": "Cartesian (X, Y, Z) in meters",
+    "fault_orientation": "N-S strike (along Y-axis)",
+    "simulation_code": "FD3D",
+    "scenario": "Ncenter",
+    "notes": "FD3D coordinate system, no rotation needed"
+  }
+}

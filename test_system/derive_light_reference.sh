@@ -38,6 +38,62 @@
 #   script took a CODE parameter). Other supported CODE values add their own
 #   fixture dir + converter + full-oracle raw subdir below; see the
 #   FIXTURE_DIR/CONVERTER/RAW_FULL case statement.
+#
+#   fd3d note (two raw-format issues, discovered while building this
+#   fixture):
+#
+#   (1) block-size quirk: the real SD4/Ncenter seisout{U,V}.surface.gnuplot.dat
+#   files are NOT flat 900-line-per-timestep blocks as fd3d_converter_api.py's
+#   default nxt=900 assumes -- each timestep is actually a TRUE 902-line
+#   block: 900 real fault-parallel stations (i=1..900) followed by exactly
+#   2 BLANK lines (i=901,902; verified: every one of the 1600 blocks has
+#   blanks at block-relative lines 901 and 902, 3200 blanks total,
+#   1600*902=1,443,200 = the file's real line count). numpy.loadtxt
+#   silently skips blank lines; for the FULL file this coincidentally
+#   self-heals (3200 blanks removed from 1,443,200 lines leaves exactly
+#   1,440,000 = 1600*900, matching fd3d_converter_api.py's
+#   expected_total_lines with no mismatch-pad branch taken, so the full
+#   run reshapes correctly) -- but a NAIVE partial crop that doesn't know
+#   about the true 902-line block boundary can clip into the blank pair
+#   and trigger the mismatch/pad branch, which pads with zero rows at the
+#   END rather than at the point of loss, silently misaligning every
+#   station after it. The fixture crop reads the source using the TRUE
+#   902-line block size to avoid this.
+#
+#   (2) sparse-candidate-pool / grid-cell-boundary issue, worse than
+#   eqdyna's: fd3d's (x,y) coordinates are a RIGID function of raw line
+#   position (sta_north=dh*i has no decoupling parameter, unlike
+#   sta_east=-dh*(nyt-j+1) which can be re-centered via nyt), so unlike
+#   eqdyna's per-station chunk files, a fd3d fixture cannot pick arbitrary
+#   station identities -- a cropped fixture's station_subset_selector pick
+#   for a given grid cell matches the full dataset's pick ONLY when the
+#   fixture happens to contain the EXACT cell-center coordinate itself
+#   (distance 0 to the cell center, unbeatable by any candidate outside
+#   the crop, so the match holds regardless of what else surrounds it).
+#   Grid centers occur every grid_resolution=1000m starting at the
+#   dataset's true (x_min, y_min) corner (100, 100) -- since 1000m is a
+#   multiple of the native 100m spacing, every center coordinate is itself
+#   a native grid point, so a fixture built to include exactly those
+#   points is guaranteed to match. The fixture here uses a single
+#   fault-normal column at x=100m (the domain's true edge) times 91
+#   fault-parallel points y=100..9100m (--nxt 91), which lands exactly on
+#   10 grid centers (y=100,1100,...,9100) under station_subset_selector's
+#   grid_resolution=1000 -- verified directly: `station_subset_selector.py
+#   --grid_resolution 1000` on the fixture's own velocities.npz selects
+#   exactly those 10 stations, nothing else. A SECOND dummy all-zero
+#   column is included (--nyt 2, not --nyt 1) purely to keep
+#   fd3d_converter_api.py's vectorized (2D) ASCII reader on its happy
+#   path: a true single-column (--nyt 1) file makes np.loadtxt return a 1D
+#   array, which raises on `.shape[1]` and silently falls back to the
+#   loop-based reader -- that reader has no explicit dtype and produces
+#   float64 instead of the production float32, which then fools
+#   diff_gm_metrics.py's float32-vs-float64 tolerance auto-detection (it
+#   inspects the --input processed_stations.npz's vel_strike dtype) into
+#   using the strict 1e-12 tolerance instead of the correct 1e-6 float32
+#   tolerance, even though the underlying noise is genuine float32-grade
+#   (~1e-7). The dummy column (j=1 -> x=200m) is always beaten by the
+#   exact j=2 -> x=100m match for every target cell (distance 0 in x
+#   beats distance 100), so it never gets selected and is otherwise inert.
 #   REFERENCE_DIR defaults to <repo_root>/reference (a normal checkout, not
 #   this worktree, since reference/ is gitignored and not copied into
 #   worktrees).
@@ -53,6 +109,7 @@ TEST_DIR="$REPO/test_system"
 CODE="${1:-seissol}"
 REFERENCE_DIR="${2:-$REPO/reference}"
 
+FIXTURE_CONVERTER_ARGS=()
 case "$CODE" in
     seissol)
         FIXTURE_DIR="seissol_sim1_fixture"
@@ -64,8 +121,30 @@ case "$CODE" in
         CONVERTER="eqdyna_converter_api.py"
         RAW_FULL_SUB="eqdyna/eqdyna.0001.A.100m"
         ;;
+    fd3d)
+        FIXTURE_DIR="fd3d_ncent_sd4_fixture"
+        CONVERTER="fd3d_converter_api.py"
+        RAW_FULL_SUB="fd3d/SD4/Ncenter"
+        # Fixture raw is a single fault-normal column (x=100m, the domain's
+        # true edge) x 91 fault-parallel points (y=100..9100m) — see fd3d
+        # note above for why only EXACT-grid-center stations are usable at
+        # all for fd3d (unlike eqdyna/seissol's per-station files, fd3d's
+        # y-coordinate is a rigid function of raw line position with no
+        # decoupling parameter, so "closest-to-cell-center" is only
+        # guaranteed to match between a cropped fixture and the full
+        # dataset at points where the fixture happens to contain the EXACT
+        # cell-center coordinate itself, distance 0, unbeatable by anything
+        # outside the crop). This single column at x=100 hits 10 exact grid
+        # centers (y=100,1100,...,9100) when run through
+        # station_subset_selector's grid_resolution=1000 selection. Only
+        # the FIXTURE conversion needs non-default --nxt/--nyt; the
+        # full-oracle run below uses the converter's defaults
+        # (900/250/1600), matching what the production pipeline
+        # (run_all.sh) actually passes.
+        FIXTURE_CONVERTER_ARGS=(--nxt 91 --nyt 2)
+        ;;
     *)
-        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna)"
+        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna, fd3d)"
         exit 2
         ;;
 esac
@@ -90,7 +169,7 @@ mkdir -p "$WORK/fixture_run" "$WORK/full_run"
 echo "work dir: $WORK"
 
 echo "=== Step 1: fixture-computed (raw fixture -> metrics -> stats) ==="
-python3 "$UTILS/$CONVERTER" --input_dir "$RAW_FIXTURE" --output_dir "$WORK/fixture_run" || exit 1
+python3 "$UTILS/$CONVERTER" --input_dir "$RAW_FIXTURE" --output_dir "$WORK/fixture_run" "${FIXTURE_CONVERTER_ARGS[@]}" || exit 1
 python3 "$UTILS/station_subset_selector.py" \
     --input_npz "$WORK/fixture_run/velocities.npz" \
     --output_npz "$WORK/fixture_run/processed_stations.npz" \
