@@ -27,8 +27,11 @@ Authoritative checklist used by the release workflow's audit step
    assets (each < 5 MB, with an md5 + source URL recorded in
    `data/MANIFEST.md`) that production code loads directly, such as the
    Streamlit explorer's demo NPZs; `results/` output moves to
-   git-ignored `runs/<YYYYMMDD>_<slug>/`. `local/` is dissolved —
-   nothing ships from an untracked shadow copy. No other new file or
+   git-ignored `runs/<YYYYMMDD>_<slug>/`. `local/` is being dissolved —
+   nothing ships from it (it's gitignored and untracked), but the
+   directory itself still has stale content on disk pending a manual
+   owner clear (agents can't see or `rm` the maintainer's own working
+   dir; see `PATHWAY_FORWARD.md` row 10). No other new file or
    directory lands at the root — see `CLAUDE.md`: "never create a new
    file at the repo root unless it ships publicly." No file tracked by
    git exceeds 5 MB.
@@ -101,5 +104,5 @@ Authoritative checklist used by the release workflow's audit step
    outside the release/CI tooling that is meant to commit (none exist
    under `src/` today; release commits are run by a human or CI, not by
    `src/` code) is a violation. Tier: mechanical via that grep; the
-   check itself is not yet wired into `check_layout.sh` — board row 15
-   tracks wiring it in alongside the removal.
+   check is now wired into `tests/check_layout.sh` (board row 15, DONE)
+   so a reintroduced violation fails the gate directly, not just this grep.
