@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "layout check: not a git checkout, skipped"; exit 0; }
 
-ALLOWED='^(README\.md|LICENSE|CITATION\.cff|\.gitignore|requirements\.txt|scripts|docs|test_system|src|\.github|PATHWAY_FORWARD\.md|PROJECT_RULES\.md|CLAUDE\.md|release_notes_v[0-9][0-9.a-z-]*\.md)$'
+ALLOWED='^(README\.md|LICENSE|CITATION\.cff|\.gitignore|requirements\.txt|scripts|docs|test_system|src|data|\.github|PATHWAY_FORWARD\.md|PROJECT_RULES\.md|CLAUDE\.md|release_notes_v[0-9][0-9.a-z-]*\.md)$'
 # vendored upstream test data, kept until the owner decides LFS vs fetch
 SIZE_EXEMPT='^src/gmpe-smtk/tests/(file_samples/core_flatfile_ngawest2\.csv|smtk_ims_test_data\.hdf5)$'
 
