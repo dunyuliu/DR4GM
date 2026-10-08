@@ -16,7 +16,7 @@ Usage:
     python seissol_converter_api.py --input_dir <seissol_dir> --output_dir <output_dir>
     
 Example:
-    python seissol_converter_api.py --input_dir ../../datasets/seissol --output_dir ./converted_data
+    python seissol_converter_api.py --input_dir ../../data/reference/datasets/seissol --output_dir ./converted_data
 """
 
 import os

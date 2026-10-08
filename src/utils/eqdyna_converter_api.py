@@ -10,7 +10,7 @@ Usage:
     python eqdyna_converter_api.py --input_dir <eqdyna_dir> --output_dir <output_dir>
     
 Example:
-    python eqdyna_converter_api.py --input_dir ../../datasets/eqdyna/eqdyna.0001.A.100m --output_dir ./converted_data
+    python eqdyna_converter_api.py --input_dir ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m --output_dir ./converted_data
 """
 
 import os

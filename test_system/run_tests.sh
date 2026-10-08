@@ -27,7 +27,8 @@
 #   bash test_system/run_tests.sh --all     # all 20 scenarios
 #
 # End-to-end (from the Zenodo bundle): this script needs the ~199 GB raw
-# datasets/ tree. If you only have the ~14 MB public Zenodo bundle (the
+# data/reference/datasets/ tree (symlinked from reference/datasets). If you
+# only have the ~14 MB public Zenodo bundle (the
 # README "Reproduce manuscript Figs 11-19" path), use instead:
 #   bash test_system/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
 # It runs regen_ensemble_figures.sh in a scratch copy of the repo and checks
@@ -56,7 +57,7 @@ bash test_system/check_layout.sh || { echo "Layout check failed; fix it before r
 REPO="$(pwd)"
 TEST_DIR="$REPO/test_system"
 UTILS="$REPO/src/utils"
-DATASETS="$REPO/datasets"
+DATASETS="$REPO/data/reference/datasets"
 REF="$REPO/test_system/reference_results"
 
 if [ "$MODE" = "all" ]; then

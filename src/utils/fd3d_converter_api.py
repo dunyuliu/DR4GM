@@ -21,7 +21,7 @@ Usage:
     python fd3d_converter_api.py --input_dir <fd3d_dir> --output_dir <output_dir>
     
 Example:
-    python fd3d_converter_api.py --input_dir ../datasets/fd3d/nucl_cent --output_dir ./converted_data
+    python fd3d_converter_api.py --input_dir ../data/reference/datasets/fd3d/nucl_cent --output_dir ./converted_data
 """
 
 import os
