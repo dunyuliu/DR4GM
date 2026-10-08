@@ -51,14 +51,14 @@ for s in "${ALL_SCENARIOS[@]}"; do
     else
         XLIM=(--xlim -20 20)
     fi
-    PYTHONPATH="$UTILS" python visualize_gm_maps.py \
+    PYTHONPATH="$UTILS" python3 visualize_gm_maps.py \
         --gm_npz "$NPZ" --output_dir "$OUT" --metric RSA_T_1.000 \
         --vmin 0.04 --vmax 1.5 "${XLIM[@]}" --ylim -40 40 2>&1 | tail -1
 done
 
 echo ""
 echo "=== Regenerating ensemble figures (Figs 13-19) ==="
-PYTHONPATH="$UTILS" python visualize_ensemble_stats.py \
+PYTHONPATH="$UTILS" python3 visualize_ensemble_stats.py \
     --input-dir "$PROD" \
     --output-dir "$ENS" \
     --add-gmpe \
@@ -79,7 +79,7 @@ FIG12_SCENARIOS=(
     sord/1/sord_scenario
     specfem3d/1 specfem3d/2 specfem3d/3
 )
-PYTHONPATH="$UTILS" python plot_pergroup_ens_figure12.py \
+PYTHONPATH="$UTILS" python3 plot_pergroup_ens_figure12.py \
     --input-dir "$PROD" \
     --output-dir "$ENS" \
     --period 1.0 --magnitude 7.0 --vs30 760 \

@@ -138,7 +138,7 @@ run_one() {
 
     echo "[$(ts)] Step 1/3 convert ..."
     t0=$SECONDS
-    if ! python "$UTILS/${code}_converter_api.py" \
+    if ! python3 "$UTILS/${code}_converter_api.py" \
             --input_dir "$raw" --output_dir "$dst"; then
         echo "Step 1 FAILED"
         echo FAIL > "$dst/STATUS"
@@ -154,7 +154,7 @@ run_one() {
 
     echo "[$(ts)] Step 2/3 subset to 1 km grid ..."
     t0=$SECONDS
-    if ! python "$UTILS/station_subset_selector.py" \
+    if ! python3 "$UTILS/station_subset_selector.py" \
             --input_npz "$dst/velocities.npz" \
             --output_npz "$dst/processed_stations.npz" \
             --grid_resolution 1000; then
@@ -166,7 +166,7 @@ run_one() {
 
     echo "[$(ts)] Step 3/3 vectorized GM metrics ..."
     t0=$SECONDS
-    if ! python "$UTILS/npz_gm_processor.py" \
+    if ! python3 "$UTILS/npz_gm_processor.py" \
             --velocity_npz "$dst/processed_stations.npz" \
             --output_dir "$dst"; then
         echo "Step 3 FAILED"
@@ -182,7 +182,7 @@ run_one() {
     fi
 
     echo "[$(ts)] Diff vs reference ..."
-    if python "$TEST_DIR/diff_gm_metrics.py" "$ref_metrics" \
+    if python3 "$TEST_DIR/diff_gm_metrics.py" "$ref_metrics" \
             "$dst/ground_motion_metrics.npz" \
             --input "$dst/processed_stations.npz"; then
         echo "[$(ts)] DIFF PASS"
