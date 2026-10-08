@@ -91,9 +91,10 @@ class UsageTracker:
         # Update behavioral tracking
         self._update_behavioral_metrics(event_type)
         
-        # Commit to git if batch is full
+        # Flush the in-memory batch buffer once full (no git side effects —
+        # see _clear_batch / PROJECT_RULES.md rule 5)
         if len(self.batch_events) >= self.batch_size:
-            self._commit_to_git()
+            self._clear_batch()
     
     def _get_performance_metrics(self):
         """Get performance and technical metrics"""
@@ -492,48 +493,23 @@ View complete analytics: [Google Sheets]
             # Silently fail - don't disrupt user experience
             pass
     
-    def _commit_to_git(self):
-        """Commit usage data to git repository"""
-        if not self.batch_events:
-            return
-            
-        try:
-            # Check if we're in a git repository
-            result = subprocess.run(['git', 'rev-parse', '--git-dir'], 
-                                  capture_output=True, text=True)
-            if result.returncode != 0:
-                return  # Not in a git repo
-            
-            # Add the log file
-            subprocess.run(['git', 'add', str(self.log_file)], 
-                          capture_output=True, text=True)
-            
-            # Create commit message
-            event_types = list(set(event.event_type for event in self.batch_events))
-            commit_msg = f"Update usage analytics: {len(self.batch_events)} events ({', '.join(event_types[:3])})"
-            if len(event_types) > 3:
-                commit_msg += f" +{len(event_types)-3} more"
-            
-            # Commit
-            subprocess.run(['git', 'commit', '-m', commit_msg], 
-                          capture_output=True, text=True)
-            
-            # Try to push (will fail if no remote or no auth, but that's OK)
-            subprocess.run(['git', 'push'], 
-                          capture_output=True, text=True, timeout=10)
-            
-            # Clear batch
-            self.batch_events = []
-            
-        except Exception as e:
-            # Silently fail - don't disrupt user experience
-            pass
-    
+    def _clear_batch(self):
+        """Clear the batch buffer once events have been locally persisted.
+
+        PROJECT_RULES.md rule 5: production code under src/ must never
+        `git add`/`commit`/`push` against the repo it is running in. This
+        method previously did exactly that, autonomously, on a timer,
+        wrapped in a bare `except: pass`. Removed, not relocated — events
+        are already durably written per-event by `_save_event` (see
+        `track_event`); batching here only bounds in-memory buffer size.
+        """
+        self.batch_events = []
+
     def force_commit(self):
-        """Force commit any pending events"""
+        """Flush any pending batched events (no git side effects)."""
         if self.batch_events:
-            self._commit_to_git()
-    
+            self._clear_batch()
+
     def get_session_stats(self):
         """Get current session statistics"""
         return {

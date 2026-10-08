@@ -25,5 +25,13 @@ for p in results/ reference/ local/; do
   git check-ignore -q "$p" || { echo "LAYOUT FAIL: $p is not git-ignored"; fail=1; }
 done
 
+# PROJECT_RULES.md rule 5: production code under src/ must never commit to
+# its own running repo (no git add/commit/push on a timer or callback).
+if grep -rn "subprocess\.run(\['git'" src/ >/dev/null 2>&1; then
+  echo "LAYOUT FAIL: src/ invokes git subprocess directly (rule 5) —"
+  grep -rn "subprocess\.run(\['git'" src/
+  fail=1
+fi
+
 [ "$fail" -eq 0 ] && echo "layout check: PASS"
 exit "$fail"
