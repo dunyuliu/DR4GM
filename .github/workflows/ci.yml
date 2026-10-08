@@ -16,7 +16,14 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install smoke-tier dependencies
-        run: pip install -r requirements.txt pytest
+        # openquake.engine pulls GDAL as a transitive build dependency,
+        # which needs system libgdal-dev/gdal-config not present on the
+        # runner. openquake is already an optional, guarded import
+        # throughout this codebase (PLOT_GMPE_AVAILABLE in
+        # visualize_ensemble_stats.py; the e2e suite's own documented
+        # Figure14B skip banner) -- nothing in test_system/unit needs it,
+        # so the smoke tier installs everything else and leaves it out.
+        run: grep -v '^openquake' requirements.txt > /tmp/requirements-smoke.txt && pip install -r /tmp/requirements-smoke.txt pytest
       - name: Unit tests (incl. Streamlit AppTest, offline)
         run: python3 -m pytest -q test_system/unit
       - name: Streamlit boot smoke (/_stcore/health)
