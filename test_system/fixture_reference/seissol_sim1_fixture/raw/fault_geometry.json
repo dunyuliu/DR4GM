@@ -1,0 +1,18 @@
+{
+  "fault_type": "strike-slip",
+  "fault_trace_start": [-20000.0, 0.0, 0.0],
+  "fault_trace_end": [20000.0, 0.0, 0.0],
+  "fault_dip": 90.0,
+  "fault_strike": 90.0,
+  "coordinate_units": "m",
+  "fault_length": 40000.0,
+  "rotation": "yes",
+  "description": "SEISSOL fault geometry - E-W strike, 40km length, X=-20km to +20km",
+  "_metadata": {
+    "description": "DR4GM standardized fault geometry for SEISSOL",
+    "coordinate_system": "Cartesian (X, Y, Z) in meters",
+    "fault_orientation": "E-W strike (along X-axis)",
+    "simulation_code": "SEISSOL",
+    "notes": "Original SEISSOL coordinate system, requires 90° CCW rotation"
+  }
+}
