@@ -52,7 +52,7 @@ For θ ∈ [0, 90°):
 GMRotD50 = percentile_50( {IM(θ)} )                (median over rotations)
 ```
 
-Code: `src/utils/vectorized_gmrotd50.py` (production); `gmpe-smtk/smtk/intensity_measures.py:gmrotdpp` (reference).
+Code: `src/utils/vectorized_gmrotd50.py` (production); `src/gmpe-smtk/smtk/intensity_measures.py:gmrotdpp` (reference).
 
 ### 1.4 CAV
 

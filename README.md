@@ -103,10 +103,10 @@ University of Texas at Austin. (Manuscript in prep.)
 
 ## Acknowledgments
 
-Bundles the **GMPE Strong Motion Modeller's Toolkit** (`gmpe-smtk/`) by the
+Bundles the **GMPE Strong Motion Modeller's Toolkit** (`src/gmpe-smtk/`) by the
 **GEM Foundation** (© 2014–2018, AGPLv3,
-<https://github.com/GEMScienceTools/gmpe-smtk>). See `gmpe-smtk/LICENSE`
-and `gmpe-smtk/LOCAL_MODIFICATIONS.md`.
+<https://github.com/GEMScienceTools/gmpe-smtk>). See `src/gmpe-smtk/LICENSE`
+and `src/gmpe-smtk/LOCAL_MODIFICATIONS.md`.
 
 Built with assistance from **[Claude Code](https://github.com/anthropics/claude-code)**.
 

@@ -35,7 +35,7 @@ raw sim output → <code>_converter_api.py → npz_gm_processor.py → gm_stats.
 `src/utils/run_all.sh <raw_dir> <code> <out_dir>` chains this for one scenario.
 
 **GM metric computation** goes through `src/utils/vectorized_gmrotd50.py`
-(station-vectorized GMRotD50). The vendored `gmpe-smtk/` is the *reference*
+(station-vectorized GMRotD50). The vendored `src/gmpe-smtk/` is the *reference*
 implementation used for validation and unit tests, **not** the production path.
 
 **Shared style/registry:** `src/utils/code_style.py` holds `CODE_COLORS`,
@@ -179,7 +179,7 @@ file at the repo root unless it ships publicly.
 | `create_rjb_distance_map` skips mirror/y-shift (C4) | deferred — affects only the Rjb map, not Figs 11–19 |
 | SPECFEM3D CAV nearly flat with distance (Fig 19A) | physics question for the modelers, not a bug |
 | Fig 11 excludes `seissol/2` partly by absence of its map PNG | a manual `run_all.sh seissol/2` would resurrect it; consider a hard exclude in `fetch_figures_for_publication.sh` |
-| Root layout per zofia template: `test_system/`→`tests/` rename, `gmpe-smtk/`→`src/gmpe-smtk/`, and 2 vendored `gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — `utils/`→`src/utils/` DONE (row 10 slice) — evidence: `bash test_system/check_layout.sh` (gate, also run first by `run_tests.sh`) |
+| Root layout per zofia template: `test_system/`→`tests/` rename, and 2 vendored `src/gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — `utils/`→`src/utils/` and `gmpe-smtk/`→`src/gmpe-smtk/` DONE (row 10 slice) — evidence: `bash test_system/check_layout.sh` (gate, also run first by `run_tests.sh`) |
 
 Full detail in `docs/dev/AUDIT.md`, `docs/dev/AUDIT_MATH.md`, `docs/dev/AUDIT_PHYSICS.md`,
 `docs/dev/AUDIT_FORMULAS.md`.
@@ -188,11 +188,11 @@ Full detail in `docs/dev/AUDIT.md`, `docs/dev/AUDIT_MATH.md`, `docs/dev/AUDIT_PH
 
 ## Bundled dependency: gmpe-smtk
 
-Vendored in-tree (AGPLv3, © GEM Foundation,
+Vendored in-tree under `src/gmpe-smtk/` (AGPLv3, © GEM Foundation,
 <https://github.com/GEMScienceTools/gmpe-smtk>). **Not** a git submodule — the
 inner `.git/` was removed and the source committed as part of DR4GM.
 
 Local NumPy 2.x / SciPy ≥ 1.14 compatibility edits are recorded in
-`gmpe-smtk/LOCAL_MODIFICATIONS.md`. Credit appears in `README.md`.
-**Do not delete or rewrite** `gmpe-smtk/LICENSE`, `gmpe-smtk/README.md`, or
-`gmpe-smtk/LOCAL_MODIFICATIONS.md` — required for AGPLv3 attribution.
+`src/gmpe-smtk/LOCAL_MODIFICATIONS.md`. Credit appears in `README.md`.
+**Do not delete or rewrite** `src/gmpe-smtk/LICENSE`, `src/gmpe-smtk/README.md`, or
+`src/gmpe-smtk/LOCAL_MODIFICATIONS.md` — required for AGPLv3 attribution.

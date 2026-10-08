@@ -58,7 +58,7 @@ import time
 from scipy import signal
 from scipy.integrate import cumulative_trapezoid
 
-#sys.path.append("%s/gmpe-smtk/" %(os.path.dirname(sys.argv[0])))
+#sys.path.append("%s/../src/gmpe-smtk/" %(os.path.dirname(sys.argv[0])))
 try:
    from smtk.intensity_measures import gmrotipp
 except ImportError:

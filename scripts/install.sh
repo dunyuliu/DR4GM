@@ -1,6 +1,6 @@
 #! /bin/bash
 # DR4GM installer.
-# gmpe-smtk is vendored in-tree under ./gmpe-smtk (AGPLv3, (C) GEM Foundation).
+# gmpe-smtk is vendored in-tree under ./src/gmpe-smtk (AGPLv3, (C) GEM Foundation).
 # No separate clone or post-install patching is required.
 
 echo "Installing DR4GM Python dependencies..."
@@ -10,7 +10,7 @@ chmod -R 755 src/utils
 
 # Set up environment variables for the current shell
 DR4GM=$(pwd)
-SMTK=$DR4GM/gmpe-smtk
+SMTK=$DR4GM/src/gmpe-smtk
 UTILS=$DR4GM/src/utils
 echo "DR4GM=$DR4GM"
 echo "SMTK=$SMTK"

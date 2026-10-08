@@ -4,7 +4,7 @@ vectorized_gmrotd50.py
 Station-batched, NumPy-vectorized port of gmrotdpp_withPG (in
 ComputeGroundMotionParametersFromSurfaceOutput_Hybrid_Lite.py) and
 the underlying NigamJennings response-spectrum recurrence (in
-gmpe-smtk/smtk/response_spectrum.py).
+src/gmpe-smtk/smtk/response_spectrum.py).
 
 The implementation is line-for-line equivalent to the per-station
 references and verified bit-exact (0.00e+00 relative error across
