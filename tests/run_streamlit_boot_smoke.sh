@@ -12,7 +12,7 @@
 # started ($!) via a pidfile; cleanup kills that PID only, never pkill -f.
 #
 # Usage:
-#   bash test_system/run_streamlit_boot_smoke.sh
+#   bash tests/run_streamlit_boot_smoke.sh
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

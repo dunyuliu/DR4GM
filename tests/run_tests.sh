@@ -11,30 +11,30 @@
 # Each scenario runs Step 1 (convert) + Step 2 (subset to a uniform 1 km
 # grid via station_subset_selector.py --grid_resolution 1000) + Step 3
 # (GM metrics), then diffs ground_motion_metrics.npz against the bundled
-# 1 km reference at test_system/reference_results/<scenario>/. Pass =
+# 1 km reference at tests/reference_results/<scenario>/. Pass =
 # float32-aware bit equivalence (1e-6 rel for float32 inputs, 1e-12 rel
 # otherwise). Scenarios with no reference are reported NOREF.
 # All output streams to stdout so progress is visible live.
 #
-# To capture: bash test_system/run_tests.sh 2>&1 | tee run.log
+# To capture: bash tests/run_tests.sh 2>&1 | tee run.log
 #   NOTE: piping through `tee` masks this script's exit code. To preserve
 #   pass/fail status in CI, use one of:
-#     set -o pipefail; bash test_system/run_tests.sh 2>&1 | tee run.log
-#     bash test_system/run_tests.sh > run.log 2>&1        # exit code intact
+#     set -o pipefail; bash tests/run_tests.sh 2>&1 | tee run.log
+#     bash tests/run_tests.sh > run.log 2>&1        # exit code intact
 #
 # Usage:
-#   bash test_system/run_tests.sh           # 5 canonical scenarios
-#   bash test_system/run_tests.sh --all     # all 20 scenarios
+#   bash tests/run_tests.sh           # 5 canonical scenarios
+#   bash tests/run_tests.sh --all     # all 20 scenarios
 #
 # End-to-end (from the Zenodo bundle): this script needs the ~199 GB raw
 # data/reference/datasets/ tree (symlinked from reference/datasets). If you
 # only have the ~14 MB public Zenodo bundle (the
 # README "Reproduce manuscript Figs 11-19" path), use instead:
-#   bash test_system/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
+#   bash tests/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
 # It runs regen_ensemble_figures.sh in a scratch copy of the repo and checks
-# the 41 Figure*.png parts (test_system/e2e_reference/figure_manifest_full.txt)
+# the 41 Figure*.png parts (tests/e2e_reference/figure_manifest_full.txt)
 # plus a small numeric summary of the Figs 13/17 binned curves against
-# test_system/e2e_reference/. ~90 s, no raw data needed. If `openquake` is not
+# tests/e2e_reference/. ~90 s, no raw data needed. If `openquake` is not
 # importable, Figure14B.png (SA bias vs period, gated on the optional
 # NGA-West2 GMPE) is expected to be absent and the test prints a loud SKIP
 # banner and checks 40 parts instead -- any OTHER missing figure still fails.
@@ -46,19 +46,19 @@ if [ "${1:-}" = "--all" ]; then
     MODE="all"
 elif [ -n "${1:-}" ]; then
     echo "Unknown argument: $1"
-    echo "Usage: bash test_system/run_tests.sh [--all]"
+    echo "Usage: bash tests/run_tests.sh [--all]"
     exit 2
 fi
 
 cd "$(dirname "$0")/.."
 
 # Gate: repository layout must pass before any scenario runs.
-bash test_system/check_layout.sh || { echo "Layout check failed; fix it before running tests."; exit 1; }
+bash tests/check_layout.sh || { echo "Layout check failed; fix it before running tests."; exit 1; }
 REPO="$(pwd)"
-TEST_DIR="$REPO/test_system"
+TEST_DIR="$REPO/tests"
 UTILS="$REPO/src/utils"
 DATASETS="$REPO/data/reference/datasets"
-REF="$REPO/test_system/reference_results"
+REF="$REPO/tests/reference_results"
 
 if [ "$MODE" = "all" ]; then
     OUT="$REPO/results/production_runs"

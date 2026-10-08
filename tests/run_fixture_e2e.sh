@@ -5,7 +5,7 @@
 # Runs the real pipeline (convert -> subset -> GM metrics -> stats) on a
 # cropped raw fixture and diffs the output against a FROZEN "light reference"
 # committed alongside it. Uses the same float32-aware tolerance convention as
-# test_system/diff_gm_metrics.py / run_tests.sh (1e-6 rel for float32 input,
+# tests/diff_gm_metrics.py / run_tests.sh (1e-6 rel for float32 input,
 # 1e-12 otherwise).
 #
 # This script is CI-runnable: it reads ONLY committed repo paths (the fixture
@@ -14,11 +14,11 @@
 # fixture_reference/ tree.
 #
 # The frozen light reference must be RE-DERIVED from the full reference/ tree
-# (test_system/derive_light_reference.sh) whenever the full oracle in
-# test_system/reference_results/ is re-blessed. Never the reverse: this
+# (tests/derive_light_reference.sh) whenever the full oracle in
+# tests/reference_results/ is re-blessed. Never the reverse: this
 # script must never be used to regenerate the light reference.
 #
-# Usage: bash test_system/run_fixture_e2e.sh [CODE]
+# Usage: bash tests/run_fixture_e2e.sh [CODE]
 #   CODE defaults to "seissol" (170-station seissol_sim1_fixture, unchanged
 #   behavior). Other supported CODE values add their own fixture dir +
 #   converter below; see the FIXTURE_DIR/CONVERTER case statement.
@@ -37,7 +37,7 @@ set -o pipefail
 cd "$(dirname "$0")/.."
 REPO="$(pwd)"
 UTILS="$REPO/src/utils"
-TEST_DIR="$REPO/test_system"
+TEST_DIR="$REPO/tests"
 
 CODE="${1:-seissol}"
 CONVERTER_ARGS=()

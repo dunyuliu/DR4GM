@@ -3,15 +3,15 @@
 This is the shell-script chaining point itself (raw fixture -> converter ->
 station_subset_selector -> npz_gm_processor -> gm_stats -> visualize_*),
 NOT the higher-level whole-workflow/figure-generation paths already covered
-by test_system/run_fixture_e2e.sh and test_system/run_e2e_bundle.sh.
+by tests/run_fixture_e2e.sh and tests/run_e2e_bundle.sh.
 
-Lives under test_system/integration/, not test_system/unit/, because it reads
+Lives under tests/integration/, not tests/unit/, because it reads
 committed raw fixture data (an HDF5 file) and takes minutes to run (it also
 exercises run_all.sh's visualization steps, which the lower-level
 run_fixture_e2e.sh comparison does not invoke) -- row 4's unit tier is
-documented "no raw data, <50ms". A thin pointer test in test_system/unit/
+documented "no raw data, <50ms". A thin pointer test in tests/unit/
 re-exposes this same test function so the board's evidence command
-(`pytest -q test_system/unit -k run_all`) still finds and runs it.
+(`pytest -q tests/unit -k run_all`) still finds and runs it.
 
 Fixture size note (flagged, not silently resolved): PATHWAY_FORWARD.md row 5
 states a <=2 MB fixture budget; the existing seissol_sim1_fixture this test
@@ -23,11 +23,11 @@ validated fixture rather than building a second smaller one to chase row 5's
 number; the discrepancy itself belongs back on the board.
 
 Oracle: this test does NOT re-derive a reference. It reuses the exact same
-frozen light_reference/*.npz that test_system/run_fixture_e2e.sh already
-diffs against (test_system/fixture_reference/seissol_sim1_fixture/
-light_reference/), which test_system/derive_light_reference.sh proved once
+frozen light_reference/*.npz that tests/run_fixture_e2e.sh already
+diffs against (tests/fixture_reference/seissol_sim1_fixture/
+light_reference/), which tests/derive_light_reference.sh proved once
 (and documents how to re-derive) equals a slice of the full 199 GB reference/
-oracle. Comparison uses the same test_system/diff_gm_metrics.py tool and
+oracle. Comparison uses the same tests/diff_gm_metrics.py tool and
 tolerance convention (1e-6 rel for float32 input, 1e-12 otherwise) as
 run_tests.sh / run_fixture_e2e.sh.
 
@@ -48,7 +48,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UTILS_DIR = REPO_ROOT / "src" / "utils"
-TEST_DIR = REPO_ROOT / "test_system"
+TEST_DIR = REPO_ROOT / "tests"
 RUN_ALL = UTILS_DIR / "run_all.sh"
 FIXTURE = TEST_DIR / "fixture_reference" / "seissol_sim1_fixture"
 RAW = FIXTURE / "raw"
@@ -61,7 +61,7 @@ def _sort_by_station_id(src_path: Path, dst_path: Path) -> None:
 
     run_all.sh's grid subsetting does not guarantee the same row order the
     frozen light_reference was stored in (sorted by station_id) -- same
-    normalization step test_system/run_fixture_e2e.sh applies before diffing.
+    normalization step tests/run_fixture_e2e.sh applies before diffing.
     """
     src = np.load(src_path)
     ids = src["station_ids"]

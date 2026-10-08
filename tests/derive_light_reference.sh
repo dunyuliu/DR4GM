@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # derive_light_reference.sh — LOCAL-ONLY. Re-derive and prove the frozen
-# "light reference" for test_system/run_fixture_e2e.sh.
+# "light reference" for tests/run_fixture_e2e.sh.
 #
 # Needs the full ~199 GB reference/ tree (chmod -R a-w). NOT CI-runnable.
 # Takes ~30-40 min for the seissol scenario (GM metrics on ~3300 stations).
@@ -28,12 +28,12 @@
 #      the fixture's own run, even though step 1 and step 3 agree numerically).
 #
 # Re-run this (and re-commit the result) whenever the corresponding
-# test_system/reference_results/<code>/... is re-blessed. Never derive the
+# tests/reference_results/<code>/... is re-blessed. Never derive the
 # light reference the other way around (never hand-edit it to match a
 # fixture run).
 #
 # Usage:
-#   bash test_system/derive_light_reference.sh [CODE] [REFERENCE_DIR]
+#   bash tests/derive_light_reference.sh [CODE] [REFERENCE_DIR]
 #   CODE defaults to "seissol" (unchanged behavior/output from before this
 #   script took a CODE parameter). Other supported CODE values add their own
 #   fixture dir + converter + full-oracle raw subdir below; see the
@@ -104,7 +104,7 @@ set -o pipefail
 cd "$(dirname "$0")/.."
 REPO="$(pwd)"
 UTILS="$REPO/src/utils"
-TEST_DIR="$REPO/test_system"
+TEST_DIR="$REPO/tests"
 
 CODE="${1:-seissol}"
 REFERENCE_DIR="${2:-$REPO/reference}"
@@ -157,7 +157,7 @@ RAW_FULL="$REFERENCE_DIR/datasets/$RAW_FULL_SUB"
 if [ ! -d "$RAW_FULL" ]; then
     echo "FAIL: full reference raw dir not found at $RAW_FULL"
     echo "Pass the path to a checkout with reference/ as \$2, e.g.:"
-    echo "  bash test_system/derive_light_reference.sh $CODE REDACTED_PATH/reference"
+    echo "  bash tests/derive_light_reference.sh $CODE REDACTED_PATH/reference"
     exit 1
 fi
 

@@ -10,13 +10,13 @@
 # bundle -- no 199 GB raw data, no reference/ access.
 #
 # Usage:
-#   bash test_system/run_e2e_bundle.sh <path/to/dr4gm_data_vX.Y.Z.tar.gz>
-#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash test_system/run_e2e_bundle.sh
+#   bash tests/run_e2e_bundle.sh <path/to/dr4gm_data_vX.Y.Z.tar.gz>
+#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash tests/run_e2e_bundle.sh
 #
 # Asserts:
 #   (a) regen_ensemble_figures.sh exits 0
 #   (b) figs_to_publish/ contains exactly the committed FULL manifest
-#       (test_system/e2e_reference/figure_manifest_full.txt, 41 parts) of
+#       (tests/e2e_reference/figure_manifest_full.txt, 41 parts) of
 #       Figure<NN><letter>.png parts, each a non-empty, valid PNG --
 #       UNLESS `openquake` is not importable in this Python, in which case
 #       Figure14B.png (SA bias vs period; needs the NGA-West2 GMPE from
@@ -29,13 +29,13 @@
 #       missing still fails the test.
 #   (c) a small numeric summary of the Figs 13/17 binned curves (per-code
 #       group-mean PGA/CAV/RSA_T_1.000 vs distance, epistemic tau at T=1s)
-#       matches test_system/e2e_reference/ensemble_summary_reference.npz
+#       matches tests/e2e_reference/ensemble_summary_reference.npz
 #       within float32-aware tolerance (rel 1e-6), via
-#       test_system/extract_ensemble_summary.py
+#       tests/extract_ensemble_summary.py
 #
 # Regenerating the reference (after an intentional, explained pipeline
 # change):
-#   bash test_system/run_e2e_bundle.sh --bless <bundle>
+#   bash tests/run_e2e_bundle.sh --bless <bundle>
 # writes a fresh manifest + reference npz + per-figure PNG dimension
 # manifest. Requires `openquake` to be importable (bless always blesses
 # against the FULL 41-figure run -- never bless a degraded manifest). Only do
@@ -43,7 +43,7 @@
 # per the golden-file policy in local/CLAUDE.md.
 #
 # (d) per-figure PNG pixel dimensions match the committed manifest
-#     test_system/e2e_reference/figure_dims_full.txt (WIDTHxHEIGHT per part,
+#     tests/e2e_reference/figure_dims_full.txt (WIDTHxHEIGHT per part,
 #     read via Pillow -- a figure that exists but silently changed aspect
 #     ratio / dpi / layout is a regression the existence+magic-byte checks
 #     above cannot see). Figure14B.png is exempted from the dims check under
@@ -91,8 +91,8 @@ fi
 
 BUNDLE="${1:-${DR4GM_BUNDLE:-}}"
 if [ -z "$BUNDLE" ]; then
-    echo "Usage: bash test_system/run_e2e_bundle.sh [--bless] <bundle.tar.gz>" >&2
-    echo "   or: DR4GM_BUNDLE=<bundle.tar.gz> bash test_system/run_e2e_bundle.sh" >&2
+    echo "Usage: bash tests/run_e2e_bundle.sh [--bless] <bundle.tar.gz>" >&2
+    echo "   or: DR4GM_BUNDLE=<bundle.tar.gz> bash tests/run_e2e_bundle.sh" >&2
     exit 2
 fi
 if [ ! -f "$BUNDLE" ]; then

@@ -14,8 +14,8 @@
 # not silently fixed by weakening this script.
 #
 # Usage:
-#   bash test_system/run_e2e_bundle_negative_control.sh <bundle.tar.gz>
-#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash test_system/run_e2e_bundle_negative_control.sh
+#   bash tests/run_e2e_bundle_negative_control.sh <bundle.tar.gz>
+#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash tests/run_e2e_bundle_negative_control.sh
 #
 # Exit 0  = negative control PASSED (the mutated run correctly failed).
 # Exit 1  = GAP: the mutated run did NOT fail -- the exclusion is not
@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BUNDLE="${1:-${DR4GM_BUNDLE:-}}"
 if [ -z "$BUNDLE" ]; then
-    echo "Usage: bash test_system/run_e2e_bundle_negative_control.sh <bundle.tar.gz>" >&2
+    echo "Usage: bash tests/run_e2e_bundle_negative_control.sh <bundle.tar.gz>" >&2
     exit 2
 fi
 

@@ -8,8 +8,8 @@
 # (manifest + PNG dims) and numerically.
 #
 # Usage:
-#   bash test_system/run_e2e_bundle_clean.sh [--bless] <bundle.tar.gz>
-#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash test_system/run_e2e_bundle_clean.sh
+#   bash tests/run_e2e_bundle_clean.sh [--bless] <bundle.tar.gz>
+#   DR4GM_BUNDLE=/path/to/bundle.tar.gz bash tests/run_e2e_bundle_clean.sh
 #
 # Thin wrapper: all assertions, --bless behavior, and the INJECT_SEISSOL2
 # negative-control hook live in run_e2e_bundle.sh (EXPORT_MODE=clean).
