@@ -36,11 +36,40 @@
 # Regenerating the reference (after an intentional, explained pipeline
 # change):
 #   bash test_system/run_e2e_bundle.sh --bless <bundle>
-# writes a fresh manifest + reference npz. Requires `openquake` to be
-# importable (bless always blesses against the FULL 41-figure run -- never
-# bless a degraded manifest). Only do this when the change is understood and
-# explained in the commit message, per the golden-file policy in
-# local/CLAUDE.md.
+# writes a fresh manifest + reference npz + per-figure PNG dimension
+# manifest. Requires `openquake` to be importable (bless always blesses
+# against the FULL 41-figure run -- never bless a degraded manifest). Only do
+# this when the change is understood and explained in the commit message,
+# per the golden-file policy in local/CLAUDE.md.
+#
+# (d) per-figure PNG pixel dimensions match the committed manifest
+#     test_system/e2e_reference/figure_dims_full.txt (WIDTHxHEIGHT per part,
+#     read via Pillow -- a figure that exists but silently changed aspect
+#     ratio / dpi / layout is a regression the existence+magic-byte checks
+#     above cannot see). Figure14B.png is exempted from the dims check under
+#     the same openquake-missing condition as (b) (it never gets blessed
+#     dims on a machine without openquake, so there is nothing to compare).
+#
+# (e) the Fig 11 panel set contains NO Figure11C*.png (sord) or
+#     Figure11F*.png (specfem3d) parts -- those two codes have no
+#     per-station NPZ by design (see CLAUDE.md "Fig 11 gaps"), so a panel
+#     appearing for either is itself a regression, independent of the
+#     41-part count.
+#
+# Export modes (EXPORT_MODE env var, default "worktree"):
+#   worktree (default) -- exports tracked files AS THEY STAND IN THE WORKING
+#     TREE (git ls-files + rsync), so local uncommitted edits are exercised.
+#   clean -- exports strictly the HEAD commit via `git archive HEAD`, so no
+#     untracked/uncommitted file can contaminate the run. Use via the
+#     run_e2e_bundle_clean.sh wrapper for the CI-facing, reproducibility-grade
+#     invocation.
+#
+# INJECT_SEISSOL2=1 env var (test-of-the-test / negative control only, see
+# run_e2e_bundle_negative_control.sh): after exporting, patches the scratch
+# copy's scripts/regen_ensemble_figures.sh to re-include the excluded
+# seissol/2 scenario. Never touches the real repo. This is expected to make
+# the test FAIL (manifest and/or numeric-summary mismatch) -- that failure is
+# the proof the exclusion is actually load-bearing.
 
 set -euo pipefail
 
@@ -48,8 +77,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_SRC="$(cd "$SCRIPT_DIR/.." && pwd)"
 REF_DIR="$SCRIPT_DIR/e2e_reference"
 FULL_MANIFEST="$REF_DIR/figure_manifest_full.txt"
+DIMS_MANIFEST="$REF_DIR/figure_dims_full.txt"
 SUMMARY_REF="$REF_DIR/ensemble_summary_reference.npz"
 GMPE_SKIP_FIGURE="Figure14B.png"
+EXPORT_MODE="${EXPORT_MODE:-worktree}"
+INJECT_SEISSOL2="${INJECT_SEISSOL2:-0}"
 
 BLESS=0
 if [ "${1:-}" = "--bless" ]; then
@@ -70,19 +102,57 @@ fi
 BUNDLE="$(cd "$(dirname "$BUNDLE")" && pwd)/$(basename "$BUNDLE")"
 
 TMPDIR="$(mktemp -d -t dr4gm-e2e-XXXXXX)"
-cleanup() { rm -rf "$TMPDIR"; }
+# DR4GM_DEBUG_KEEP_DIMS=<path> (maintainer debug hook, not part of any
+# documented interface): copies out the freshly-computed got_dims.txt before
+# the scratch dir is removed, so a maintainer blessing figure_dims_full.txt
+# on a machine without openquake can still harvest the 40 non-gated dims
+# without hand-editing this script.
+cleanup() { [ -n "${DR4GM_DEBUG_KEEP_DIMS:-}" ] && cp "$TMPDIR/got_dims.txt" "$DR4GM_DEBUG_KEEP_DIMS" 2>/dev/null; rm -rf "$TMPDIR"; }
 trap cleanup EXIT
 
-echo "=== Exporting repo (tracked files + working changes) to scratch dir ==="
 WORK="$TMPDIR/repo"
 mkdir -p "$WORK"
-REPO_FILELIST="$TMPDIR/filelist"
-( cd "$REPO_SRC" && command git ls-files -z ) > "$REPO_FILELIST"
-if [ ! -s "$REPO_FILELIST" ]; then
-    echo "FAIL: repo file listing is empty -- is $REPO_SRC a git checkout?" >&2
-    exit 1
+if [ "$EXPORT_MODE" = "clean" ]; then
+    echo "=== Exporting repo (clean: git archive HEAD, no working-tree contamination) ==="
+    ARCHIVE="$TMPDIR/head.tar"
+    ( cd "$REPO_SRC" && command git archive HEAD -o "$ARCHIVE" )
+    if [ ! -s "$ARCHIVE" ]; then
+        echo "FAIL: git archive HEAD produced an empty archive -- is $REPO_SRC a git checkout?" >&2
+        exit 1
+    fi
+    tar -xf "$ARCHIVE" -C "$WORK"
+elif [ "$EXPORT_MODE" = "worktree" ]; then
+    echo "=== Exporting repo (tracked files + working changes) to scratch dir ==="
+    REPO_FILELIST="$TMPDIR/filelist"
+    ( cd "$REPO_SRC" && command git ls-files -z ) > "$REPO_FILELIST"
+    if [ ! -s "$REPO_FILELIST" ]; then
+        echo "FAIL: repo file listing is empty -- is $REPO_SRC a git checkout?" >&2
+        exit 1
+    fi
+    rsync -a --files-from="$REPO_FILELIST" --from0 "$REPO_SRC/" "$WORK/"
+else
+    echo "FAIL: unknown EXPORT_MODE='$EXPORT_MODE' (expected 'worktree' or 'clean')" >&2
+    exit 2
 fi
-rsync -a --files-from="$REPO_FILELIST" --from0 "$REPO_SRC/" "$WORK/"
+
+if [ "$INJECT_SEISSOL2" = "1" ]; then
+    echo "=== INJECT_SEISSOL2=1: patching scratch copy to re-include excluded seissol/2 ===" >&2
+    REGEN="$WORK/scripts/regen_ensemble_figures.sh"
+    if ! grep -q '# seissol/2 — excluded' "$REGEN"; then
+        echo "FAIL: INJECT_SEISSOL2 expected a commented-out 'seissol/2' line in $REGEN and did not find one (exclusion mechanism changed -- update the injector)" >&2
+        exit 1
+    fi
+    sed -i 's/^    # seissol\/2 — excluded.*/    seissol\/2/' "$REGEN"
+    sed -i 's/^    seissol\/1 seissol\/3 seissol\/4 seissol\/5$/    seissol\/1 seissol\/2 seissol\/3 seissol\/4 seissol\/5/' "$REGEN"
+    if ! grep -qx '    seissol/2' "$REGEN"; then
+        echo "FAIL: INJECT_SEISSOL2 patch did not take (ALL_SCENARIOS still excludes seissol/2)" >&2
+        exit 1
+    fi
+    if ! grep -q 'seissol/2 seissol/3' "$REGEN"; then
+        echo "FAIL: INJECT_SEISSOL2 patch did not take (FIG12_SCENARIOS still excludes seissol/2)" >&2
+        exit 1
+    fi
+fi
 
 echo "=== Unpacking bundle per README recipe: $BUNDLE ==="
 mkdir -p "$WORK/results"
@@ -150,6 +220,33 @@ while IFS= read -r f; do
 done < "$TMPDIR/got_manifest.txt"
 echo "All $GOT_COUNT parts are non-empty, valid PNGs"
 
+echo "=== Checking Fig 11 panel set excludes SORD (C) / SPECFEM3D (F) ==="
+# Per CLAUDE.md "Fig 11 gaps": SORD and SPECFEM3D have no per-station NPZ, so
+# fetch_figures_for_publication.sh's Fig-11 loop (which only fires on
+# RSA_T_1.000_map.png existing) can never emit Figure11C*/Figure11F* -- this
+# is a structural invariant, not a golden value, so it is checked
+# unconditionally (not gated on --bless or openquake availability).
+if grep -q '^Figure11C' "$TMPDIR/got_manifest.txt"; then
+    echo "FAIL: found a Figure11C*.png (sord) panel -- sord has no per-station NPZ by design; this should be impossible" >&2
+    grep '^Figure11C' "$TMPDIR/got_manifest.txt" >&2
+    exit 1
+fi
+if grep -q '^Figure11F' "$TMPDIR/got_manifest.txt"; then
+    echo "FAIL: found a Figure11F*.png (specfem3d) panel -- specfem3d has no per-station NPZ by design; this should be impossible" >&2
+    grep '^Figure11F' "$TMPDIR/got_manifest.txt" >&2
+    exit 1
+fi
+echo "Confirmed: no Figure11C*/Figure11F* (sord/specfem3d) panels present"
+
+echo "=== Checking per-figure PNG pixel dimensions ==="
+: > "$TMPDIR/got_dims.txt"
+while IFS= read -r f; do
+    path="$PF/$f"
+    dims="$(python3 -c "from PIL import Image; im = Image.open('$path'); print(f'{im.size[0]}x{im.size[1]}')")"
+    echo "$f $dims" >> "$TMPDIR/got_dims.txt"
+done < "$TMPDIR/got_manifest.txt"
+sort -o "$TMPDIR/got_dims.txt" "$TMPDIR/got_dims.txt"
+
 if [ "$BLESS" -eq 1 ]; then
     if [ "$HAVE_OPENQUAKE" -eq 0 ]; then
         echo "FAIL: --bless requires \`openquake\` importable (bless always blesses the FULL 41-figure run, never a degraded manifest)." >&2
@@ -157,7 +254,9 @@ if [ "$BLESS" -eq 1 ]; then
     fi
     mkdir -p "$REF_DIR"
     cp "$TMPDIR/got_manifest.txt" "$FULL_MANIFEST"
+    cp "$TMPDIR/got_dims.txt" "$DIMS_MANIFEST"
     echo "Blessed full manifest -> $FULL_MANIFEST ($GOT_COUNT parts)"
+    echo "Blessed dims manifest -> $DIMS_MANIFEST ($GOT_COUNT parts)"
 else
     if [ ! -f "$FULL_MANIFEST" ]; then
         echo "FAIL: no committed manifest at $FULL_MANIFEST (run with --bless first, with openquake installed)" >&2
@@ -179,6 +278,22 @@ else
         exit 1
     fi
     echo "Figure manifest matches $EXPECTED_DESC exactly ($GOT_COUNT parts)"
+
+    if [ ! -f "$DIMS_MANIFEST" ]; then
+        echo "FAIL: no committed dims manifest at $DIMS_MANIFEST (run with --bless first, with openquake installed)" >&2
+        exit 1
+    fi
+    if [ "$HAVE_OPENQUAKE" -eq 1 ]; then
+        EXPECTED_DIMS="$DIMS_MANIFEST"
+    else
+        EXPECTED_DIMS="$TMPDIR/expected_degraded_dims.txt"
+        grep -v "^$GMPE_SKIP_FIGURE " "$DIMS_MANIFEST" > "$EXPECTED_DIMS"
+    fi
+    if ! diff -u "$EXPECTED_DIMS" "$TMPDIR/got_dims.txt"; then
+        echo "FAIL: figure pixel dimensions differ from $DIMS_MANIFEST (aspect ratio / dpi / layout regression)" >&2
+        exit 1
+    fi
+    echo "All figure pixel dimensions match $DIMS_MANIFEST exactly"
 fi
 
 echo "=== Extracting ensemble numeric summary ==="
