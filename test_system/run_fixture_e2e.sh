@@ -22,6 +22,14 @@
 #   CODE defaults to "seissol" (170-station seissol_sim1_fixture, unchanged
 #   behavior). Other supported CODE values add their own fixture dir +
 #   converter below; see the FIXTURE_DIR/CONVERTER case statement.
+#   fd3d uses CONVERTER_ARGS=(--nxt 91 --nyt 2) -- one real fault-normal
+#   column at the domain's true x=100m edge plus one inert dummy column
+#   (needed to keep the converter's vectorized float32 ASCII reader on its
+#   2D-shaped happy path, see derive_light_reference.sh's fd3d note), times
+#   91 fault-parallel points (y=100..9100m), landing exactly on 10
+#   grid-cell centers under station_subset_selector's grid_resolution=1000
+#   (see derive_light_reference.sh's fd3d note for why fd3d fixtures can
+#   only use exact grid-center coordinates, unlike eqdyna/seissol).
 
 set -u
 set -o pipefail
@@ -32,6 +40,7 @@ UTILS="$REPO/src/utils"
 TEST_DIR="$REPO/test_system"
 
 CODE="${1:-seissol}"
+CONVERTER_ARGS=()
 case "$CODE" in
     seissol)
         FIXTURE_DIR="seissol_sim1_fixture"
@@ -41,8 +50,13 @@ case "$CODE" in
         FIXTURE_DIR="eqdyna_0001A_fixture"
         CONVERTER="eqdyna_converter_api.py"
         ;;
+    fd3d)
+        FIXTURE_DIR="fd3d_ncent_sd4_fixture"
+        CONVERTER="fd3d_converter_api.py"
+        CONVERTER_ARGS=(--nxt 91 --nyt 2)
+        ;;
     *)
-        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna)"
+        echo "FAIL: unknown CODE '$CODE' (supported: seissol, eqdyna, fd3d)"
         exit 2
         ;;
 esac
@@ -69,7 +83,7 @@ echo "fixture raw: $RAW"
 echo "work dir:    $WORK"
 
 echo "--- Step 1/4 convert ($CODE) ---"
-python3 "$UTILS/$CONVERTER" --input_dir "$RAW" --output_dir "$WORK" || { echo "FAIL: convert step"; exit 1; }
+python3 "$UTILS/$CONVERTER" --input_dir "$RAW" --output_dir "$WORK" "${CONVERTER_ARGS[@]}" || { echo "FAIL: convert step"; exit 1; }
 
 echo "--- Step 2/4 subset to 1 km grid ---"
 python3 "$UTILS/station_subset_selector.py" \
