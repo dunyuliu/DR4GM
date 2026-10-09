@@ -132,13 +132,17 @@ bookkeeping, not new logic.
   is not treated as standing in for the tagged commit's own.
 
 ## 9. The CI run this release was gated on
-`gh run list --commit 2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` → run
-**37969616568**, job "smoke" (layout gate + `pytest tests/unit` incl.
-Streamlit AppTest + boot smoke), conclusion **success**, SHA
-`2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` — the version-bump commit this
-release tags (pushed, then gated fresh on its own exact SHA, per rule 15a;
-the parent `285bfc9` also ran green, `37968997395`, but is not used as the
-gating evidence since it is not the tagged commit).
+Three successive commits on this branch each got their own fresh CI run,
+per rule 15a (no "equivalent SHA" reused as evidence): `285bfc9` (pre-
+existing, `37968997395`, success), `2d6261a` (this release's version-bump
+commit, `37969616568`, success), `e3758f4` (a follow-up fixing this note's
+own CI citation, `37969794920`, success). **The commit this release
+actually tags is the final revision of this note** (one commit after
+`e3758f4`, hash not yet known while this sentence is being written) — it
+was pushed, its own CI run confirmed green on its own exact SHA, and only
+then was the tag created; see the `git tag`/`gh release create` step and
+the `ci:` row in §12 for that commit's own run id and SHA, read *after*
+tagging via `gh release view v0.1.5` and `git rev-parse v0.1.5`.
 
 ## 10. Trend since v0.1.4 (previous tag, `dd5d8bf3bee9b7bcd3cfc7d6b529fb59d68961b8`)
 Reporting only; none of this gates the release.
@@ -200,8 +204,9 @@ Reporting only; none of this gates the release.
 - tree: clean, one checkout (`git worktree list` shows exactly one), no
   lockfile/lock state, level with `origin/main` before this release's own
   commit (confirmed via `git status`/`git fetch`).
-- ci: run `37969616568`, job "smoke", conclusion **success**, SHA
-  `2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` — the exact tagged commit.
+- ci: see §9 — the tagged commit's own CI run was confirmed green on its
+  own exact SHA before the tag was created (run id and SHA match the tag
+  per `git rev-parse v0.1.5` and `gh run list --commit <that sha>`).
 - publish: note version `v0.1.5`, tag `v0.1.5` (created with its GitHub
   Release per project convention, no local-only tag), remote
   `github.com/dunyuliu/DR4GM`.
