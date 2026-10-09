@@ -78,7 +78,7 @@ Path("./reference/results/eqdyna/0001.A.2000m_subsampled/grid_2000m.npz"),
 - All `st.secrets.get(...)` calls are read-only — no credentials are hardcoded; they come from `.streamlit/secrets.toml` which is gitignored at `.gitignore:32`.
 - Lines 1989 and 1996 hardcode `dliu@ig.utexas.edu` as the notification target in a usage-analytics comment block.
 **Why it matters:** Not a credential leak (no API keys in source). But the author's personal Gmail address is published in a docstring/comment, separate from the public `dliu@ig.utexas.edu` used elsewhere. Up to the user whether to keep.
-**Fix:** Optional — replace `dliu@ig.utexas.edu` with `dliu@ig.utexas.edu` for consistency with `README.md:7` and `CITATION.cff:18`.
+**Fix:** Already applied in a prior history-scrub pass — the personal gmail address is normalized to the institutional one repo-wide. for consistency with `README.md:7` and `CITATION.cff:18`.
 
 ---
 
