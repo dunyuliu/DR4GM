@@ -125,20 +125,20 @@ bookkeeping, not new logic.
   hits on purged strings) is taken as accurate; I did not re-run the
   filter-repo sweep myself, only verified the *current* state (tag refs,
   CI, release metadata) independently.
-- The in-progress CI run I gated this tag on (§9) was already running when
-  I started this audit (triggered by the push that produced `285bfc9`,
-  which was already on `origin/main` before I began) — I did not need to
-  push anything myself to get a gate-able SHA.
+- `285bfc9` (the pre-existing board-only commit) was already on
+  `origin/main` and green (`37968997395`) before I began; this release's
+  own version-bump commit (`2d6261a`) was pushed by me and gated on its
+  own fresh CI run (`37969616568`), per rule 15a — the parent's green run
+  is not treated as standing in for the tagged commit's own.
 
 ## 9. The CI run this release was gated on
-`gh run list --commit 285bfc95e2914cbbe81ffedc896e1975c3051084` → run
-**37968997395**, job "smoke" (layout gate + `pytest tests/unit`),
-conclusion **success**, SHA `285bfc95e2914cbbe81ffedc896e1975c3051084`
-(= the commit this release tags; this release's own version-bump commit is
-created after this CI run and is gated by the smoke tier I ran locally
-myself, per §5, since no further remote push is needed before tagging —
-the tag points at the version-bump commit itself, one commit ahead of
-`285bfc9`, see the gate note below).
+`gh run list --commit 2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` → run
+**37969616568**, job "smoke" (layout gate + `pytest tests/unit` incl.
+Streamlit AppTest + boot smoke), conclusion **success**, SHA
+`2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` — the version-bump commit this
+release tags (pushed, then gated fresh on its own exact SHA, per rule 15a;
+the parent `285bfc9` also ran green, `37968997395`, but is not used as the
+gating evidence since it is not the tagged commit).
 
 ## 10. Trend since v0.1.4 (previous tag, `dd5d8bf3bee9b7bcd3cfc7d6b529fb59d68961b8`)
 Reporting only; none of this gates the release.
@@ -162,9 +162,9 @@ Reporting only; none of this gates the release.
   history log), not a new row — board currency is current, not degraded.
 - **CI green-on-first-try rate.** `gh run list --branch main` since
   `v0.1.4`'s push (`6c7efec4`, 2026-10-08T17:28:00Z) through this release's
-  gating run: **3/3 runs green on first try** (`3185c9a`, `423ca6a`,
-  `285bfc9`), no re-runs needed. Unchanged from v0.1.4's 10/10 streak (still
-  100%).
+  gating run: **4/4 runs green on first try** (`3185c9a`, `423ca6a`,
+  `285bfc9`, `2d6261a`), no re-runs needed. Unchanged from v0.1.4's 10/10
+  streak (still 100%).
 
 ## 11. Work record
 - audit: findings 1–6 relayed by the conductor (data-link repoint, history
@@ -200,11 +200,8 @@ Reporting only; none of this gates the release.
 - tree: clean, one checkout (`git worktree list` shows exactly one), no
   lockfile/lock state, level with `origin/main` before this release's own
   commit (confirmed via `git status`/`git fetch`).
-- ci: run `37968997395`, job "smoke", conclusion **success**, SHA
-  `285bfc95e2914cbbe81ffedc896e1975c3051084` — the parent commit this
-  release's version-bump commit builds on; the bump commit itself carries
-  no pipeline-affecting change beyond version strings + file archival, so
-  this run plus my own fresh local smoke re-run (§5, §9) are the gate.
+- ci: run `37969616568`, job "smoke", conclusion **success**, SHA
+  `2d6261aa9a4b3d07b6efa45405bf83c4e73f0d0f` — the exact tagged commit.
 - publish: note version `v0.1.5`, tag `v0.1.5` (created with its GitHub
   Release per project convention, no local-only tag), remote
   `github.com/dunyuliu/DR4GM`.
