@@ -99,14 +99,17 @@ conversion time so raw E–W faults become N–S. Visualization does no rotation
 ## Data
 
 ```
-reference/                          frozen read-only (chmod -R a-w, 2026-04-27)
+data/reference/                     local-only link (gitignored), not copied into worktrees
 ├── datasets/                       ~109 GB raw sim data, 7 codes
 └── results_original_resolution/    ~92 GB per-station native-resolution outputs
 results/                            mutable; fresh runs go here
-datasets -> reference/datasets      symlink so old paths keep working
 ```
 
-Never modify `reference/` in place. Direct reruns to `results/` and diff.
+`data/reference` is created by `scripts/install.sh`: it links to
+`$DR4GM_REFERENCE_DIR` (default `$HOME/shared_dataset/dr4gm_drv.reference`),
+the machine's shared, read-only copy of the frozen 199 GB dataset. Never a
+tracked symlink (the repo is public; the target path is machine-specific) and
+never modified in place — direct reruns to `results/` and diff.
 
 **Zenodo bundle:** `../dr4gm_data_v0.0.1.tar.gz` (13 MB) — the 65 NPZ files
 (22 scenarios × 3) that `regen_ensemble_figures.sh` needs, so anyone can

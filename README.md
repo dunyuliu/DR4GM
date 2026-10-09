@@ -36,7 +36,7 @@ distance, etc.), see [`FORMULAS.md`](docs/user/FORMULAS.md).
 If you have access to the raw simulation outputs:
 
 ```bash
-ln -s /path/to/raw_simulation_archive reference
+ln -s /path/to/raw_simulation_archive data/reference
 bash scripts/run_pipeline.sh                                      # raw → NPZ → figures
 ```
 

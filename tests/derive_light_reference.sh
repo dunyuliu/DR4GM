@@ -94,9 +94,11 @@
 #   (~1e-7). The dummy column (j=1 -> x=200m) is always beaten by the
 #   exact j=2 -> x=100m match for every target cell (distance 0 in x
 #   beats distance 100), so it never gets selected and is otherwise inert.
-#   REFERENCE_DIR defaults to <repo_root>/reference (a normal checkout, not
-#   this worktree, since reference/ is gitignored and not copied into
-#   worktrees).
+#   REFERENCE_DIR defaults to <repo_root>/data/reference, the local-only link
+#   to the full reference dataset created by scripts/install.sh
+#   (DR4GM_REFERENCE_DIR env var); pass an explicit path for a worktree or any
+#   checkout where that link doesn't exist, since reference data is gitignored
+#   and not copied into worktrees.
 
 set -u
 set -o pipefail
@@ -107,7 +109,7 @@ UTILS="$REPO/src/utils"
 TEST_DIR="$REPO/tests"
 
 CODE="${1:-seissol}"
-REFERENCE_DIR="${2:-$REPO/reference}"
+REFERENCE_DIR="${2:-$REPO/data/reference}"
 
 FIXTURE_CONVERTER_ARGS=()
 case "$CODE" in
@@ -156,8 +158,8 @@ RAW_FULL="$REFERENCE_DIR/datasets/$RAW_FULL_SUB"
 
 if [ ! -d "$RAW_FULL" ]; then
     echo "FAIL: full reference raw dir not found at $RAW_FULL"
-    echo "Pass the path to a checkout with reference/ as \$2, e.g.:"
-    echo "  bash tests/derive_light_reference.sh $CODE REDACTED_PATH/reference"
+    echo "Pass the path to a directory with datasets/ as \$2, e.g.:"
+    echo "  bash tests/derive_light_reference.sh $CODE \$HOME/shared_dataset/dr4gm_drv.reference"
     exit 1
 fi
 

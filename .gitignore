@@ -11,6 +11,11 @@ __pycache__/
 reference/
 results/
 
+# data/reference is a local-only link to the shared dataset store, created by
+# scripts/install.sh (DR4GM_REFERENCE_DIR env var, default ~/shared_dataset/dr4gm_drv.reference).
+# Never track it — it is machine-specific and large (~199 GB behind the link).
+/data/reference
+
 # New-run convention (PATHWAY_FORWARD.md row 10): ad hoc / exploratory runs
 # write to git-ignored runs/<YYYYMMDD>_<slug>/, never results/. results/
 # itself (production_runs, regression) stays in place as the frozen,

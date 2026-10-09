@@ -27,7 +27,8 @@
 #   bash tests/run_tests.sh --all     # all 20 scenarios
 #
 # End-to-end (from the Zenodo bundle): this script needs the ~199 GB raw
-# data/reference/datasets/ tree (symlinked from reference/datasets). If you
+# data/reference/datasets/ tree (data/reference is a local-only link created
+# by scripts/install.sh — see DR4GM_REFERENCE_DIR). If you
 # only have the ~14 MB public Zenodo bundle (the
 # README "Reproduce manuscript Figs 11-19" path), use instead:
 #   bash tests/run_e2e_bundle.sh <dr4gm_data_vX.Y.Z.tar.gz>
