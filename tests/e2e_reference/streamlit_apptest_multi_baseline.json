@@ -1,0 +1,330 @@
+{
+  "EQDyna A Coarse Simulation": {
+    "available_metrics_count": 16,
+    "basic_metrics": {
+      "CAV": {
+        "formatted": "5.811e+02",
+        "raw": 581.0723057686096,
+        "unit": "cm/s"
+      },
+      "PGA": {
+        "formatted": "7.061e+02",
+        "raw": 706.1021643398977,
+        "unit": "cm/s\u00b2"
+      },
+      "PGD": {
+        "formatted": "6.267e+01",
+        "raw": 62.67359141466308,
+        "unit": "cm"
+      },
+      "PGV": {
+        "formatted": "1.278e+02",
+        "raw": 127.7636041570758,
+        "unit": "cm/s"
+      }
+    },
+    "dataset_label": "EQDyna A Coarse Simulation",
+    "location_x_km": 0.03,
+    "location_y_km": 0.1,
+    "npz_path": "data/eqdyna.0001.A.coarse.npz",
+    "sa_metrics": {
+      "0.100": {
+        "formatted": "7.513e+02",
+        "raw": 751.2951578489071
+      },
+      "0.125": {
+        "formatted": "6.378e+02",
+        "raw": 637.8459672643821
+      },
+      "0.250": {
+        "formatted": "1.175e+03",
+        "raw": 1175.3602364261926
+      },
+      "0.400": {
+        "formatted": "1.321e+03",
+        "raw": 1320.706979778391
+      },
+      "0.500": {
+        "formatted": "1.082e+03",
+        "raw": 1081.8841461056104
+      },
+      "0.750": {
+        "formatted": "9.196e+02",
+        "raw": 919.561165061413
+      },
+      "1.000": {
+        "formatted": "9.222e+02",
+        "raw": 922.2314041615379
+      },
+      "1.500": {
+        "formatted": "8.372e+02",
+        "raw": 837.1745468994574
+      },
+      "2.000": {
+        "formatted": "6.120e+02",
+        "raw": 611.9968497160883
+      },
+      "2.500": {
+        "formatted": "4.324e+02",
+        "raw": 432.37916006747446
+      },
+      "3.000": {
+        "formatted": "3.154e+02",
+        "raw": 315.39848145842905
+      },
+      "5.000": {
+        "formatted": "1.044e+02",
+        "raw": 104.43804965464363
+      }
+    },
+    "selected_station_id": 208031,
+    "selected_station_idx": 1865,
+    "station_count": 3731
+  },
+  "EQDyna B Coarse Simulation": {
+    "available_metrics_count": 16,
+    "basic_metrics": {
+      "CAV": {
+        "formatted": "5.463e+02",
+        "raw": 546.3197797503926,
+        "unit": "cm/s"
+      },
+      "PGA": {
+        "formatted": "6.896e+02",
+        "raw": 689.6342329054581,
+        "unit": "cm/s\u00b2"
+      },
+      "PGD": {
+        "formatted": "5.425e+01",
+        "raw": 54.253683661300386,
+        "unit": "cm"
+      },
+      "PGV": {
+        "formatted": "1.370e+02",
+        "raw": 136.95571170324882,
+        "unit": "cm/s"
+      }
+    },
+    "dataset_label": "EQDyna B Coarse Simulation",
+    "location_x_km": 0.03,
+    "location_y_km": 0.1,
+    "npz_path": "data/eqdyna.0001.B.coarse.npz",
+    "sa_metrics": {
+      "0.100": {
+        "formatted": "7.769e+02",
+        "raw": 776.8811185062812
+      },
+      "0.125": {
+        "formatted": "6.877e+02",
+        "raw": 687.6727762506619
+      },
+      "0.250": {
+        "formatted": "9.912e+02",
+        "raw": 991.2204889682064
+      },
+      "0.400": {
+        "formatted": "1.430e+03",
+        "raw": 1430.4326517879854
+      },
+      "0.500": {
+        "formatted": "1.316e+03",
+        "raw": 1316.1348220384393
+      },
+      "0.750": {
+        "formatted": "1.363e+03",
+        "raw": 1363.2545465518665
+      },
+      "1.000": {
+        "formatted": "1.045e+03",
+        "raw": 1045.4405560074892
+      },
+      "1.500": {
+        "formatted": "6.388e+02",
+        "raw": 638.7980920788254
+      },
+      "2.000": {
+        "formatted": "3.839e+02",
+        "raw": 383.86467016330556
+      },
+      "2.500": {
+        "formatted": "2.520e+02",
+        "raw": 252.00565213866912
+      },
+      "3.000": {
+        "formatted": "1.826e+02",
+        "raw": 182.60261000005394
+      },
+      "5.000": {
+        "formatted": "7.369e+01",
+        "raw": 73.69104384007802
+      }
+    },
+    "selected_station_id": 208031,
+    "selected_station_idx": 1865,
+    "station_count": 3731
+  },
+  "FD3D A Coarse Simulation": {
+    "available_metrics_count": 16,
+    "basic_metrics": {
+      "CAV": {
+        "formatted": "4.150e+02",
+        "raw": 414.97654724121094,
+        "unit": "cm/s"
+      },
+      "PGA": {
+        "formatted": "1.159e+02",
+        "raw": 115.91577539467215,
+        "unit": "cm/s\u00b2"
+      },
+      "PGD": {
+        "formatted": "2.172e+01",
+        "raw": 21.716674706161577,
+        "unit": "cm"
+      },
+      "PGV": {
+        "formatted": "2.027e+01",
+        "raw": 20.27366319656081,
+        "unit": "cm/s"
+      }
+    },
+    "dataset_label": "FD3D A Coarse Simulation",
+    "location_x_km": 20100.0,
+    "location_y_km": 45100.0,
+    "npz_path": "data/fd3d.0001.A.coarse.npz",
+    "sa_metrics": {
+      "0.100": {
+        "formatted": "1.207e+02",
+        "raw": 120.68135987822924
+      },
+      "0.125": {
+        "formatted": "1.684e+02",
+        "raw": 168.35134184495593
+      },
+      "0.250": {
+        "formatted": "3.057e+02",
+        "raw": 305.70234795023316
+      },
+      "0.400": {
+        "formatted": "3.587e+02",
+        "raw": 358.6720683578144
+      },
+      "0.500": {
+        "formatted": "2.620e+02",
+        "raw": 261.9709066918033
+      },
+      "0.750": {
+        "formatted": "1.441e+02",
+        "raw": 144.1412341460939
+      },
+      "1.000": {
+        "formatted": "1.091e+02",
+        "raw": 109.06087105031119
+      },
+      "1.500": {
+        "formatted": "5.761e+01",
+        "raw": 57.60826925525427
+      },
+      "2.000": {
+        "formatted": "3.069e+01",
+        "raw": 30.68665230283894
+      },
+      "2.500": {
+        "formatted": "3.945e+01",
+        "raw": 39.44708094884599
+      },
+      "3.000": {
+        "formatted": "2.105e+01",
+        "raw": 21.053250821386207
+      },
+      "5.000": {
+        "formatted": "2.589e+01",
+        "raw": 25.88747990280805
+      }
+    },
+    "selected_station_id": 112549,
+    "selected_station_idx": 1865,
+    "station_count": 2366
+  },
+  "Waveqlab3D A Coarse Simulation": {
+    "available_metrics_count": 16,
+    "basic_metrics": {
+      "CAV": {
+        "formatted": "3.789e+02",
+        "raw": 378.86000061035156,
+        "unit": "cm/s"
+      },
+      "PGA": {
+        "formatted": "7.140e+02",
+        "raw": 713.995983129749,
+        "unit": "cm/s\u00b2"
+      },
+      "PGD": {
+        "formatted": "2.379e+01",
+        "raw": 23.78775290211717,
+        "unit": "cm"
+      },
+      "PGV": {
+        "formatted": "6.666e+01",
+        "raw": 66.66364343883163,
+        "unit": "cm/s"
+      }
+    },
+    "dataset_label": "Waveqlab3D A Coarse Simulation",
+    "location_x_km": 23000.0,
+    "location_y_km": 1997.5,
+    "npz_path": "data/waveqlab3d.0001.A.coarse.npz",
+    "sa_metrics": {
+      "0.100": {
+        "formatted": "7.138e+02",
+        "raw": 713.7765782144113
+      },
+      "0.125": {
+        "formatted": "8.963e+02",
+        "raw": 896.2899811868468
+      },
+      "0.250": {
+        "formatted": "1.063e+03",
+        "raw": 1063.2258780815807
+      },
+      "0.400": {
+        "formatted": "1.057e+03",
+        "raw": 1056.6927526227237
+      },
+      "0.500": {
+        "formatted": "9.203e+02",
+        "raw": 920.2626875262873
+      },
+      "0.750": {
+        "formatted": "7.593e+02",
+        "raw": 759.2634940612207
+      },
+      "1.000": {
+        "formatted": "5.570e+02",
+        "raw": 557.0404614446427
+      },
+      "1.500": {
+        "formatted": "2.753e+02",
+        "raw": 275.33853729523946
+      },
+      "2.000": {
+        "formatted": "1.816e+02",
+        "raw": 181.64444514349506
+      },
+      "2.500": {
+        "formatted": "1.298e+02",
+        "raw": 129.7673607688473
+      },
+      "3.000": {
+        "formatted": "1.006e+02",
+        "raw": 100.63111911216171
+      },
+      "5.000": {
+        "formatted": "5.112e+01",
+        "raw": 51.12118400803905
+      }
+    },
+    "selected_station_id": 658101,
+    "selected_station_idx": 1865,
+    "station_count": 3321
+  }
+}
