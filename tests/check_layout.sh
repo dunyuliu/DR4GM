@@ -33,5 +33,11 @@ if grep -rn "subprocess\.run(\['git'" src/ >/dev/null 2>&1; then
   fail=1
 fi
 
+# PROJECT_RULES.md rule 6: the board's Status vocabulary and row shape are
+# mechanically linted (board row 33, zofia-kaminska milestone rule-book audit).
+if ! bash "$(dirname "$0")/check_board_lint.sh"; then
+  fail=1
+fi
+
 [ "$fail" -eq 0 ] && echo "layout check: PASS"
 exit "$fail"
