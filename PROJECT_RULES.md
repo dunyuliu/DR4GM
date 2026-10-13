@@ -12,7 +12,7 @@ Authoritative checklist used by the release workflow's audit step
 2. **Tracked root is a whitelist; no committed file over 5 MB.** The
    repo root may hold only: `README.md`, `CLAUDE.md`, `PATHWAY_FORWARD.md`,
    `PROJECT_RULES.md`, `LICENSE`, `CITATION.cff`, `requirements.txt`,
-   `.gitignore`, `.github/` (CI workflows), and
+   `.gitignore`, `.github/` (CI workflows), `.devcontainer/` (Streamlit Cloud / Codespaces config), and
    `release_notes_v<X.Y.Z>.md` (current release only — older ones archive
    to `docs/dev/`). Everything else moves under a directory:
    `FORMULAS.md` → `docs/user/FORMULAS.md`; audits and planning docs →
