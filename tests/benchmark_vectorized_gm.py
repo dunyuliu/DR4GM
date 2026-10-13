@@ -372,8 +372,16 @@ def relerr(ref: np.ndarray, test: np.ndarray) -> float:
 def main():
     # Resolve repo root from this file's location so the benchmark is portable.
     repo_root = Path(__file__).resolve().parent.parent
+    # NOTE (row 35, 2026-10-12): the pre-"retire parent" layout had this under
+    # reference/results/...; post-reorg the frozen oracle lives under
+    # data/reference/results_original_resolution/... (see CLAUDE.md "Data").
+    # The specific 2000m-subsampled grid this benchmark wants is not present
+    # in the current reference dataset (only the 100m-native eqdyna runs are)
+    # — deferred, not fixed: regenerating that subsample is a data-prep task,
+    # not a path typo, so this still degrades to the documented SystemExit
+    # below rather than silently picking a different-shaped file.
     candidates = [
-        repo_root / "reference" / "results" / "eqdyna" / "0001.A.2000m_subsampled" / "grid_2000m.npz",
+        repo_root / "data" / "reference" / "results_original_resolution" / "eqdyna" / "0001.A.2000m_subsampled" / "grid_2000m.npz",
         Path("/tmp/dr4gm_verify/grid_2000m.npz"),
     ]
     npz_path = next((p for p in candidates if p.exists()), None)

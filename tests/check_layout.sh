@@ -21,9 +21,18 @@ while IFS= read -r -d '' f; do
   [ "$s" -gt 5242880 ] && { echo "LAYOUT FAIL: $f is $s bytes (> 5 MB)"; fail=1; }
 done < <(git ls-files -z)
 
-for p in results/ reference/ local/; do
+for p in results/ reference/ local/ data/reference; do
   git check-ignore -q "$p" || { echo "LAYOUT FAIL: $p is not git-ignored"; fail=1; }
 done
+
+# PROJECT_RULES.md rule 2 / row 35 finding (3): data/reference is a
+# machine-local link to the ~199 GB shared reference dataset and must never
+# be force-added past the gitignore above (git check-ignore only proves the
+# pattern matches, not that nobody has `git add -f`'d it already).
+if git ls-files --error-unmatch data/reference >/dev/null 2>&1; then
+  echo "LAYOUT FAIL: data/reference is tracked (force-added past .gitignore)"
+  fail=1
+fi
 
 # PROJECT_RULES.md rule 5: production code under src/ must never commit to
 # its own running repo (no git add/commit/push on a timer or callback).

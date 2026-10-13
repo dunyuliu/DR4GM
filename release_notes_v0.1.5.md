@@ -207,6 +207,9 @@ Reporting only; none of this gates the release.
 - ci: see §9 — the tagged commit's own CI run was confirmed green on its
   own exact SHA before the tag was created (run id and SHA match the tag
   per `git rev-parse v0.1.5` and `gh run list --commit <that sha>`).
+  **Recorded inline (row 35 finding 6, added 2026-10-12 since this was never
+  filled in post-tag):** tag `v0.1.5` = SHA `cd06dc1a882f09ad10b7723c8249c54cad4b61ce`,
+  CI run `37970102766`, conclusion `success` (`gh run list --commit cd06dc1a882f09ad10b7723c8249c54cad4b61ce`).
 - publish: note version `v0.1.5`, tag `v0.1.5` (created with its GitHub
   Release per project convention, no local-only tag), remote
   `github.com/dunyuliu/DR4GM`.

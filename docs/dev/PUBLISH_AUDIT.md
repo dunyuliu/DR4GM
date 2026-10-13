@@ -62,8 +62,18 @@ Path("./reference/results/eqdyna/0001.A.2000m_subsampled/grid_2000m.npz"),
 **Status:** Already gitignored. Not blocking; just note that the file exists in the working tree and should not be added.
 **Fix:** No code change needed. Optionally `rm .DS_Store` before the publish push.
 
-### I3 — Internal-only docs present in working tree
-**Files in working tree (all gitignored, verified with `git check-ignore`):**
+### I3 — Internal-only docs present in working tree [STALE — see 2026-10-12 note]
+**Historical snapshot, now superseded** (row 35 finding 5, 2026-10-12): this
+section described the repo layout *before* the row-10 "Zofia template" reorg
+and the v0.1.5 "retire parent" release. As of that reorg, `CLAUDE.md` and
+`PROJECT_RULES.md` are tracked public-root files (`git ls-files CLAUDE.md
+PROJECT_RULES.md` both match), and `docs/dev/` is a tracked directory holding
+internal dev docs (audits, release notes, plans) — only `docs/dev/`'s
+individual gitignored drafts and `local/`/`demo/` remain untracked. The
+specific paths/line numbers below are stale and must not be used to verify
+current state; see `PROJECT_RULES.md`'s root-layout rule instead.
+
+**Original text, left for history, do not re-apply:**
 - `AUDIT.md` (gitignored at `.gitignore:22`)
 - `CLAUDE.md` (gitignored at `.gitignore:23`)
 - `PROJECT_RULES.md` (gitignored at `.gitignore:24`)
