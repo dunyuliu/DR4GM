@@ -302,7 +302,7 @@ class DataLoaderMixin:
     # take priority over any remote hosting_method so the default path needs
     # no network access; remote URLs below remain the fallback for a dataset
     # not vendored locally (currently only "EQDyna C" has no local copy).
-    _LOCAL_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+    _LOCAL_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
     _LOCAL_ASSETS = {
         "EQDyna A Coarse Simulation": "eqdyna.0001.A.coarse.npz",
         "EQDyna B Coarse Simulation": "eqdyna.0001.B.coarse.npz",

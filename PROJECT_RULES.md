@@ -12,12 +12,12 @@ Authoritative checklist used by the release workflow's audit step
 2. **Tracked root is a whitelist; no committed file over 5 MB.** The
    repo root may hold only: `README.md`, `CLAUDE.md`, `PATHWAY_FORWARD.md`,
    `PROJECT_RULES.md`, `LICENSE`, `CITATION.cff`, `requirements.txt`,
-   `.gitignore`, `.github/` (CI workflows), and
+   `.gitignore`, `.github/` (CI workflows), `.devcontainer/` (Streamlit Cloud / Codespaces config), and
    `release_notes_v<X.Y.Z>.md` (current release only — older ones archive
    to `docs/dev/`). Everything else moves under a directory:
    `FORMULAS.md` → `docs/user/FORMULAS.md`; audits and planning docs →
-   `docs/dev/`; `utils/` → `src/utils/`; `gui/` → `src/gui/`; `web/` →
-   `src/web/`; the vendored `gmpe-smtk/` (attribution files protected,
+   `docs/dev/`; `utils/` → `src/utils/`; `gui/` → `src/gui/`; `web/` stays at the root (owner, 2026-10-13: the
+   Streamlit Cloud deployment is bound to `web/dr4gm_interactive_explorer.py`); the vendored `gmpe-smtk/` (attribution files protected,
    see `CLAUDE.md`) → `src/gmpe-smtk/`; `test_system/` and any other
    test directory consolidated to one `tests/` (done, board row 10); the entry-point scripts
    (`install.sh`, `run_pipeline.sh`, `regen_ensemble_figures.sh`,
@@ -99,7 +99,7 @@ Authoritative checklist used by the release workflow's audit step
    push` compounds it by publishing without a human in the loop.
 
    **Incident (2026-10-08)**: `_commit_to_git()` in
-   `src/web/dr4gm_interactive_explorer.py:495-530` runs `git add` +
+   `web/dr4gm_interactive_explorer.py:495-530` runs `git add` +
    `git commit` + `git push` on the usage-analytics log on a timer,
    wrapped in a bare `except Exception: pass` — found during a
    board/rules scoping pass (board row 15), not from an incident report.

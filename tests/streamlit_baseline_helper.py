@@ -37,7 +37,7 @@ BASELINE_PATH = REPO_ROOT / "tests" / "e2e_reference" / "streamlit_apptest_basel
 MULTI_BASELINE_PATH = REPO_ROOT / "tests" / "e2e_reference" / "streamlit_apptest_multi_baseline.json"
 
 # Mirrors GroundMotionExplorer._LOCAL_ASSETS in
-# src/web/dr4gm_interactive_explorer.py -- the "DR4GM Data Archive" source's
+# web/dr4gm_interactive_explorer.py -- the "DR4GM Data Archive" source's
 # local-first vendored demo files (data/MANIFEST.md). Kept as a literal
 # dict here (not imported from the app) so this helper stays importable
 # without pulling in streamlit/plotly at collection time.
@@ -54,7 +54,7 @@ BASIC_UNITS = {"PGA": "cm/s²", "PGV": "cm/s", "PGD": "cm", "CAV": "cm/s"}
 
 def _default_station_idx(num_stations: int) -> int:
     """Mirrors main()'s default station pick in
-    src/web/dr4gm_interactive_explorer.py:
+    web/dr4gm_interactive_explorer.py:
         st.session_state.selected_station_idx = min(num_stations // 2, num_stations - 1)
     """
     return min(num_stations // 2, num_stations - 1)
@@ -108,7 +108,7 @@ def compute_dataset_expected(dataset_label: str, *, carried_station_idx: int = N
     "DR4GM Data Archive" source (the default radio option, index 0), by
     loading the NPZ directly. Mirrors GroundMotionExplorer.
     _extract_data_from_npz and create_all_metrics_tables in
-    src/web/dr4gm_interactive_explorer.py.
+    web/dr4gm_interactive_explorer.py.
 
     `carried_station_idx`: the app only initializes
     `st.session_state.selected_station_idx` the first time

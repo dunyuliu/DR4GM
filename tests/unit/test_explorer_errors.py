@@ -1,5 +1,5 @@
 """Row 20 regression coverage: silent-fallback cleanup in
-src/web/data_loading.py.
+web/data_loading.py.
 
 download_from_url's cache-validation bare `except:` clauses used to
 swallow a corrupted cached NPZ with zero trace before falling through to a
@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "src" / "web"))
+sys.path.insert(0, str(REPO_ROOT / "web"))
 
 from data_loading import DataLoaderMixin  # noqa: E402
 

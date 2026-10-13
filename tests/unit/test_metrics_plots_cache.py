@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "src" / "web"))
+sys.path.insert(0, str(REPO_ROOT / "web"))
 
 from data_loading import DataLoaderMixin  # noqa: E402
 from metrics_plots import MetricsPlotsMixin  # noqa: E402

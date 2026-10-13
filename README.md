@@ -85,7 +85,7 @@ equivalence (1e-6 rel for float32 inputs, 1e-12 otherwise).
 | Dir | What | Entry point |
 |---|---|---|
 | `src/gui/` | Tkinter desktop GUI for the 6-phase workflow | `python src/gui/tkGUI_dr4gm_new.py` |
-| `src/web/` | Streamlit interactive explorer | `streamlit run src/web/dr4gm_interactive_explorer.py` |
+| `web/` | Streamlit interactive explorer (path fixed by the Streamlit Cloud deployment) | `streamlit run web/dr4gm_interactive_explorer.py` |
 
 ## Dependencies
 

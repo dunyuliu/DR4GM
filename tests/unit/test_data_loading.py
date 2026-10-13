@@ -1,5 +1,5 @@
 """Row 18 regression coverage for local-first data loading in
-src/web/data_loading.py.
+web/data_loading.py.
 
 DataLoaderMixin.get_dataset_files already prefers the vendored local copies
 under data/ (data/MANIFEST.md) over the remote Google Drive/GitHub URLs --
@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(REPO_ROOT / "src" / "web"))
+sys.path.insert(0, str(REPO_ROOT / "web"))
 
 from data_loading import DataLoaderMixin  # noqa: E402
 

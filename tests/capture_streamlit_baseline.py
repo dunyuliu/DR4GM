@@ -5,7 +5,7 @@ tests/e2e_reference/streamlit_apptest_multi_baseline.json.
 Run this deliberately, after confirming the displayed numbers changed for a
 legitimate reason (e.g. one of the vendored data/*.npz assets was
 intentionally replaced). A later module-split refactor of
-src/web/dr4gm_interactive_explorer.py is explicitly gated on these baselines
+web/dr4gm_interactive_explorer.py is explicitly gated on these baselines
 NOT changing -- do not regenerate them to make a refactor's diff disappear.
 
 Usage:
