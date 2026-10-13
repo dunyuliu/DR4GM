@@ -910,7 +910,13 @@ def plot_response_spectra_bias_vs_periods(scenarios, target_rjb_km, output_dir, 
     at a fixed Rjb. Sign convention: positive bias = simulation BELOW the GMMs.
     Per-simulation dashed, per-code group-mean bold, overall mean bias magenta."""
     if not PLOT_GMPE_AVAILABLE:
-        print("WARNING: NGA-West2 GMPE unavailable; cannot compute bias.")
+        print("")
+        print("=" * 78)
+        print("SKIPPED: Figure14B.png -- openquake.engine geospatial deps (GDAL)")
+        print("unavailable in this environment. See README.md for how to enable")
+        print("GMPE comparison figures.")
+        print("=" * 78)
+        print("")
         return
     os.makedirs(output_dir, exist_ok=True)
 

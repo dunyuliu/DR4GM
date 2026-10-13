@@ -87,6 +87,25 @@ else
 fi
 
 echo ""
+# GMPE comparison (Figure14B) preflight. Informational only -- GMPE comparison
+# is an optional, documented-as-optional dependency (PROJECT_RULES.md rule 4),
+# so this never fails/aborts the install. Checking bare `import openquake`
+# is not enough: that top-level import can succeed while the deeper
+# openquake_engine_gmpe import still fails (missing GEM geospatial/GDAL
+# wheels raise from inside openquake's hazardlib on first real use), so probe
+# the actual module the pipeline imports, matching PLOT_GMPE_AVAILABLE in
+# src/utils/visualize_ensemble_stats.py.
+if "$VENV/bin/python" -c "
+import sys
+sys.path.insert(0, '$UTILS')
+from openquake_engine_gmpe import get_nga_west2_gmpe_predictions_cached, get_cav_gmm_predictions
+" >/dev/null 2>&1; then
+    echo "GMPE comparison (Figure14B) available."
+else
+    echo "GMPE comparison (Figure14B) NOT available -- see README.md for optional GDAL/openquake setup."
+fi
+
+echo ""
 echo "Virtual environment ready: $VENV"
 echo "If this script was run (e.g. 'bash scripts/install.sh') rather than"
 echo "sourced, the venv activation above did not persist into your shell."
