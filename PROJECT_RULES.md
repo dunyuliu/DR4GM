@@ -106,3 +106,42 @@ Authoritative checklist used by the release workflow's audit step
    `src/` code) is a violation. Tier: mechanical via that grep; the
    check is now wired into `tests/check_layout.sh` (board row 15, DONE)
    so a reintroduced violation fails the gate directly, not just this grep.
+
+6. **The board's Status vocabulary and row shape are mechanically linted.**
+   `PATHWAY_FORWARD.md`'s `## Rows` table declares its Status vocabulary as
+   `TODO` / `DOING` / `DONE` / `BLOCKED(owner)`, each optionally followed by
+   free text (a space, an em dash, or a parenthetical, e.g. `DONE — ...`,
+   `BLOCKED(owner) for the fixture; ...`). Every data row's Status cell
+   must start with one of these four tokens, and every data row must split
+   into exactly 4 `|`-delimited cells once `|` characters inside backtick
+   code spans (a shell pipe in an Evidence command, or a literal `` `|` ``
+   naming the delimiter itself) are excluded from the split — those are
+   cell content, not column delimiters.
+
+   **Rationale**: a status board with an undeclared or silently-drifting
+   vocabulary is unparseable by anything but a human skimming it; a row
+   that doesn't actually split into 4 cells (an unescaped `|` inside a
+   cell) renders as a corrupted table and misaligns every cell after it.
+
+   **Incident (2026-10-08, board row 33, zofia-kaminska milestone
+   rule-book audit)**: this rule's own vocabulary had no mechanical check
+   against actual row values; row 23 at the time used the non-matching
+   variant `BLOCKED(needs quiet-host re-run or code audit)` (since fixed to
+   `DONE`), and row 25 had a separate malformed-table instance (since
+   fixed). Finding was logged on the board (row 33) with no rule written
+   yet — this rule and its script close that gap.
+
+   **How to apply**: `bash tests/check_board_lint.sh` (also wired into
+   `bash tests/check_layout.sh`, which `run_tests.sh` runs first) parses
+   `PATHWAY_FORWARD.md`'s `## Rows` table and fails on the first violation
+   of either condition above. **Documented exception**: row 16's Status
+   cell (`PARTIAL, not TODO (plan-vs-code correction, conductor
+   2026-10-07)`) predates this rule and is not in the declared vocabulary;
+   the script WARNs on it by row number instead of failing, rather than
+   silently rewriting board content this rule book does not own rewording.
+   Any further exception must be added to the script's `EXCEPTIONS` dict by
+   row number with a one-line reason, matching this entry — an exception
+   list that grows unbounded is itself a finding for the next rules pass,
+   not a reason to loosen the vocabulary regex.
+
+   **Tier**: mechanical, via the script above.
