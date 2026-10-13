@@ -1,25 +1,29 @@
 #!/bin/bash
 
 # Unified DR4GM Processing Pipeline
-# Usage: ./run_all.sh <input_dir> <code_type> <output_dir> [grid_resolution]
-# 
+# Usage: ./run_all.sh <input_dir> <code_type> <output_dir> [grid_resolution] [distance_bin_size]
+#
 # Arguments:
 #   input_dir: Directory containing raw simulation data
 #   code_type: Simulation code (eqdyna, fd3d, waveqlab3d, seissol, sord)
 #   output_dir: Output directory for all results
 #   grid_resolution: Grid resolution in meters (optional, default: 1000)
 #                   Use "all" to process all stations without subsetting
+#   distance_bin_size: GM-stats distance bin size in meters (optional, default: 2000,
+#                   matching gm_stats.py's own default and the published v0.1.1+ bundle
+#                   figures -- PATHWAY_FORWARD.md row 14/24)
 #
 # Examples:
 #   ./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
 #   ./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 500
 #   ./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m all
+#   ./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m 1000 500
 
 set -e  # Exit on any error
 
 # Check arguments
-if [ $# -lt 3 ] || [ $# -gt 4 ]; then
-    echo "Usage: $0 <input_dir> <code_type> <output_dir> [grid_resolution]"
+if [ $# -lt 3 ] || [ $# -gt 5 ]; then
+    echo "Usage: $0 <input_dir> <code_type> <output_dir> [grid_resolution] [distance_bin_size]"
     echo ""
     echo "Arguments:"
     echo "  input_dir:      Directory containing raw simulation data"
@@ -27,6 +31,7 @@ if [ $# -lt 3 ] || [ $# -gt 4 ]; then
     echo "  output_dir:     Output directory for all results"
     echo "  grid_resolution: Grid resolution in meters (optional, default: 1000)"
     echo "                  Use 'all' to process all stations without subsetting"
+    echo "  distance_bin_size: GM-stats distance bin size in meters (optional, default: 2000)"
     echo ""
     echo "Examples:"
     echo "  $0 ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m"
@@ -39,6 +44,7 @@ INPUT_DIR="$1"
 CODE_TYPE="$2"
 OUTPUT_DIR="$3"
 GRID_RESOLUTION="${4:-1000}"  # Default to 1000m if not specified
+DISTANCE_BIN_SIZE="${5:-2000}"  # Default to 2000m, matching gm_stats.py's own default (row 14)
 
 # Validate inputs
 if [ ! -d "$INPUT_DIR" ]; then
@@ -160,7 +166,7 @@ python3 gm_stats.py \
     --gm_data "$OUTPUT_DIR/ground_motion_metrics.npz" \
     --output_dir "$OUTPUT_DIR" \
     --distance_range 0 30000 \
-    --distance_bin_size 500
+    --distance_bin_size "$DISTANCE_BIN_SIZE"
 
 # Verify stats creation
 if [ ! -f "$OUTPUT_DIR/gm_statistics.npz" ]; then

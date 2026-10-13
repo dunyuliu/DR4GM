@@ -98,8 +98,12 @@ def test_run_all_seissol_fixture_matches_light_reference(tmp_path):
 
     out_dir = tmp_path / "run_all_out"
 
+    # Pin distance_bin_size=500 explicitly (row 13/derive_light_reference.sh's
+    # baked value), decoupling this fixture comparison from run_all.sh's own
+    # production default (2000, matching the published bundle -- row 14/24)
+    # per PATHWAY_FORWARD.md row 24.
     result = subprocess.run(
-        ["bash", str(RUN_ALL), str(RAW), "seissol", str(out_dir)],
+        ["bash", str(RUN_ALL), str(RAW), "seissol", str(out_dir), "1000", "500"],
         capture_output=True, text=True, cwd=str(UTILS_DIR),
     )
     assert result.returncode == 0, (

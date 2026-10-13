@@ -1,10 +1,18 @@
-numpy
-scipy
-matplotlib
-pandas
-netCDF4
-h5py
-openquake.engine
-streamlit
-plotly
-pillow
+# PATHWAY_FORWARD.md row 32: version floors, not bare names. CI previously
+# resolved whatever was latest on install day (observed 2026-10-13, CI run
+# 38336344141: numpy-2.4.6, scipy-1.17.1, matplotlib-3.11.2, h5py-3.16.0,
+# streamlit-1.65.0, pillow-12.3.0, pandas-3.0.6, plotly-7.1.0), with nothing
+# catching a resolution drift below what the code actually needs.
+# numpy>=2.0 is a hard floor: src/utils/vectorized_gmrotd50.py uses
+# np.trapezoid (added in numpy 2.0, replacing the deprecated np.trapz);
+# anything older raises AttributeError at runtime, not at install time.
+numpy>=2.0
+scipy>=1.14  # numpy>=2.0 compatibility (see gmpe-smtk/LOCAL_MODIFICATIONS.md)
+matplotlib>=3.8
+pandas>=2.0
+netCDF4>=1.6
+h5py>=3.9
+openquake.engine>=3.19
+streamlit>=1.30
+plotly>=5.18
+pillow>=10.0

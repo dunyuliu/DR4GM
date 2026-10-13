@@ -325,27 +325,51 @@ class SeisSolConverter:
         self.logger.info(f"Rotation applied: {rotation_applied}")
         return str(output_file)
     
-    def convert_all_datasets(self) -> Dict[str, str]:
-        """Convert all SeisSol datasets found in input directory"""
+    def convert_all_datasets(self, allow_partial_failures: bool = False) -> Dict[str, str]:
+        """Convert all SeisSol datasets found in input directory.
+
+        PATHWAY_FORWARD.md row 25: a per-file conversion failure used to be
+        logged and silently skipped while the pipeline still exited 0,
+        quietly losing those stations from the scenario. Default is now
+        strict -- any failed file raises after the loop, naming every
+        failed file. Pass allow_partial_failures=True (CLI: --allow_partial_failures)
+        to keep the old skip-and-continue behavior for a run that can
+        tolerate missing stations.
+        """
         start_time = time.time()
         self.logger.info(f"Starting conversion of {self.input_dir}")
-        
+
         # Discover .h5 files
         h5_files = self.discover_h5_files()
-        
+
         if not h5_files:
             raise ValueError("No .h5 files found in input directory")
-        
+
         # Convert each .h5 file
         all_conversion_data = []
+        failed_files = []
         for h5_file in h5_files:
             try:
                 conversion_data = self.convert_dataset(h5_file)
                 all_conversion_data.append(conversion_data)
             except Exception as e:
                 self.logger.error(f"Failed to convert {h5_file}: {e}")
+                failed_files.append((str(h5_file), str(e)))
                 continue
-        
+
+        if failed_files:
+            banner = (
+                f"*** {len(failed_files)}/{len(h5_files)} SeisSol file(s) FAILED to convert "
+                f"and their stations are MISSING from the output: "
+                + "; ".join(f"{f} ({err})" for f, err in failed_files) + " ***"
+            )
+            if allow_partial_failures:
+                self.logger.warning(banner)
+            else:
+                raise ValueError(
+                    banner + " Pass --allow_partial_failures to accept a partial scenario."
+                )
+
         if not all_conversion_data:
             raise ValueError("No datasets were successfully converted")
         
@@ -381,15 +405,20 @@ def main():
     parser.add_argument('--input_dir', required=True, help='Input directory containing SeisSol .h5 files')
     parser.add_argument('--output_dir', required=True, help='Output directory for NPZ files')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
-    
+    parser.add_argument('--allow_partial_failures', action='store_true',
+                         help='Do not fail when some .h5 files fail to convert; '
+                              'log a warning banner and continue with the rest '
+                              '(default: fail loudly, naming every failed file -- '
+                              'PATHWAY_FORWARD.md row 25)')
+
     args = parser.parse_args()
-    
+
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-    
+
     try:
         converter = SeisSolConverter(args.input_dir, args.output_dir)
-        results = converter.convert_all_datasets()
+        results = converter.convert_all_datasets(allow_partial_failures=args.allow_partial_failures)
         
         print("\n=== Conversion Results ===")
         print(f"Station list: {results['station_list']}")

@@ -24,7 +24,9 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 
 from vectorized_gmrotd50 import gmrotd50_vectorized  # noqa: E402
 
-pytest.importorskip("scipy", reason="scipy not installed in this environment")
+# scipy is a hard requirement (requirements.txt), not optional like
+# openquake -- a missing/broken scipy install must hard-fail collection,
+# not silently skip this oracle-parity test (PATHWAY_FORWARD.md row 32).
 from ComputeGroundMotionParametersFromSurfaceOutput_Hybrid_Lite import (  # noqa: E402
     gmrotdpp_withPG,
 )
