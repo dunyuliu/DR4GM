@@ -107,6 +107,50 @@ Authoritative checklist used by the release workflow's audit step
    check is now wired into `tests/check_layout.sh` (board row 15, DONE)
    so a reintroduced violation fails the gate directly, not just this grep.
 
+   **3a. No git tag without an audit citation or an owner waiver, quoted in
+   the release note.** A `git tag` may not be created unless
+   `release_notes_v<X.Y.Z>.md` quotes, verbatim, either (1) a
+   victor-reyes audit report covering the diff `<last-tag>..<tagged-commit>`
+   (one victor-reyes run per release — a run from an earlier commit on the
+   same release branch does not satisfy a later tag), or (2) an
+   owner-written waiver explicitly accepting the release without one. A
+   release note that only cites an audit from a *prior* tag, or says an
+   audit was "pre-settled" / "not re-investigated" without itself quoting
+   a victor-reyes report or a waiver for *this* diff, does not satisfy
+   this rule.
+
+   **Rationale**: rule 1 (tests) and the layout gate are mechanical; a
+   victor-reyes code-correctness pass is this project's only check for the
+   judgment-tier findings (silent fallbacks, swallowed errors, cherry-picked
+   results) that tests don't catch. Tagging without one ships a release
+   whose judgment-tier risk was never looked at by anyone but the agent
+   that wrote the code.
+
+   **Incident (2026-10-12, discovered during a rules audit)**: `v0.1.5`
+   (`release_notes_v0.1.5.md`, tagged at `2d6261a`/`e3758f4`/`cd06dc1`) was
+   cut with no victor-reyes audit of `v0.1.4..v0.1.5` anywhere in its
+   release note — `grep -in victor release_notes_v0.1.5.md` returns no
+   hits, versus every other release note (`v0.1.0`, `v0.1.2`–`v0.1.4`)
+   citing one by name. Its §5 explicitly says the release's findings were
+   "handed to me pre-settled by the conductor" and re-ran only the
+   mechanical gates (`check_layout.sh`, `pytest`) — there is no
+   judgment-tier pass over `v0.1.4..v0.1.5`'s own diff (the `data/`
+   repoint, the `git filter-repo` history rewrite, the Release-metadata
+   PATCHes) and no quoted owner waiver either. This rule did not exist
+   yet when `v0.1.5` was tagged, so it is not a rule violation
+   retroactively — it is the gap this rule closes going forward. The
+   retroactive question (does `v0.1.5` need a victor-reyes audit run now)
+   is tracked on the board, not decided here.
+
+   **Tier**: mechanical — `grep -i victor release_notes_v<X.Y.Z>.md` or a
+   quoted owner-waiver string must be non-empty for the version being
+   tagged, checkable as a pre-tag step in the release workflow
+   (`CLAUDE.md` → "Release Workflow"); not yet wired into
+   `tests/check_layout.sh` since that gate runs against the working tree,
+   not against `git tag` invocations — a pre-tag hook or a one-line check
+   in the release workflow script is the natural home, proposed here, not
+   built in this pass.
+
 6. **The board's Status vocabulary and row shape are mechanically linted.**
    `PATHWAY_FORWARD.md`'s `## Rows` table declares its Status vocabulary as
    `TODO` / `DOING` / `DONE` / `BLOCKED(owner)`, each optionally followed by
