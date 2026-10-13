@@ -73,7 +73,7 @@ converters write `gm_statistics.npz` directly).
 
 ```bash
 bash tests/run_tests.sh           # 5 canonical scenarios (~14 min on M3)
-bash tests/run_tests.sh --all     # all 22 scenarios     (~59 min)
+bash tests/run_tests.sh --all     # all 20 scenarios     (~59 min)
 ```
 
 Diffs fresh `ground_motion_metrics.npz` against the bundled 1 km baseline
