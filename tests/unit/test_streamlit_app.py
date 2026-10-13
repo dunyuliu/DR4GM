@@ -24,7 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 APP_PATH = REPO_ROOT / "src" / "web" / "dr4gm_interactive_explorer.py"
 
 sys.path.insert(0, str(REPO_ROOT / "tests"))
-from streamlit_baseline_helper import BASELINE_PATH, compute_eqdyna_a_expected  # noqa: E402
+from streamlit_baseline_helper import (  # noqa: E402
+    BASELINE_PATH,
+    LOCAL_ASSETS,
+    MULTI_BASELINE_PATH,
+    compute_all_datasets_expected,
+    compute_eqdyna_a_expected,
+)
 
 # streamlit is a hard requirement (requirements.txt), not optional like
 # openquake -- a missing/broken install must hard-fail collection, not
@@ -108,6 +114,78 @@ def test_displayed_pga_value_matches_npz():
     assert len(metrics_table_blocks) == 1
     table_html = metrics_table_blocks[0]
     assert f">PGA</td><td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; font-family: monospace;'>{expected['pga_formatted']}</td>" in table_html
+
+
+def _assert_metric_row(table_html: str, metric_name: str, formatted_value: str) -> None:
+    """A single Ground Motion Metrics table row, as rendered by
+    GroundMotionExplorer.create_all_metrics_tables's HTML string builder in
+    src/web/dr4gm_interactive_explorer.py (see the `html_table +=` f-string
+    building `<td>{Metric}</td><td ...>{Value}</td>`)."""
+    needle = (
+        f">{metric_name}</td>"
+        f"<td style='padding: 2px 4px; border: 1px solid #ddd; text-align: right; "
+        f"font-family: monospace;'>{formatted_value}</td>"
+    )
+    assert needle in table_html, f"Row for {metric_name!r} (expected value {formatted_value!r}) not found in table"
+
+
+@pytest.mark.parametrize("dataset_label", sorted(LOCAL_ASSETS.keys()))
+def test_full_metrics_surface_matches_npz_for_every_local_dataset(dataset_label):
+    """Row 16 extension: for every vendored "DR4GM Data Archive" dataset
+    (data/MANIFEST.md), pin Total Stations, Available Metrics, the selected
+    station's id, and every row of its Ground Motion Metrics table (all four
+    basic metrics PGA/PGV/PGD/CAV plus every spectral-acceleration period) --
+    not just the single EQDyna-A/PGA cell the original row-16 tests covered.
+    Expected values are computed independently from the NPZ by
+    streamlit_baseline_helper.compute_all_datasets_expected (which reproduces
+    the same "load default, then switch dataset" session sequence this test
+    drives through AppTest, including session-state index carryover -- see
+    that function's docstring), never read back from the app itself.
+    """
+    expected = compute_all_datasets_expected()[dataset_label]
+
+    at = _fresh_app_test()
+    at.run()
+    assert not at.exception
+
+    # "DR4GM Data Archive" is the default Data Source (index 0); switch only
+    # the dataset selectbox to the one under test.
+    dataset_selectbox = at.sidebar.selectbox[0]
+    assert dataset_selectbox.label == "Choose Dataset"
+    dataset_selectbox.set_value(dataset_label)
+    at.run()
+    assert not at.exception, f"App raised after selecting {dataset_label!r}: {[str(e) for e in at.exception]}"
+
+    total_stations_metric = next(m for m in at.metric if m.label == "Total Stations")
+    assert int(total_stations_metric.value) == expected["station_count"]
+
+    available_metrics_metric = next(m for m in at.metric if m.label == "Available Metrics")
+    assert int(available_metrics_metric.value) == expected["available_metrics_count"]
+
+    station_id_blocks = [m.value for m in at.markdown if "Station ID:" in m.value]
+    assert len(station_id_blocks) == 1
+    assert f"<strong>Station ID:</strong> {expected['selected_station_id']}" in station_id_blocks[0]
+
+    metrics_table_blocks = [m.value for m in at.markdown if "<table" in m.value]
+    assert len(metrics_table_blocks) == 1
+    table_html = metrics_table_blocks[0]
+
+    for metric_name, values in expected["basic_metrics"].items():
+        _assert_metric_row(table_html, metric_name, values["formatted"])
+
+    for period, values in expected["sa_metrics"].items():
+        _assert_metric_row(table_html, f"SA(T={period}s)", values["formatted"])
+
+
+def test_multi_baseline_json_matches_fresh_computation():
+    """Guards the frozen multi-dataset baseline against silently drifting
+    from the NPZs it claims to describe. If this fails after an intentional
+    data change, regenerate via `python3 tests/capture_streamlit_baseline.py`."""
+    assert MULTI_BASELINE_PATH.is_file(), f"Baseline missing: {MULTI_BASELINE_PATH}"
+    with open(MULTI_BASELINE_PATH) as f:
+        frozen = json.load(f)
+    fresh = compute_all_datasets_expected()
+    assert frozen == fresh
 
 
 def test_baseline_json_matches_fresh_computation():
