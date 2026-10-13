@@ -30,6 +30,13 @@ import json
 import datetime
 import uuid
 from dataclasses import dataclass, asdict
+
+# PATHWAY_FORWARD.md rows 27/31: these best-effort analytics sinks (local log
+# file, Supabase backup, email webhook) must not block the user's session on
+# failure -- but swallowing with a bare `except Exception: pass` hid every
+# failure with no trace at all. They still swallow and continue (same
+# fire-and-forget design), just not silently.
+_analytics_logger = logging.getLogger(__name__ + ".analytics")
 import subprocess
 import tempfile
 
@@ -319,8 +326,8 @@ class UsageTracker:
         try:
             with open(self.log_file, 'a') as f:
                 f.write(json.dumps(event_data) + '\n')
-        except Exception:
-            pass
+        except Exception as e:
+            _analytics_logger.warning(f"Failed to write usage event to {self.log_file}: {e}")
         
         # 2. Send to Supabase (immediate, reliable)
         self._save_to_supabase(event_data)
@@ -357,10 +364,10 @@ class UsageTracker:
                 json=event_data,
                 timeout=5
             )
-            
-        except Exception:
-            # Silently fail - don't disrupt user experience
-            pass
+
+        except Exception as e:
+            # Don't disrupt user experience, but don't hide it either.
+            _analytics_logger.warning(f"Supabase usage-event backup failed: {e}")
     
     def _save_to_google_sheets(self, event_data):
         """Send to Google Sheets via Apps Script webhook"""
@@ -488,10 +495,10 @@ View complete analytics: [Google Sheets]
                 json=email_data,
                 timeout=5
             )
-            
-        except Exception:
-            # Silently fail - don't disrupt user experience
-            pass
+
+        except Exception as e:
+            # Don't disrupt user experience, but don't hide it either.
+            _analytics_logger.warning(f"Email-notification webhook failed: {e}")
     
     def _clear_batch(self):
         """Clear the batch buffer once events have been locally persisted.
