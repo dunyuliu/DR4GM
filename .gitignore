@@ -55,8 +55,11 @@ src/web/.DS_Store
 
 # Pre-move web/ dir (now src/web/) — old location still holds the owner's
 # Streamlit secrets; a plain `git add -A` would otherwise publish it.
+# Anchored to root (row 17 finding, 2026-10-12): an unanchored `web/` matches
+# any directory named `web` at ANY depth, so it silently ignored src/web/'s
+# own new modules too — required `git add -f` to stage them.
 **/.streamlit/secrets.toml
-web/
+/web/
 
 # Editor/OS noise
 *.swp
