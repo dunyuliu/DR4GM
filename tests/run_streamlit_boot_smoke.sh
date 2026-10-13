@@ -17,7 +17,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-APP_PATH="$REPO_ROOT/src/web/dr4gm_interactive_explorer.py"
+APP_PATH="$REPO_ROOT/web/dr4gm_interactive_explorer.py"
 
 PORT="${DR4GM_SMOKE_PORT:-8599}"
 PIDFILE="$(mktemp -t dr4gm_streamlit_smoke.XXXXXX.pid)"

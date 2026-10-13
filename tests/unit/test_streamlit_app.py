@@ -1,8 +1,8 @@
-"""Headless Streamlit AppTest coverage for src/web/dr4gm_interactive_explorer.py.
+"""Headless Streamlit AppTest coverage for web/dr4gm_interactive_explorer.py.
 
 Runs fully offline:
   - st.secrets is replaced with a dummy dict via AppTest's own `.secrets`
-    attribute (never the real, gitignored src/web/.streamlit/secrets.toml,
+    attribute (never the real, gitignored web/.streamlit/secrets.toml,
     which does not exist in this checkout anyway).
   - The default dataset ("EQDyna A Coarse Simulation") resolves to the
     vendored local copy in data/eqdyna.0001.A.coarse.npz (commit 187ebd9),
@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-APP_PATH = REPO_ROOT / "src" / "web" / "dr4gm_interactive_explorer.py"
+APP_PATH = REPO_ROOT / "web" / "dr4gm_interactive_explorer.py"
 
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 from streamlit_baseline_helper import (  # noqa: E402
@@ -119,7 +119,7 @@ def test_displayed_pga_value_matches_npz():
 def _assert_metric_row(table_html: str, metric_name: str, formatted_value: str) -> None:
     """A single Ground Motion Metrics table row, as rendered by
     GroundMotionExplorer.create_all_metrics_tables's HTML string builder in
-    src/web/dr4gm_interactive_explorer.py (see the `html_table +=` f-string
+    web/dr4gm_interactive_explorer.py (see the `html_table +=` f-string
     building `<td>{Metric}</td><td ...>{Value}</td>`)."""
     needle = (
         f">{metric_name}</td>"
