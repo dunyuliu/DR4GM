@@ -8,15 +8,24 @@ dr4gm_interactive_explorer.py so every method keeps running as an instance
 method with the same `self`/`_self` access and `@st.cache_data` behavior as
 before the split.
 
-Row 18 (local-first loading) and row 19 (st.cache_data coverage) are
-separate, not-yet-started rows that build on this module boundary.
+Row 18 (local-first loading) and row 19 (st.cache_data coverage) landed on
+this module boundary. Row 20 (silent-fallback cleanup): the bare `except:`
+clauses on the cache-validation and multi-URL download-attempt paths below
+used to swallow their exceptions with zero trace; they now log via
+`_download_logger` before continuing with the same recovery behavior
+(retry without pickle, delete a corrupt cache, try the next candidate URL)
+-- any failure the user actually needs to act on still reaches them via the
+existing `st.error`/`st.warning` calls further down each path.
 """
 
 import streamlit as st
 import numpy as np
 import os
+import logging
 from pathlib import Path
 from typing import Dict, List
+
+_download_logger = logging.getLogger(__name__ + ".download")
 
 
 class DataLoaderMixin:
@@ -46,13 +55,15 @@ class DataLoaderMixin:
                 with np.load(cache_path, allow_pickle=True):
                     # Don't show cache message to keep UI clean
                     return str(cache_path)
-            except:
+            except Exception as e_pickle:
+                _download_logger.warning(f"Cached NPZ {cache_path} failed to load with allow_pickle=True: {e_pickle}")
                 try:
                     # Try without pickle
                     with np.load(cache_path, allow_pickle=False):
                         # Don't show cache message to keep UI clean
                         return str(cache_path)
-                except:
+                except Exception as e_no_pickle:
+                    _download_logger.warning(f"Cached NPZ {cache_path} is corrupted, deleting: {e_no_pickle}")
                     # Cache is corrupted, delete it
                     cache_path.unlink()
                     # Don't show cache warning to keep UI clean
@@ -147,6 +158,7 @@ class DataLoaderMixin:
                             
                     except Exception as e:
                         # Method failed, try next one
+                        _download_logger.warning(f"Download attempt via {attempt_url} failed: {e}")
                         continue
                 
                 if not success:
@@ -174,7 +186,8 @@ class DataLoaderMixin:
                         with np.load(cache_path, allow_pickle=False):
                             pass
                         return str(cache_path)
-                    except:
+                    except Exception as e_no_pickle:
+                        _download_logger.warning(f"Downloaded file {cache_path} also failed with allow_pickle=False: {e_no_pickle}")
                         st.error(f"Downloaded file is not a valid NPZ: {e}")
                         cache_path.unlink()  # Delete invalid file
                         return ""

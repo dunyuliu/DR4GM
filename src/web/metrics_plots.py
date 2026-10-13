@@ -19,6 +19,13 @@ from typing import Dict
 class MetricsPlotsMixin:
     """GM metric computation/display logic and matplotlib/plotly figure generation."""
 
+    # Not @st.cache_data (row 19): this method calls st.warning/st.error on
+    # several branches (invalid data, missing scipy, interpolation failure).
+    # Those calls only execute on a cache miss, so a cached call would
+    # silently stop re-surfacing the warning on reruns with the same
+    # (data, metric, colorscale) -- a user-visible behavior change this row
+    # must not introduce. Left for the next row/owner to decide whether to
+    # split the warning side effects out of the figure-building logic first.
     def create_station_map(self, data: Dict, metric: str, colorscale: str = 'Plasma') -> go.Figure:
         """Create interactive station map with ground motion data using contours"""
         if 'locations' not in data or metric not in data:
@@ -192,11 +199,12 @@ class MetricsPlotsMixin:
         
         return fig
     
-    def create_time_series_plot(self, data: Dict, station_idx: int) -> go.Figure:
+    @st.cache_data
+    def create_time_series_plot(_self, data: Dict, station_idx: int) -> go.Figure:
         """Create velocity time series plot for selected station"""
         if station_idx >= len(data.get('station_ids', [])):
             return go.Figure()
-        
+
         dt = data.get('dt', 0.01)
         
         fig = make_subplots(
@@ -299,11 +307,17 @@ class MetricsPlotsMixin:
         
         return all_tables
     
+    # Not @st.cache_data (row 19): a plain dict lookup with no computation --
+    # its input (all_tables) is already the output of the cached
+    # create_all_metrics_tables, so caching this wrapper would only add the
+    # cost of hashing a Dict[int, DataFrame] on every call in exchange for
+    # avoiding an O(1) dict.get.
     def get_station_metrics(self, all_tables: Dict[int, pd.DataFrame], station_idx: int) -> pd.DataFrame:
         """Get pre-computed metrics table for station"""
         return all_tables.get(station_idx, pd.DataFrame())
-    
-    def compute_custom_station_metrics(self, data: Dict, custom_locations: np.ndarray) -> Dict:
+
+    @st.cache_data
+    def compute_custom_station_metrics(_self, data: Dict, custom_locations: np.ndarray) -> Dict:
         """Compute ground motion metrics at custom station locations using interpolation"""
         try:
             from scipy.interpolate import griddata
