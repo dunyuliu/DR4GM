@@ -89,3 +89,15 @@ PYTHONPATH="$UTILS" python3 plot_pergroup_ens_figure12.py \
 echo ""
 echo "=== Collecting manuscript figures ==="
 bash "$REPO_ROOT/scripts/fetch_figures_for_publication.sh" "$PROD"
+
+echo ""
+echo "=== Run summary ==="
+if ! PYTHONPATH="$UTILS" python3 -c "
+from openquake_engine_gmpe import get_nga_west2_gmpe_predictions_cached, get_cav_gmm_predictions
+" >/dev/null 2>&1; then
+    echo "################################################################################"
+    echo "# NOTICE: Figure14B.png was SKIPPED -- openquake.engine geospatial deps (GDAL)"
+    echo "# unavailable in this environment. See README.md for how to enable GMPE"
+    echo "# comparison figures. All other figures were produced normally."
+    echo "################################################################################"
+fi

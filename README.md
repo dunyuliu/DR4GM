@@ -93,6 +93,21 @@ equivalence (1e-6 rel for float32 inputs, 1e-12 otherwise).
 `openquake.engine` (GMPE overlays). `streamlit`, `pillow` for the optional
 GUI/web app.
 
+### Optional: GMPE comparison (Figure14B)
+
+Figure14B (spectral-acceleration bias vs period against the NGA-West2 GMPEs)
+needs `openquake.engine`'s geospatial dependencies (GDAL) in addition to the
+base install. To enable it:
+
+```bash
+pip install openquake.engine
+```
+
+This is optional — without it, `scripts/regen_ensemble_figures.sh` still
+produces all other figures and prints a clear `SKIPPED: Figure14B.png`
+notice instead of failing. `scripts/install.sh` also prints whether GMPE
+comparison is available right after it finishes setting up `.venv`.
+
 ## Citation
 
 ```
