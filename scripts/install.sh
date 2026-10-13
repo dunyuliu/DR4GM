@@ -3,13 +3,52 @@
 # gmpe-smtk is vendored in-tree under ./src/gmpe-smtk (AGPLv3, (C) GEM Foundation).
 # No separate clone or post-install patching is required.
 
-echo "Installing DR4GM Python dependencies..."
-pip3 install -r requirements.txt
+# Install into a dedicated virtual environment, never into the invoking
+# user's ambient/system/user-site Python. A bare `pip3 install` here would
+# silently mutate whatever environment the caller happens to have active
+# (observed: it upgraded a shared host's numpy and left scipy ABI-broken).
+DR4GM=$(pwd)
+VENV="$DR4GM/.venv"
+
+if [ ! -d "$VENV" ]; then
+    echo "Creating virtual environment at $VENV..."
+    # Note: if this script is `source`d (as README.md instructs), `return`
+    # stops just the script without killing the caller's shell; if it was
+    # run via `bash scripts/install.sh`, `return` errors here and falls
+    # through to `exit 1`.
+    #
+    # Fast path: stdlib venv. This fails on hosts where ensurepip/python3-venv
+    # is missing or broken (observed on the release host itself), even though
+    # pip3 and virtualenv both work fine there. Fall back to the third-party
+    # `virtualenv` package, which bundles its own pip bootstrap and does not
+    # depend on stdlib ensurepip. Only if both paths fail do we abort — never
+    # silently fall through to installing into ambient/system/user-site Python.
+    if ! python3 -m venv "$VENV" 2>/tmp/dr4gm_venv_err.$$; then
+        cat /tmp/dr4gm_venv_err.$$ >&2
+        rm -f /tmp/dr4gm_venv_err.$$
+        echo "WARNING: 'python3 -m venv' failed (see above, e.g. missing python3-venv/ensurepip). Falling back to the 'virtualenv' package." >&2
+        if ! command -v virtualenv >/dev/null 2>&1; then
+            echo "Installing 'virtualenv' into the invoking user's own site (pip3 install --user)..." >&2
+            pip3 install --user virtualenv || { echo "ERROR: 'pip3 install --user virtualenv' failed. Aborting — not falling back to the ambient/system/user-site Python." >&2; return 1 2>/dev/null; exit 1; }
+        fi
+        virtualenv "$VENV" || { echo "ERROR: both 'python3 -m venv' and 'virtualenv' failed to create $VENV. Aborting — not falling back to the ambient/system/user-site Python." >&2; return 1 2>/dev/null; exit 1; }
+    fi
+    rm -f /tmp/dr4gm_venv_err.$$
+fi
+
+echo "Installing DR4GM Python dependencies into $VENV..."
+"$VENV/bin/pip" install -r requirements.txt || { echo "ERROR: dependency install into $VENV failed. Aborting." >&2; return 1 2>/dev/null; exit 1; }
+
+# Activate for the remainder of this script. If this script was `source`d
+# (as README.md instructs), the activation also persists into the caller's
+# shell; if it was run via `bash scripts/install.sh`, it does not — see the
+# reminder printed at the end.
+# shellcheck disable=SC1091
+source "$VENV/bin/activate"
 
 chmod -R 755 src/utils
 
 # Set up environment variables for the current shell
-DR4GM=$(pwd)
 SMTK=$DR4GM/src/gmpe-smtk
 UTILS=$DR4GM/src/utils
 echo "DR4GM=$DR4GM"
@@ -46,3 +85,10 @@ else
          "Full-tier tests (tests/run_tests.sh) and tests/derive_light_reference.sh" \
          "will fail until this is set (override with DR4GM_REFERENCE_DIR)."
 fi
+
+echo ""
+echo "Virtual environment ready: $VENV"
+echo "If this script was run (e.g. 'bash scripts/install.sh') rather than"
+echo "sourced, the venv activation above did not persist into your shell."
+echo "Activate it yourself with:"
+echo "    source $VENV/bin/activate"

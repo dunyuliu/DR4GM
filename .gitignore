@@ -7,6 +7,9 @@ __pycache__/
 *.egg-info/
 .ipynb_checkpoints/
 
+# Virtual environment created by scripts/install.sh
+/.venv/
+
 # Frozen baseline and large data — collaborators download from figshare links in README
 reference/
 results/
