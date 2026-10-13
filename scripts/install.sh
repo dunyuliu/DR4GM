@@ -16,7 +16,24 @@ if [ ! -d "$VENV" ]; then
     # stops just the script without killing the caller's shell; if it was
     # run via `bash scripts/install.sh`, `return` errors here and falls
     # through to `exit 1`.
-    python3 -m venv "$VENV" || { echo "ERROR: failed to create virtual environment at $VENV (see message above, e.g. missing python3-venv package). Aborting — not falling back to the ambient/system/user-site Python." >&2; return 1 2>/dev/null; exit 1; }
+    #
+    # Fast path: stdlib venv. This fails on hosts where ensurepip/python3-venv
+    # is missing or broken (observed on the release host itself), even though
+    # pip3 and virtualenv both work fine there. Fall back to the third-party
+    # `virtualenv` package, which bundles its own pip bootstrap and does not
+    # depend on stdlib ensurepip. Only if both paths fail do we abort — never
+    # silently fall through to installing into ambient/system/user-site Python.
+    if ! python3 -m venv "$VENV" 2>/tmp/dr4gm_venv_err.$$; then
+        cat /tmp/dr4gm_venv_err.$$ >&2
+        rm -f /tmp/dr4gm_venv_err.$$
+        echo "WARNING: 'python3 -m venv' failed (see above, e.g. missing python3-venv/ensurepip). Falling back to the 'virtualenv' package." >&2
+        if ! command -v virtualenv >/dev/null 2>&1; then
+            echo "Installing 'virtualenv' into the invoking user's own site (pip3 install --user)..." >&2
+            pip3 install --user virtualenv || { echo "ERROR: 'pip3 install --user virtualenv' failed. Aborting — not falling back to the ambient/system/user-site Python." >&2; return 1 2>/dev/null; exit 1; }
+        fi
+        virtualenv "$VENV" || { echo "ERROR: both 'python3 -m venv' and 'virtualenv' failed to create $VENV. Aborting — not falling back to the ambient/system/user-site Python." >&2; return 1 2>/dev/null; exit 1; }
+    fi
+    rm -f /tmp/dr4gm_venv_err.$$
 fi
 
 echo "Installing DR4GM Python dependencies into $VENV..."
