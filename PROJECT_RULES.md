@@ -22,8 +22,12 @@ Authoritative checklist used by the release workflow's audit step
    test directory consolidated to one `tests/` (done, board row 10); the entry-point scripts
    (`install.sh`, `run_pipeline.sh`, `regen_ensemble_figures.sh`,
    `fetch_figures_for_publication.sh`, `make_zenodo_bundle.sh`) →
-   `scripts/`; `reference/` stays in place on disk and is linked under
-   `data/reference` (never copied); `data/` also holds small vendored
+   `scripts/`; `data/reference` is a local-only, gitignored link created by
+   `scripts/install.sh` to the machine's shared dataset store (default
+   `$HOME/shared_dataset/dr4gm_drv.reference`, overridable via
+   `DR4GM_REFERENCE_DIR`) — there is no in-repo `reference/` parent directory
+   since the 2026-10-09 "retire parent" owner decision (`PATHWAY_FORWARD.md`
+   row, v0.1.5); `data/` also holds small vendored
    assets (each < 5 MB, with an md5 + source URL recorded in
    `data/MANIFEST.md`) that production code loads directly, such as the
    Streamlit explorer's demo NPZs; `results/` output moves to
