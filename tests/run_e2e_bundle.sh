@@ -163,7 +163,19 @@ if [ ! -d "$WORK/results/production_runs" ]; then
 fi
 
 HAVE_OPENQUAKE=0
-if python3 -c "import openquake" >/dev/null 2>&1; then
+# Match production's actual gate (PLOT_GMPE_AVAILABLE in
+# visualize_ensemble_stats.py), not just `import openquake` succeeding --
+# `openquake` top-level import can succeed while the deeper
+# openquake_engine_gmpe import still fails (observed: missing GEM geospatial
+# wheels raise from inside openquake's hazardlib on first real use, not on
+# bare `import openquake`), which previously made this probe report
+# HAVE_OPENQUAKE=1 while the actual run silently produced the degraded
+# (Figure14B-missing) manifest -- a false "something else broke" FAIL.
+if python3 -c "
+import sys
+sys.path.insert(0, '$WORK/src/utils')
+from openquake_engine_gmpe import get_nga_west2_gmpe_predictions_cached, get_cav_gmm_predictions
+" >/dev/null 2>&1; then
     HAVE_OPENQUAKE=1
 fi
 
