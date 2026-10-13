@@ -184,8 +184,7 @@ file at the repo root unless it ships publicly.
 | Fig 11 excludes `seissol/2` partly by absence of its map PNG | a manual `run_all.sh seissol/2` would resurrect it; consider a hard exclude in `fetch_figures_for_publication.sh` |
 | 2 vendored `src/gmpe-smtk/` test files >5 MB (38.6 MB CSV, 19.6 MB HDF5) | pending owner — rest of root layout per zofia template DONE, incl. `utils/`→`src/utils/`, `gmpe-smtk/`→`src/gmpe-smtk/`, and `test_system/`→`tests/` (row 10 slice) — evidence: `bash tests/check_layout.sh` (gate, also run first by `run_tests.sh`) |
 
-Full detail in `docs/dev/AUDIT.md`, `docs/dev/AUDIT_MATH.md`, `docs/dev/AUDIT_PHYSICS.md`,
-`docs/dev/AUDIT_FORMULAS.md`.
+Open findings live on the board (`PATHWAY_FORWARD.md`); closed audit notes were pruned 2026-10-13 (git history keeps them).
 
 ---
 

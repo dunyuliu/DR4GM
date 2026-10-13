@@ -35,7 +35,7 @@ data bundle staged; upload and DOI pending.
 | `utils/visualize_ensemble_stats.py` | Fig 13/19A: GMM dashed envelope switched to τ (inter-event) to match manuscript caption (was σ_total). Figs 15/16/19B: bold black "Mean of N codes" overlay (linewidth=3.5, black, solid, arithmetic mean of per-code φ curves in log-x). Fig 18 inherits `min_n=3` from Fig 17. Bias dashed lines (Fig 14B) colored by code via `_CODE_COLORS` (was uniformly gray). |
 | `utils/plot_pergroup_ens_figure12.py` | Fig 12 (7 panels): scatter s=10, α=0.15; shared limits; GMM ±1τ envelope (was σ_total); code-name titles; SORD + SPECFEM3D added via `gm_statistics.npz` fallback; `seissol/2` excluded. |
 | `regen_ensemble_figures.sh` | Fig 11 loop added (was missing). MAFE xlim=±10 km; others ±20 km; shared ylim=±40 km, vmin=0.04/vmax=1.5. `seissol/2` excluded with inline comment. Portable root resolution: `$(dirname "${BASH_SOURCE[0]}")`. |
-| `test_system/benchmark_vectorized_gm.py` | Portable path: `Path(__file__).resolve().parent.parent` (removed `/Users/dliu/...` hardcode). |
+| `test_system/benchmark_vectorized_gm.py` | Portable path: `Path(__file__).resolve().parent.parent` (removed a hardcoded absolute path). |
 | `.gitignore` | Added `local/`, `.claude/`, `results/`, `utils/results/`. |
 | `CITATION.cff` | `version` bumped `0.0.1-rc5` → `0.1.0`; `date-released` updated `2026-05-14` → `2026-05-21`. |
 
