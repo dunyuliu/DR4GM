@@ -161,7 +161,9 @@ def test_fd3d_converter_on_tiny_synthetic_fixture(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_seissol_converter_on_tiny_synthetic_fixture(tmp_path):
-    h5py = pytest.importorskip("h5py", reason="h5py not installed in this environment")
+    # h5py is a hard requirement (requirements.txt); hard-fail, do not
+    # silently skip (PATHWAY_FORWARD.md row 32).
+    import h5py
     from seissol_converter_api import SeisSolConverter
 
     input_dir = tmp_path / "seissol_in"
@@ -202,12 +204,61 @@ def test_seissol_converter_on_tiny_synthetic_fixture(tmp_path):
     assert DR4GM_NPZ_Standard.validate_npz(str(output_dir / "velocities.npz"), "layer3_velocities")
 
 
+def test_seissol_converter_fails_loudly_on_partial_file_failure(tmp_path):
+    """PATHWAY_FORWARD.md row 25: a failed .h5 file used to be logged and
+    silently skipped while the pipeline still exited 0 (stations quietly
+    missing). Default is now strict: raise, naming the failed file;
+    allow_partial_failures=True restores the old skip-and-continue."""
+    import h5py
+    from seissol_converter_api import SeisSolConverter
+
+    input_dir = tmp_path / "seissol_in"
+    output_dir = tmp_path / "seissol_out"
+    input_dir.mkdir()
+
+    n_stations, n_steps, dt = 2, 5, 0.02
+    time_array = np.arange(n_steps) * dt
+    locations = np.column_stack([
+        np.array([100.0, 200.0]), np.zeros(n_stations), np.zeros(n_stations),
+    ])
+    rng = np.random.default_rng(3)
+    v1 = rng.normal(size=(n_stations, n_steps))
+    v2 = rng.normal(size=(n_stations, n_steps))
+    v3 = rng.normal(size=(n_stations, n_steps))
+
+    with h5py.File(input_dir / "good.h5", "w") as f:
+        f.create_dataset("time", data=time_array)
+        f.create_dataset("xyz", data=locations)
+        f.create_dataset("v1", data=v1)
+        f.create_dataset("v2", data=v2)
+        f.create_dataset("v3", data=v3)
+
+    # A second .h5 that is present but not a valid SeisSol receiver file
+    # (missing the required datasets) -- simulates a real corrupt/partial
+    # conversion failure.
+    with h5py.File(input_dir / "bad.h5", "w") as f:
+        f.create_dataset("nonsense", data=np.zeros(3))
+
+    _fault_geometry_json(input_dir / "fault_geometry.json")
+
+    converter = SeisSolConverter(str(input_dir), str(output_dir))
+    with pytest.raises(ValueError, match="bad.h5"):
+        converter.convert_all_datasets()
+
+    # allow_partial_failures=True restores the old behavior: succeeds using
+    # only the good file, with the failure named in a warning (not silent).
+    results = converter.convert_all_datasets(allow_partial_failures=True)
+    assert results["total_stations"] == n_stations
+
+
 # ---------------------------------------------------------------------------
 # mafe
 # ---------------------------------------------------------------------------
 
 def test_mafe_converter_on_tiny_synthetic_fixture(tmp_path):
-    scipy_io = pytest.importorskip("scipy.io", reason="scipy not installed in this environment")
+    # scipy is a hard requirement (requirements.txt); hard-fail, do not
+    # silently skip (PATHWAY_FORWARD.md row 32).
+    import scipy.io as scipy_io
     from mafe_converter_api import MafeConverter
 
     input_dir = tmp_path / "mafe_in"
@@ -247,7 +298,9 @@ def test_mafe_converter_on_tiny_synthetic_fixture(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_specfem3d_converter_on_tiny_synthetic_fixture(tmp_path):
-    pd = pytest.importorskip("pandas", reason="pandas not installed in this environment")
+    # pandas is a hard requirement (requirements.txt); hard-fail, do not
+    # silently skip (PATHWAY_FORWARD.md row 32).
+    import pandas as pd
     from specfem3d_converter_api import SPECFEM3DConverter
 
     input_dir = tmp_path / "specfem3d_in"

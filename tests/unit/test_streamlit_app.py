@@ -26,7 +26,9 @@ APP_PATH = REPO_ROOT / "src" / "web" / "dr4gm_interactive_explorer.py"
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 from streamlit_baseline_helper import BASELINE_PATH, compute_eqdyna_a_expected  # noqa: E402
 
-pytest.importorskip("streamlit", reason="streamlit not installed in this environment")
+# streamlit is a hard requirement (requirements.txt), not optional like
+# openquake -- a missing/broken install must hard-fail collection, not
+# silently skip this AppTest suite (PATHWAY_FORWARD.md row 32).
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 # Dummy secrets only -- all empty so every outbound-network branch in

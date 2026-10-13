@@ -229,7 +229,8 @@ def _compute_global_yrange(scenarios, mean_key, count_key, distance_range,
     for s in scenarios:
         try:
             data = load_gm_statistics(s.gm_file)
-        except Exception:
+        except Exception as exc:
+            print(f"Warning: skipping {s.label}: failed to load {s.gm_file}: {exc}")
             continue
         if mean_key not in data.files:
             continue
@@ -1015,7 +1016,8 @@ def plot_inter_event_std_vs_distance(scenarios, output_dir, periods_target=(3.0,
         for s in scenarios:
             try:
                 data = load_gm_statistics(s.gm_file)
-            except Exception:
+            except Exception as exc:
+                print(f"Warning: skipping {s.label}: failed to load {s.gm_file}: {exc}")
                 continue
             mean_key, _ = _match_rsa_period_key(data, T, tol=0.06)
             if mean_key is None:
@@ -1102,7 +1104,8 @@ def plot_inter_event_std_vs_periods(scenarios, target_rjb_km, output_dir,
     for s in scenarios:
         try:
             data = load_gm_statistics(s.gm_file)
-        except Exception:
+        except Exception as exc:
+            print(f"Warning: skipping {s.label}: failed to load {s.gm_file}: {exc}")
             continue
         extracted = _extract_periods_at_rjb(data, target_rjb_km)
         if extracted is None:
