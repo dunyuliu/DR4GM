@@ -11,7 +11,7 @@ against NGA-West2 GMPEs.
 ```bash
 git clone https://github.com/dunyuliu/dr4gm.git
 cd dr4gm
-source scripts/install.sh                                         # pip + PATH/PYTHONPATH
+source scripts/install.sh                                         # creates .venv, installs deps, sets PATH/PYTHONPATH
 
 # Download ~14 MB Zenodo bundle of post-processed NPZs (22 scenarios × 3 NPZ each)
 curl -L -o dr4gm_data.tar.gz \
