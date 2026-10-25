@@ -1,4 +1,4 @@
-# DR4GM — Data Repository for Ground Motion
+# DR4GM — Dynamic Rupture for Ground Motion
 
 DR4GM processes high-resolution, physics-based earthquake dynamic-rupture
 simulation output into ground-motion intensity measures (PGA, PGV, PGD, CAV,
@@ -9,8 +9,8 @@ FD3D_TSN, SPECFEM3D, MAFE, SORD.
 ## Install
 
 ```bash
-git clone https://github.com/dunyuliu/dr4gm.git
-cd dr4gm
+git clone https://github.com/dunyuliu/DR4GM.git
+cd DR4GM
 bash scripts/install.sh
 ```
 
