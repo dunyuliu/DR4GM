@@ -60,6 +60,12 @@ fi
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
+# Resolve paths, then run from this script's directory so the helper
+# scripts below are found no matter where run_all.sh is called from.
+INPUT_DIR="$(cd "$INPUT_DIR" && pwd)"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
 echo "=========================================="
 echo "DR4GM Unified Processing Pipeline"
 echo "=========================================="

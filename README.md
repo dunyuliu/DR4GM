@@ -14,10 +14,8 @@ cd DR4GM
 bash scripts/install.sh
 ```
 
-This creates `.venv/`, installs pinned Python dependencies into it, and
-prints `PATH`/`PYTHONPATH` lines to export. Run those two `export` lines (or
-`source scripts/install.sh` instead of `bash scripts/install.sh` to have them
-applied to your current shell automatically), then activate the environment:
+This creates `.venv/` and installs the pinned Python dependencies into it.
+Activate it in each new shell:
 
 ```bash
 source .venv/bin/activate
