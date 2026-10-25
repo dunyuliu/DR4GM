@@ -1,127 +1,132 @@
-# DR4GM — Data Repository for Ground Motion
+# DR4GM — Dynamic Rupture for Ground Motion
 
-Process high-resolution physics-based earthquake simulations into ground-motion
-metrics (PGA, PGV, PGD, CAV, RSA) and distance-binned statistics, and compare
-against NGA-West2 GMPEs.
+DR4GM processes high-resolution, physics-based earthquake dynamic-rupture
+simulation output into ground-motion intensity measures (PGA, PGV, PGD, CAV,
+RSA) and distance-binned statistics, and compares them against NGA-West2
+GMPEs. It supports seven simulation codes: EQdyna, SeisSol, WaveQLab3D,
+FD3D_TSN, SPECFEM3D, MAFE, SORD.
 
-**Author**: Dunyu Liu (<dliu@ig.utexas.edu>), Institute for Geophysics, UT Austin.
-
-## Reproduce manuscript Figs 11–19 (from Zenodo data, ~5 min)
+## Install
 
 ```bash
-git clone https://github.com/dunyuliu/dr4gm.git
-cd dr4gm
-source scripts/install.sh                                         # creates .venv, installs deps, sets PATH/PYTHONPATH
+git clone https://github.com/dunyuliu/DR4GM.git
+cd DR4GM
+bash scripts/install.sh
+```
 
-# Download ~14 MB Zenodo bundle of post-processed NPZs (22 scenarios × 3 NPZ each)
-curl -L -o dr4gm_data.tar.gz \
-  https://zenodo.org/record/XXXXXXX/files/dr4gm_data_v0.1.1.tar.gz   # TODO: real DOI
+This creates `.venv/` and installs the pinned Python dependencies into it.
+Activate it in each new shell:
+
+```bash
+source .venv/bin/activate
+```
+
+One optional dependency, `openquake.engine`'s GDAL-based geospatial stack,
+is not always installable in a clean environment. If it is missing, every
+figure still generates except **Figure14B** (SA bias vs. period against
+NGA-West2 GMPEs), and `regen_ensemble_figures.sh` prints a named
+`SKIPPED: Figure14B.png` notice rather than failing. `scripts/install.sh`
+reports whether GMPE comparison is available right after setup.
+
+## Run one example
+
+A small (~560 KB) EQdyna fixture ships in the repo so you can run the full
+per-scenario pipeline without downloading anything:
+
+```bash
+bash src/utils/run_all.sh \
+  tests/fixture_reference/eqdyna_0001A_fixture/raw \
+  eqdyna \
+  results/readme_example
+```
+
+This converts the raw output, subsets stations to a 1 km grid, computes GM
+metrics and distance-binned statistics, and renders maps/plots. Expect it to
+finish in well under a minute and to populate `results/readme_example/`
+with `ground_motion_metrics.npz`, `gm_statistics.npz`, and PNGs such as
+`gmPGAStatsVsR.png` and `ground_motion_summary.png`.
+
+To run the same pipeline on any other simulation's raw output:
+
+```bash
+bash src/utils/run_all.sh <input_dir> <code> <output_dir>
+# <code> is one of: eqdyna, fd3d, waveqlab3d, seissol, sord, mafe, specfem3d
+```
+
+## Reproduce the manuscript figures (Figs 11–19)
+
+The post-processed NPZs behind the manuscript figures (22 scenarios × 3 NPZ
+each, ~14 MB) are archived on Zenodo, concept DOI pending — the record is
+not public yet, so the usual `curl`/Zenodo recipe does not work for outside
+readers today. Once the record is public this will reproduce Figs 11–19:
+
+```bash
+curl -L -o dr4gm_data.tar.gz "<Zenodo record URL, once minted>"
 mkdir -p results && tar xzf dr4gm_data.tar.gz -C results/
-# After extract: results/production_runs/<code>/<scenario>/{ground_motion_metrics,gm_statistics,geometry}.npz
-
-bash scripts/regen_ensemble_figures.sh                            # Figs 11–19 → figs_to_publish/
+bash scripts/regen_ensemble_figures.sh
 ```
 
-That's it — every manuscript figure part lands in
-`results/production_runs/figs_to_publish/Figure<NN><letter>.png`.
+Check the repository's
+[GitHub Releases](https://github.com/dunyuliu/dr4gm/releases) for the
+current status; if a bundle is attached to a release there, download it from
+there instead of Zenodo and skip straight to the `tar xzf` step. Figures land
+in `results/production_runs/figs_to_publish/Figure<NN><letter>.png` (code
+letters: A=WaveQLab3D, B=SeisSol, C=SORD, D=EQdyna, E=MAFE, F=SPECFEM3D,
+G=FD3D_TSN). For the formulas behind each figure (τ vs φ vs σ, GMRotD50, Rjb
+segment distance, etc.), see [`docs/user/FORMULAS.md`](docs/user/FORMULAS.md).
 
-Code letters in filenames: A=WaveQLab3D, B=SeisSol, C=SORD, D=EQdyna,
-E=MAFE, F=SPECFEM3D, G=FD3D_TSN.
+## Where outputs land
 
-For the formulas behind each figure (τ vs φ vs σ, GMRotD50, Rjb segment
-distance, etc.), see [`FORMULAS.md`](docs/user/FORMULAS.md).
-
-## Reproduce from raw simulation data (~200 GB, optional)
-
-If you have access to the raw simulation outputs:
-
-```bash
-ln -s /path/to/raw_simulation_archive data/reference
-bash scripts/run_pipeline.sh                                      # raw → NPZ → figures
-```
-
-Raw inputs are available on request from each modeling group; contact
-authors of the respective simulation codes (EQdyna, SeisSol, SORD, MAFE,
-SPECFEM3D, WaveQLab3D, FD3D_TSN).
-
-## One-scenario pipeline
-
-```bash
-cd src/utils
-./run_all.sh ../../data/reference/datasets/eqdyna/eqdyna.0001.A.100m eqdyna ./results/eqdyna_A_100m
-```
-
-Produces per-scenario `ground_motion_metrics.npz` + `gm_statistics.npz` +
-per-metric maps + attenuation plots in the chosen output directory.
-
-Supported simulation codes & converters (in `src/utils/`):
-
-| Code | Converter |
+| Command | Output |
 |---|---|
-| EQdyna | `eqdyna_converter_api.py` |
-| FD3D_TSN | `fd3d_converter_api.py` |
-| SeisSol | `seissol_converter_api.py` |
-| WaveQLab3D | `waveqlab3d_converter_api.py` |
-| SPECFEM3D | `specfem3d_converter_api.py` |
-| MAFE | `mafe_converter_api.py` |
-| SORD | `sord_plot_converter_api.py` |
+| `src/utils/run_all.sh <in> <code> <out>` | `<out>/` — one scenario's NPZs and plots |
+| `tests/run_tests.sh` | `results/regression/` |
+| `tests/run_tests.sh --all` | `results/production_runs/` |
+| `scripts/regen_ensemble_figures.sh` | `results/production_runs/figs_to_publish/` |
 
-MAFE/SORD bypass `npz_gm_processor.py` (they ship pre-computed statistics;
-converters write `gm_statistics.npz` directly).
-
-## Regression test
+## Tests
 
 ```bash
-bash tests/run_tests.sh           # 5 canonical scenarios (~14 min on M3)
-bash tests/run_tests.sh --all     # all 20 scenarios     (~59 min)
+bash tests/check_layout.sh         # repo layout gate (no network, no data needed)
 ```
 
-Diffs fresh `ground_motion_metrics.npz` against the bundled 1 km baseline
-(`tests/reference_results/`, ~3 MB). Pass = float32-aware bit
-equivalence (1e-6 rel for float32 inputs, 1e-12 otherwise).
+The full regression suite (`tests/run_tests.sh`) and the bundle end-to-end
+test (`tests/run_e2e_bundle.sh`) need the ~199 GB raw reference dataset or
+the Zenodo bundle respectively, neither of which is public yet — see
+`tests/run_tests.sh` and `tests/run_e2e_bundle.sh` headers for usage once you
+have one of those inputs.
 
 ## Optional interfaces
 
 | Dir | What | Entry point |
 |---|---|---|
 | `src/gui/` | Tkinter desktop GUI for the 6-phase workflow | `python src/gui/tkGUI_dr4gm_new.py` |
-| `web/` | Streamlit interactive explorer (path fixed by the Streamlit Cloud deployment) | `streamlit run web/dr4gm_interactive_explorer.py` |
+| `web/` | Streamlit interactive explorer ([live demo](https://dr4gm-web-explorer.streamlit.app)) | `streamlit run web/dr4gm_interactive_explorer.py` |
 
 ## Dependencies
 
-`numpy`, `scipy`, `matplotlib`, `pandas`, `netCDF4`, `h5py`,
-`openquake.engine` (GMPE overlays). `streamlit`, `pillow` for the optional
-GUI/web app.
+Pinned in [`requirements.txt`](requirements.txt): `numpy`, `scipy`,
+`matplotlib`, `pandas`, `netCDF4`, `h5py`, `openquake.engine` (GMPE
+overlays), `streamlit`/`pillow` (web app). `scripts/install.sh` installs all
+of these into `.venv/`. No GPU or special hardware is required; the examples
+above run on a laptop.
 
-### Optional: GMPE comparison (Figure14B)
+## Citing DR4GM
 
-Figure14B (spectral-acceleration bias vs period against the NGA-West2 GMPEs)
-needs `openquake.engine`'s geospatial dependencies (GDAL) in addition to the
-base install. To enable it:
+See [`CITATION.cff`](CITATION.cff) for the full author list, ORCID, and
+version metadata (GitHub's "Cite this repository" button reads it directly).
 
-```bash
-pip install openquake.engine
-```
+## Getting help
 
-This is optional — without it, `scripts/regen_ensemble_figures.sh` still
-produces all other figures and prints a clear `SKIPPED: Figure14B.png`
-notice instead of failing. `scripts/install.sh` also prints whether GMPE
-comparison is available right after it finishes setting up `.venv`.
-
-## Citation
-
-```
-Liu, D. DR4GM: Data Repository for Ground Motion — a platform for processing
-physics-based earthquake simulation data. Institute for Geophysics, The
-University of Texas at Austin. (Manuscript in prep.)
-```
+Open an [issue](https://github.com/dunyuliu/dr4gm/issues) on this
+repository.
 
 ## Acknowledgments
 
-Bundles the **GMPE Strong Motion Modeller's Toolkit** (`src/gmpe-smtk/`) by the
-**GEM Foundation** (© 2014–2018, AGPLv3,
-<https://github.com/GEMScienceTools/gmpe-smtk>). See `src/gmpe-smtk/LICENSE`
-and `src/gmpe-smtk/LOCAL_MODIFICATIONS.md`.
+Bundles the **GMPE Strong Motion Modeller's Toolkit** (`src/gmpe-smtk/`) by
+the **GEM Foundation** (© 2014–2018, AGPLv3,
+<https://github.com/GEMScienceTools/gmpe-smtk>). See
+`src/gmpe-smtk/LICENSE` and `src/gmpe-smtk/LOCAL_MODIFICATIONS.md`.
 
 Built with assistance from **[Claude Code](https://github.com/anthropics/claude-code)**.
 
